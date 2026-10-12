@@ -1,0 +1,82 @@
+name: Verify SDK
+
+on:
+  workflow_call:
+    inputs:
+      release:
+        description: Require a matching version tag and retain the verified package
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Node ${{ matrix.node }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['24', '26']
+    env:
+      CI: 'true'
+      NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
+      NPM_CONFIG_IGNORE_SCRIPTS: 'true'
+      NPM_CONFIG_AUDIT: 'false'
+      NPM_CONFIG_FUND: 'false'
+    steps:
+      # Official action refs and commit signatures verified through the GitHub API.
+      - name: Check out this repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          submodules: false
+          lfs: false
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: ${{ matrix.node }}
+          package-manager-cache: false
+      - name: Use unauthenticated public npm configuration
+        run: |
+          printf 'registry=https://registry.npmjs.org/\nignore-scripts=true\naudit=false\nfund=false\n' > "$RUNNER_TEMP/sdk-user.npmrc"
+          : > "$RUNNER_TEMP/sdk-global.npmrc"
+          printf 'NPM_CONFIG_USERCONFIG=%s\n' "$RUNNER_TEMP/sdk-user.npmrc" >> "$GITHUB_ENV"
+          printf 'NPM_CONFIG_GLOBALCONFIG=%s\n' "$RUNNER_TEMP/sdk-global.npmrc" >> "$GITHUB_ENV"
+      - name: Exercise package checker rejection paths
+        run: node scripts/check-packed.mjs --self-test
+      - name: Audit dependency sources before installation
+        run: node scripts/check-packed.mjs --audit-source
+      - name: Require release tag to match package version
+        if: inputs.release
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" != refs/tags/v* ]]; then
+            echo 'Release verification must run on an existing v<package-version> tag.' >&2
+            exit 1
+          fi
+          node scripts/check-packed.mjs --audit-source --expect-version "${GITHUB_REF#refs/tags/v}"
+      - name: Install locked public dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts --registry=https://registry.npmjs.org/ --no-audit --no-fund
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Test
+        run: npm test
+      - name: Build
+        run: npm run build
+      - name: Inspect tarball and exercise an isolated installed consumer
+        run: node scripts/check-packed.mjs --output-dir "$RUNNER_TEMP/verified-sdk"
+      - name: Retain verified release candidate
+        if: inputs.release && matrix.node == '24' && github.repository == 'roeehrl/course-sdk' && github.ref_type == 'tag'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: sdk-${{ github.ref_name }}-node24
+          path: |
+            ${{ runner.temp }}/verified-sdk/*.tgz
+            ${{ runner.temp }}/verified-sdk/verification.json
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+          include-hidden-files: false

@@ -1,0 +1,49 @@
+{
+  "name": "@course-core/sdk",
+  "version": "0.1.0",
+  "description": "Portable authoring contracts and validation for adaptive courses",
+  "type": "module",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./compiler": {
+      "types": "./dist/compiler.d.ts",
+      "import": "./dist/compiler.js"
+    },
+    "./schema": "./dist/course.schema.json"
+  },
+  "bin": {
+    "course": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "npm run generate && tsc -p tsconfig.build.json && node scripts/copy-schema.mjs",
+    "typecheck": "npm run generate && tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "npm run typecheck && npm test && npm run build",
+    "prepack": "npm run build",
+    "generate": "node scripts/generate-validator.mjs",
+    "pretest": "npm run generate"
+  },
+  "dependencies": {
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "esbuild": "^0.28.2",
+    "typescript": "7.0.2",
+    "vitest": "5.0.4"
+  }
+}

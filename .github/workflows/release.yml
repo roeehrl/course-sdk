@@ -1,0 +1,21 @@
+name: Release verification
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+# Verification only: this workflow cannot publish to npm or create a release.
+permissions:
+  contents: read
+
+concurrency:
+  group: release-verification-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    if: github.repository == 'roeehrl/course-sdk'
+    uses: ./.github/workflows/verify.yml
+    with:
+      release: true

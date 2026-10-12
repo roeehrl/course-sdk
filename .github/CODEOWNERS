@@ -1,0 +1,5 @@
+# Security-sensitive automation and the public package boundary.
+/.github/ @roeehrl
+/scripts/check-packed.mjs @roeehrl
+/package.json @roeehrl
+/package-lock.json @roeehrl
