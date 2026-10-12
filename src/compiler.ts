@@ -1,6 +1,12 @@
 import { createHash } from 'node:crypto';
+import { canonicalJson } from './json.js';
+export { canonicalJson } from './json.js';
 import { validateCourse } from './validate.js';
 import type { CourseManifest, ValidationIssue } from './types.js';
+import { validateCourseAdaptation } from './adaptation.js';
+import { digestJson } from './integrity.js';
+import { projectLearnerAdaptation, type LearnerAdaptation } from './adaptation-projection.js';
+import type { AdaptationValidationContext, CourseAdaptation } from './adaptation-types.js';
 
 export class CourseValidationError extends Error {
   constructor(public readonly issues: ValidationIssue[]) {
@@ -9,18 +15,7 @@ export class CourseValidationError extends Error {
   }
 }
 
-/** Canonical JSON preserves array order and sorts object keys, without mutating input. */
-export function canonicalJson(value: unknown): string {
-  if (value === null || typeof value === 'boolean' || typeof value === 'string') return JSON.stringify(value);
-  if (typeof value === 'number' && Number.isFinite(value)) return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
-  if (typeof value === 'object' && value !== null) {
-    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson((value as Record<string, unknown>)[key])}`).join(',')}}`;
-  }
-  throw new TypeError('Canonical encoding requires finite JSON data.');
-}
-
-export type LearnerCourse = Omit<CourseManifest, 'assessments' | 'gates' | 'placement' | 'extensions'> & {
+export type LearnerCourse = Omit<CourseManifest, 'assessments' | 'gates' | 'placement' | 'extensions' | 'adaptation' | 'research'> & {
   assessments: { id: string; type: string; objectiveIds: string[] }[];
   gates: { id: string; objectiveIds: string[]; minimumIndependentFamilies: number; requireAllObjectives: boolean }[];
   placement?: { enabled: boolean; learnerMayDecline: true; objectiveIds: string[]; maxItems: number };
@@ -40,7 +35,7 @@ export function compileCourse(input: unknown): CompiledCourse {
   if (!result.valid) throw new CourseValidationError(result.issues);
   const server = result.course;
   const digest = createHash('sha256').update(canonicalJson(server)).digest('hex');
-  const { assessments, gates, placement, extensions, ...rest } = structuredClone(server);
+  const { assessments, gates, placement, extensions, adaptation: _authoring, research: _research, ...rest } = structuredClone(server);
   const learner: LearnerCourse = {
     ...rest,
     assessments: assessments.map(({ id, type, objectiveIds }) => ({ id, type, objectiveIds })),
@@ -51,6 +46,38 @@ export function compileCourse(input: unknown): CompiledCourse {
     learner.placement = { enabled: placement.enabled, learnerMayDecline: true, objectiveIds: placement.objectiveIds, maxItems: placement.maxItems };
   }
   return { formatVersion: 1, digest, server, learner };
+}
+
+export interface CompiledCourseAdaptation {
+  formatVersion: 1;
+  status: 'proposal';
+  proofAuthenticity: 'not_checked';
+  applicationAuthority: 'not_checked';
+  proposalDigest: string;
+  proposedPlan: { baseCourseDigest: string; parentDigest: string; revision: number; digest: string };
+  server: CourseAdaptation;
+  learner: LearnerAdaptation;
+}
+
+/** Compiles a candidate plan, not an applied/authorized update or evidence receipt. */
+export async function compileCourseAdaptation(input: unknown, context: AdaptationValidationContext): Promise<CompiledCourseAdaptation> {
+  const result = await validateCourseAdaptation(input, context);
+  if (!result.valid) throw new CourseValidationError(result.issues);
+  const identity = { baseCourseDigest: result.proposal.baseCourseDigest, parentDigest: result.proposal.expectedPlanDigest,
+    revision: result.proposal.expectedPlanRevision + 1, proposalDigest: result.proposalDigest };
+  return { formatVersion: 1, status: 'proposal', proofAuthenticity: 'not_checked', applicationAuthority: 'not_checked',
+    proposalDigest: result.proposalDigest,
+    proposedPlan: { baseCourseDigest: identity.baseCourseDigest, parentDigest: identity.parentDigest, revision: identity.revision, digest: await digestJson(identity) },
+    server: result.proposal, learner: projectLearnerAdaptation(result.proposal) };
+}
+
+/** Verifies data integrity/projection only. It does not authenticate claimed proofs. */
+export async function verifyCompiledCourseAdaptation(value: unknown, context: AdaptationValidationContext): Promise<boolean> {
+  if (!value || typeof value !== 'object') return false;
+  try {
+    const expected = await compileCourseAdaptation((value as CompiledCourseAdaptation).server, context);
+    return canonicalJson(value) === canonicalJson(expected);
+  } catch { return false; }
 }
 
 /** A checksum proves integrity, not trust in an author or in the correctness of their lessons. */

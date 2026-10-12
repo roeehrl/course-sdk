@@ -15,8 +15,12 @@ const packageName = '@course-core/sdk';
 const maxFileSize = 2 * 1024 * 1024;
 const maxUnpackedSize = 10 * 1024 * 1024;
 const requiredFiles = [
-  'package.json', 'README.md', 'LICENSE', 'dist/index.js', 'dist/index.d.ts',
+  'package.json', 'README.md', 'LICENSE', 'NOTICE', 'dist/index.js', 'dist/index.d.ts',
   'dist/compiler.js', 'dist/compiler.d.ts', 'dist/cli.js', 'dist/course.schema.json',
+  'dist/adaptation.js', 'dist/adaptation.d.ts', 'dist/adaptation.schema.json',
+  'dist/numerical-recipe.js', 'dist/validator-dependencies.json',
+  'dist/research.js', 'dist/research.d.ts', 'dist/research-types.d.ts', 'dist/generated/research-selection-validator.js',
+  'dist/episode.js', 'dist/episode.d.ts',
 ];
 
 function check(condition, message) {
@@ -97,13 +101,14 @@ function auditManifest(manifest, expectedVersion) {
   check(manifest.private !== true && manifest.license === 'Apache-2.0' && manifest.type === 'module',
     'Expected a public Apache-2.0 ESM package');
   check(manifest.engines?.node === '>=24', 'Expected engines.node >=24; update the CI matrix if this changes');
-  assert.deepEqual([...(manifest.files ?? [])].sort(), ['LICENSE', 'README.md', 'dist'], 'Keep the package files allowlist explicit');
-  assert.deepEqual(Object.keys(manifest.exports ?? {}).sort(), ['.', './compiler', './schema'], 'Unexpected public export surface');
+  assert.deepEqual([...(manifest.files ?? [])].sort(), ['LICENSE', 'NOTICE', 'README.md', 'dist'], 'Keep the package files allowlist explicit');
+  assert.deepEqual(Object.keys(manifest.exports ?? {}).sort(), ['.', './adaptation-schema', './compiler', './schema'], 'Unexpected public export surface');
   for (const [key, stem] of [['.', 'index'], ['./compiler', 'compiler']]) {
     assert.deepEqual(manifest.exports[key], { types: `./dist/${stem}.d.ts`, import: `./dist/${stem}.js` }, `Unexpected ${key} export`);
     check(Object.keys(manifest.exports[key])[0] === 'types', `${key}: put the types condition first`);
   }
   check(manifest.exports['./schema'] === './dist/course.schema.json', 'Missing standalone schema export');
+  check(manifest.exports['./adaptation-schema'] === './dist/adaptation.schema.json', 'Missing standalone adaptation schema export');
   assert.deepEqual(manifest.bin, { course: './dist/cli.js' }, 'Expected the course CLI');
   check(!manifest.workspaces && !manifest.bundleDependencies && !manifest.bundledDependencies && !manifest.overrides,
     'Workspaces, bundled dependencies, and overrides need an explicit package policy review');
@@ -146,7 +151,7 @@ function auditLock(lock, manifest) {
 async function auditSourceRepositoryReferences(directory) {
   // Scan public inputs even before a build exists. Never traverse .git, installed
   // dependencies, build output, or sibling checkouts. Symlinks cannot widen scope.
-  const sourceDirectories = new Set(['src', 'tests', 'scripts', '.github']);
+  const sourceDirectories = new Set(['src', 'tests', 'scripts', 'fixtures', '.github']);
   async function scan(current, relative = '') {
     for (const entry of await readdir(current, { withFileTypes: true })) {
       if (entry.name === '.git' || entry.name === 'node_modules') continue;
@@ -176,7 +181,7 @@ async function auditSource(expectedVersion) {
 }
 
 function allowedFile(name) {
-  if (['package.json', 'README.md', 'LICENSE', 'dist/course.schema.json'].includes(name)) return true;
+  if (['package.json', 'README.md', 'LICENSE', 'NOTICE', 'dist/course.schema.json', 'dist/adaptation.schema.json', 'dist/validator-dependencies.json'].includes(name)) return true;
   if (!/^dist\/(?:[a-zA-Z0-9_-]+\/)*[a-zA-Z0-9_-]+\.(?:js|d\.ts)$/.test(name)) return false;
   return !/(?:^|\/)(?:tests?|fixtures?|examples?|data|datasets?|coverage|node_modules|src)(?:[/._-]|$)/i.test(name);
 }
@@ -250,6 +255,27 @@ function auditPackage(entries, manifest, report) {
   const cli = entries.get('dist/cli.js');
   check(cli.bytes.toString('utf8').startsWith('#!/usr/bin/env node\n'), 'The packed CLI must have a Node shebang');
   JSON.parse(entries.get('dist/course.schema.json').bytes.toString('utf8'));
+  JSON.parse(entries.get('dist/adaptation.schema.json').bytes.toString('utf8'));
+  const notice = entries.get('NOTICE').bytes.toString('utf8');
+  const inventory = JSON.parse(entries.get('dist/validator-dependencies.json').bytes.toString('utf8'));
+  const bundledNames = new Set();
+  assert.deepEqual(inventory.map(row => row.validator).sort(), ['adaptation', 'adaptation-context', 'assignment-decisions', 'course', 'numerical-recipe', 'recipe-instance', 'research-selection'], 'Unexpected validator inventory');
+  for (const row of inventory) {
+    const bundle = entries.get(`dist/generated/${row.validator}-validator.js`);
+    check(bundle, 'A generated validator listed in the inventory is missing');
+    const code = bundle.bytes.toString('utf8');
+    for (const dependency of row.dependencies) {
+      bundledNames.add(dependency.name);
+      check(['ajv', 'ajv-formats', 'fast-deep-equal'].includes(dependency.name) && dependency.license === 'MIT', 'Review newly bundled runtime licenses');
+      const marker = `${dependency.name}@${dependency.version}\n`;
+      check(notice.includes(marker), 'Missing bundled dependency notice');
+      const license = notice.split(marker)[1].split(/\n\n(?:ajv|ajv-formats|fast-deep-equal)@/)[0].trim();
+      check(createHash('sha256').update(license).digest('hex') === dependency.licenseSha256, 'Packed notice differs from the inspected license');
+      check(code.includes(license), 'Generated bundle lost its exact third-party license notice');
+      check(dependency.modules.length > 0 && dependency.modules.every(module => code.includes(`node_modules/${module}`)), 'Bundled module inventory differs from actual code');
+    }
+  }
+  assert.deepEqual([...bundledNames].sort(), ['ajv', 'ajv-formats', 'fast-deep-equal']);
   return files;
 }
 
@@ -287,11 +313,14 @@ async function smokeConsumer(temp, tarball, manifest, env) {
   auditLock({ name: manifest.name, version: manifest.version, lockfileVersion: 3,
     packages: { ...publicPackages, '': manifest } }, manifest);
   await writeFile(path.join(consumer, 'fixture.json'), JSON.stringify(fixture));
+  // Public JSON input only; all implementation imports below come from the installed tarball.
+  await copyFile(path.join(root, 'fixtures/ordering.adaptation.json'), path.join(consumer, 'adaptation-fixture.json'));
   await writeFile(path.join(consumer, 'main-smoke.mjs'), `
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { registerHooks, builtinModules } from 'node:module';
 const fixture = JSON.parse(readFileSync(new URL('./fixture.json', import.meta.url)));
+const adaptive = JSON.parse(readFileSync(new URL('./adaptation-fixture.json', import.meta.url)));
 const builtins = new Set(builtinModules.flatMap(name => [name, 'node:' + name]));
 const hooks = registerHooks({ resolve(specifier, context, nextResolve) {
   assert.ok(!specifier.startsWith('node:') && !builtins.has(specifier), 'Main export imports a Node builtin: ' + specifier);
@@ -313,12 +342,40 @@ try {
   const valid = await sdk.validateCourse(course);
   assert.equal(valid.valid, true, 'The synthetic course must validate');
   assert.deepEqual(valid.issues, []);
+  assert.equal(sdk.getEpisodeRequirement(course.chapters[0].episodes[0]), 'required');
+  assert.ok(!('requirement' in valid.course.chapters[0].episodes[0]));
+  const optionalCourse = structuredClone(course);
+  optionalCourse.chapters[0].episodes[0].requirement = 'optional';
+  assert.equal(sdk.validateCourse(optionalCourse).valid, true);
+  assert.equal(sdk.getEpisodeRequirement(optionalCourse.chapters[0].episodes[0]), 'optional');
+  optionalCourse.objectives[0].critical = true;
+  assert.ok(sdk.validateCourse(optionalCourse).issues.some(issue => issue.code === 'OPTIONAL_ONLY_OBJECTIVE'));
   const invalid = await sdk.validateCourse(null);
   assert.equal(invalid.valid, false);
   assert.ok(invalid.issues.length > 0);
   const dangling = structuredClone(course);
   dangling.chapters[0].episodes[0].objectiveIds.push('missing-objective');
   assert.equal((await sdk.validateCourse(dangling)).valid, false, 'Dangling references must fail');
+  const adaptiveContext = { course: adaptive.course, baseCourseDigest: adaptive.baseCourseDigest,
+    plan: adaptive.plan, registeredVerifiers: adaptive.registeredVerifiers };
+  const proposal = await sdk.validateCourseAdaptation(adaptive.proposal, adaptiveContext);
+  assert.equal(proposal.valid, true);
+  assert.equal(proposal.proofAuthenticity, 'not_checked');
+  assert.equal(proposal.applicationAuthority, 'not_checked');
+  const recipe = await sdk.instantiateNumericalRecipe(adaptive.course.adaptation.numericalRecipes[0], { a: 7, b: 2 });
+  assert.equal(recipe.value, 2);
+  await assert.rejects(sdk.instantiateNumericalRecipe(adaptive.course.adaptation.numericalRecipes[0], { a: 1000, b: 2 }));
+  const assignments = await sdk.validateAssignmentDecisions(adaptive.proposal, adaptiveContext, adaptive.assignments);
+  assert.equal(assignments.valid, true);
+  const researchCourse = structuredClone(course);
+  researchCourse.research = { publicTopics: [{ id: 'public-reference', objectiveIds: [course.objectives[0].id],
+    queryText: 'Public reference material', allowedDomains: ['reference.example'] }] };
+  const research = sdk.resolvePublicResearchRequest(researchCourse, { topicId: 'public-reference' });
+  assert.deepEqual(research, { valid: true, request: { queryText: 'Public reference material', allowedDomains: ['reference.example'] },
+    authorityAuthenticity: 'not_checked', issues: [] });
+  assert.equal(sdk.resolvePublicResearchRequest(researchCourse, { topicId: 'invented' }).valid, false);
+  assert.equal(sdk.resolvePublicResearchRequest(researchCourse, { topicId: 'public-reference', history: ['PRIVATE_SENTINEL'] }).valid, false);
+  assert.equal(sdk.resolvePublicResearchRequest(researchCourse, { topicId: 'public-reference', queryText: 'Unapproved query' }).valid, false);
 } finally {
   hooks.deregister();
   globalThis.process = savedProcess;
@@ -329,12 +386,14 @@ try {
   await writeFile(path.join(consumer, 'compiler-smoke.mjs'), `
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { compileCourse, verifyCompiledCourse } from '@course-core/sdk/compiler';
+import { compileCourse, verifyCompiledCourse, compileCourseAdaptation, verifyCompiledCourseAdaptation } from '@course-core/sdk/compiler';
 import schema from '@course-core/sdk/schema' with { type: 'json' };
+import adaptationSchema from '@course-core/sdk/adaptation-schema' with { type: 'json' };
 assert.equal(typeof compileCourse, 'function');
 assert.equal(typeof verifyCompiledCourse, 'function');
 assert.equal(typeof schema, 'object');
 assert.ok(schema.$schema);
+assert.ok(adaptationSchema.$schema);
 const fixture = JSON.parse(readFileSync(new URL('./fixture.json', import.meta.url)));
 const compiled = compileCourse(fixture);
 assert.equal(compiled.formatVersion, 1);
@@ -351,6 +410,29 @@ const changed = structuredClone(compiled);
 changed.learner.title = 'Tampered synthetic title';
 assert.equal(verifyCompiledCourse(changed), false);
 assert.throws(() => compileCourse(null));
+assert.equal(schema.$defs.episode.properties.requirement.default, 'required');
+const optionalCourse = structuredClone(fixture);
+optionalCourse.chapters[0].episodes[0].requirement = 'optional';
+const optionalCompiled = compileCourse(optionalCourse);
+assert.equal(optionalCompiled.learner.chapters[0].episodes[0].requirement, 'optional');
+assert.notEqual(optionalCompiled.digest, compiled.digest);
+assert.equal(verifyCompiledCourse(optionalCompiled), true);
+const researchCourse = structuredClone(fixture);
+researchCourse.research = { publicTopics: [{ id: 'public-reference', objectiveIds: [fixture.objectives[0].id], queryText: 'Public reference material' }] };
+assert.ok(schema.properties.research);
+assert.ok(!('research' in compileCourse(researchCourse).learner));
+assert.deepEqual(compileCourse(researchCourse).server.research, researchCourse.research);
+const adaptive = JSON.parse(readFileSync(new URL('./adaptation-fixture.json', import.meta.url)));
+const context = { course: adaptive.course, baseCourseDigest: adaptive.baseCourseDigest, plan: adaptive.plan, registeredVerifiers: adaptive.registeredVerifiers };
+const plan = await compileCourseAdaptation(adaptive.proposal, context);
+assert.equal(await verifyCompiledCourseAdaptation(plan, context), true);
+assert.equal(plan.proposedPlan.baseCourseDigest, compileCourse(adaptive.course).digest);
+assert.ok(!('adaptation' in compileCourse(adaptive.course).learner));
+for (const secret of ['hiddenFixtures', 'grading', 'fixtureRef', 'promptTemplate', 'FIXTURE_NOT_FOR_LEARNER'])
+  assert.ok(!JSON.stringify(plan.learner).includes(secret), 'Generated learner projection exposes server data');
+assert.equal(plan.proofAuthenticity, 'not_checked');
+const damaged = structuredClone(plan); damaged.proofAuthenticity = 'verified';
+assert.equal(await verifyCompiledCourseAdaptation(damaged, context), false);
 if (process.argv[2]) {
   const cliOutput = JSON.parse(readFileSync(process.argv[2]));
   assert.equal(verifyCompiledCourse(cliOutput), true);
@@ -359,12 +441,32 @@ if (process.argv[2]) {
 `);
   run(process.execPath, ['compiler-smoke.mjs'], { cwd: consumer, env });
   await writeFile(path.join(consumer, 'consumer.mts'), `
-import { defineCourse, validateCourse, type CourseManifest } from '@course-core/sdk';
+import { defineCourse, validateCourse, validateCourseAdaptation, getEpisodeRequirement, type EpisodeRequirement, type Episode, resolvePublicResearchRequest, type PublicResearchSelection, type PublicResearchRequest, type CourseManifest, type CourseAdaptation,
+  type AdaptationValidationContext, type ExerciseGeneratorPort, type ArtifactVerifierPort } from '@course-core/sdk';
 declare const input: CourseManifest;
 const course: CourseManifest = defineCourse(input);
 const result = validateCourse(course);
 const valid: boolean = result.valid;
 void valid;
+declare const episode: Episode;
+const requirement: EpisodeRequirement = getEpisodeRequirement(episode);
+void requirement;
+// @ts-expect-error Required/optional classification is a closed enum.
+const unknownRequirement: EpisodeRequirement = 'skippable';
+void unknownRequirement;
+declare const proposal: CourseAdaptation;
+declare const context: AdaptationValidationContext;
+declare const generator: ExerciseGeneratorPort;
+declare const verifier: ArtifactVerifierPort;
+const checked = await validateCourseAdaptation(proposal, context);
+if (checked.valid) { const trust: 'not_checked' = checked.proofAuthenticity; void trust; }
+void generator; void verifier;
+const selection: PublicResearchSelection = { topicId: 'public-reference' };
+const research = resolvePublicResearchRequest(course, selection);
+if (research.valid) { const request: PublicResearchRequest = research.request; void request; }
+// @ts-expect-error Private context is not part of a research selection.
+const privateSelection: PublicResearchSelection = { topicId: 'public-reference', history: [] };
+void privateSelection;
 `);
   await writeFile(path.join(consumer, 'tsconfig.json'), JSON.stringify({ compilerOptions: {
     target: 'ES2022', module: 'NodeNext', moduleResolution: 'NodeNext', strict: true,
@@ -563,7 +665,7 @@ async function main() {
       sha256: createHash('sha256').update(compressed).digest('hex'), files,
       checks: ['dependency-sources', 'tar-safety', 'file-allowlist', 'sensitive-content-patterns',
         'isolated-install', 'portable-main-runtime-no-code-generation', 'portable-main-types', 'compiler-integrity-and-learner-projection',
-        'schema-export', 'cli-validation-compilation-exclusive-output'],
+        'schema-export', 'adaptation-recipe-contracts', 'generated-grading-projection', 'public-research-boundary', 'episode-requirements', 'bundled-license-notices', 'cli-validation-compilation-exclusive-output'],
     };
     if (outputDir) {
       await mkdir(outputDir, { recursive: true });
@@ -571,7 +673,7 @@ async function main() {
       await copyFile(tarball, path.join(outputDir, report.filename));
       await writeFile(path.join(outputDir, 'verification.json'), JSON.stringify(verification, null, 2) + '\n');
     }
-    console.log(`Verified ${manifest.name}@${manifest.version}: ${files.length} packed files; isolated consumer, portable main/types, compiler integrity/projection, schema, and CLI passed on ${process.version}.`);
+    console.log(`Verified ${manifest.name}@${manifest.version}: ${files.length} packed files; isolated consumer, portable main/types, course/adaptation integrity and projections, bounded recipes, public research, episode requirements, bundled notices, schemas and CLI passed on ${process.version}.`);
   } finally {
     await rm(temp, { recursive: true, force: true });
   }

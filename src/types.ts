@@ -1,3 +1,5 @@
+import type { AdaptationAuthoring } from './adaptation-types.js';
+import type { ResearchAuthoring } from './research-types.js';
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 export type Platform = 'web' | 'ios' | 'android';
 
@@ -49,11 +51,15 @@ export type ContentBlock =
   | { id: string; type: 'media'; mediaId: string; required: boolean }
   | { id: string; type: 'activity'; extensionId: string; configuration: Record<string, Json> };
 
+export type EpisodeRequirement = 'required' | 'optional';
+
 export interface Episode {
   id: string;
   title: string;
   objectiveIds: string[];
   blocks: ContentBlock[];
+  /** Author-owned classification of this fixed unit. Omission means required. */
+  requirement?: EpisodeRequirement;
   gateId?: string;
   policy?: LearningPolicy;
 }
@@ -148,6 +154,10 @@ export interface CourseManifest {
   sources: SourceReference[];
   policy: LearningPolicy;
   placement?: PlacementPolicy;
+  /** Optional additive authoring rules. Runtime trust and application are host-owned. */
+  adaptation?: AdaptationAuthoring;
+  /** Public research declarations; trusted author approval is enforced by the host. */
+  research?: ResearchAuthoring;
 }
 
 export interface ValidationIssue {
@@ -163,6 +173,10 @@ export type ValidationResult =
 export interface ContextCapsule {
   enrollmentId: string;
   courseDigest: string;
+  /** Personal teaching changes do not replace the immutable course identity. */
+  planRevision?: number;
+  planDigest?: string;
+  artifactRefs?: { id: string; digest: string }[];
   episodeId: string;
   blockId?: string;
   activityId?: string;

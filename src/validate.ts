@@ -1,36 +1,12 @@
 import type { ValidateFunction } from 'ajv';
+import { jsonIssue } from './json.js';
+import { getEpisodeRequirement } from './episode.js';
+import { adaptationAuthoringIssues } from './adaptation-authoring.js';
 import generatedValidator from './generated/course-validator.js';
 import type { CourseManifest, LearningPolicy, ValidationIssue, ValidationResult } from './types.js';
 
 const validateShape = generatedValidator as ValidateFunction<CourseManifest>;
 const pointer = (value: string) => value.replaceAll('~', '~0').replaceAll('/', '~1');
-
-/** Reject values whose JSON representation would silently lose or alter data. */
-function jsonIssue(input: unknown): ValidationIssue | undefined {
-  const ancestors = new Set<object>();
-  let visited = 0;
-  function visit(value: unknown, path: string, depth: number): ValidationIssue | undefined {
-    if (++visited > 200_000 || depth > 64) return { code: 'JSON_LIMIT', path, message: 'Document exceeds the structural resource limit.' };
-    if (value === null || typeof value === 'string' || typeof value === 'boolean') return;
-    if (typeof value === 'number' && Number.isFinite(value)) return;
-    if (typeof value !== 'object') return { code: 'NOT_JSON', path, message: 'Expected a finite JSON value.' };
-    if (ancestors.has(value)) return { code: 'NOT_JSON', path, message: 'Cyclic objects cannot be course data.' };
-    if (!Array.isArray(value) && Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null) {
-      return { code: 'NOT_JSON', path, message: 'Only plain JSON objects are accepted.' };
-    }
-    if (Reflect.ownKeys(value).some((key) => typeof key === 'symbol')) return { code: 'NOT_JSON', path, message: 'Symbol properties are not serializable.' };
-    ancestors.add(value);
-    for (const [key, child] of Object.entries(value)) {
-      const issue = visit(child, `${path}/${pointer(key)}`, depth + 1);
-      if (issue) return issue;
-    }
-    if (Array.isArray(value)) {
-      for (let i = 0; i < value.length; i++) if (!(i in value)) return { code: 'NOT_JSON', path: `${path}/${i}`, message: 'Sparse arrays are not accepted.' };
-    }
-    ancestors.delete(value);
-  }
-  return visit(input, '', 0);
-}
 
 export function validateCourse(input: unknown): ValidationResult {
   const issue = jsonIssue(input);
@@ -71,6 +47,12 @@ export function validateCourse(input: unknown): ValidationResult {
   const visuals = index(course.visuals, '/visuals');
   const media = index(course.media, '/media');
   const sources = index(course.sources, '/sources');
+  if (course.research) {
+    index(course.research.publicTopics, '/research/publicTopics');
+    for (const [i, topic] of course.research.publicTopics.entries()) {
+      refs(topic.objectiveIds, objectives, `/research/publicTopics/${i}/objectiveIds`);
+    }
+  }
   policy(course.policy, '/policy');
 
   const indegree = new Map(course.objectives.map((objective) => [objective.id, 0]));
@@ -95,6 +77,21 @@ export function validateCourse(input: unknown): ValidationResult {
     }
   }
   if (processed !== objectives.size) report('PREREQUISITE_CYCLE', '/objectives', 'Objective prerequisites must form an acyclic graph.');
+
+  // Declarations without any episode coverage retain schema-1 behavior. Introducing
+  // optional branches must not make supplied critical/prerequisite content skippable.
+  const prerequisiteIds = new Set(course.objectives.flatMap(objective => objective.prerequisites));
+  const requiredCoverage = new Set<string>();
+  const optionalCoverage = new Set<string>();
+  for (const episode of episodeList) {
+    const coverage = getEpisodeRequirement(episode) === 'required' ? requiredCoverage : optionalCoverage;
+    for (const objectiveId of episode.objectiveIds) coverage.add(objectiveId);
+  }
+  for (const [i, objective] of course.objectives.entries()) {
+    if ((objective.critical || prerequisiteIds.has(objective.id)) && optionalCoverage.has(objective.id) && !requiredCoverage.has(objective.id)) {
+      report('OPTIONAL_ONLY_OBJECTIVE', `/objectives/${i}`, 'An objective marked critical or used as a prerequisite cannot be supplied exclusively by optional episodes.');
+    }
+  }
 
   function evaluator(id: string, path: string): void {
     const extension = extensions.get(id);
@@ -190,5 +187,6 @@ export function validateCourse(input: unknown): ValidationResult {
       }
     }
   }
+  issues.push(...adaptationAuthoringIssues(course));
   return issues.length ? { valid: false, issues } : { valid: true, course: structuredClone(course), issues: [] };
 }
