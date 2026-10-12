@@ -21,9 +21,34 @@
     "media": { "type": "array", "maxItems": 5000, "items": { "$ref": "#/$defs/media" } },
     "sources": { "type": "array", "maxItems": 10000, "items": { "$ref": "#/$defs/source" } },
     "policy": { "$ref": "#/$defs/policy" },
-    "placement": { "$ref": "#/$defs/placement" }
+    "placement": { "$ref": "#/$defs/placement" },
+    "adaptation": { "$ref": "#/$defs/adaptationAuthoring" },
+    "research": { "$ref": "#/$defs/researchAuthoring" }
   },
   "$defs": {
+    "researchAuthoring": {
+      "type": "object", "additionalProperties": false, "required": ["publicTopics"],
+      "properties": {
+        "publicTopics": { "type": "array", "minItems": 1, "maxItems": 2000, "items": { "$ref": "#/$defs/publicResearchTopic" } }
+      }
+    },
+    "publicResearchTopic": {
+      "type": "object", "additionalProperties": false, "required": ["id", "objectiveIds", "queryText"],
+      "properties": {
+        "id": { "$ref": "#/$defs/publicResearchTopicId" },
+        "objectiveIds": { "$ref": "#/$defs/ids", "type": "array", "minItems": 1 },
+        "queryText": { "type": "string", "minLength": 1, "maxLength": 2048, "pattern": "\\S" },
+        "allowedDomains": {
+          "type": "array", "minItems": 1, "maxItems": 100, "uniqueItems": true,
+          "items": { "type": "string", "maxLength": 253, "pattern": "^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?(?![\\s\\S])" }
+        }
+      }
+    },
+    "publicResearchSelection": {
+      "type": "object", "additionalProperties": false, "required": ["topicId"],
+      "properties": { "topicId": { "$ref": "#/$defs/publicResearchTopicId" } }
+    },
+    "publicResearchTopicId": { "type": "string", "pattern": "^[a-z][a-z0-9._:-]{0,127}(?![\\s\\S])" },
     "id": { "type": "string", "pattern": "^[a-z][a-z0-9._:-]{0,127}$" },
     "version": { "type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?$" },
     "shortText": { "type": "string", "minLength": 1, "maxLength": 300 },
@@ -76,7 +101,7 @@
     },
     "episode": {
       "type": "object", "additionalProperties": false, "required": ["id", "title", "objectiveIds", "blocks"],
-      "properties": { "id": { "$ref": "#/$defs/id" }, "title": { "$ref": "#/$defs/shortText" }, "objectiveIds": { "$ref": "#/$defs/ids", "type": "array", "minItems": 1 }, "blocks": { "type": "array", "minItems": 1, "maxItems": 500, "items": { "$ref": "#/$defs/block" } }, "gateId": { "$ref": "#/$defs/id" }, "policy": { "$ref": "#/$defs/policy" } }
+      "properties": { "id": { "$ref": "#/$defs/id" }, "title": { "$ref": "#/$defs/shortText" }, "objectiveIds": { "$ref": "#/$defs/ids", "type": "array", "minItems": 1 }, "blocks": { "type": "array", "minItems": 1, "maxItems": 500, "items": { "$ref": "#/$defs/block" } }, "requirement": { "enum": ["required", "optional"], "default": "required" }, "gateId": { "$ref": "#/$defs/id" }, "policy": { "$ref": "#/$defs/policy" } }
     },
     "chapter": {
       "type": "object", "additionalProperties": false, "required": ["id", "title", "episodes"],
@@ -125,6 +150,576 @@
     "media": {
       "type": "object", "additionalProperties": false, "required": ["id", "type", "sourceRef", "url", "review", "alternativeMarkdown", "generated"],
       "properties": { "id": { "$ref": "#/$defs/id" }, "type": { "enum": ["youtube", "video", "image", "audio"] }, "sourceRef": { "$ref": "#/$defs/id" }, "url": { "type": "string", "format": "uri", "maxLength": 4096 }, "review": { "enum": ["unreviewed", "reviewed", "rejected"] }, "alternativeMarkdown": { "$ref": "#/$defs/text" }, "generated": { "type": "boolean" } }
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "artifactKind": {
+      "enum": [
+        "explanation",
+        "practice",
+        "assessment_variant",
+        "media",
+        "visual",
+        "profile_suggestion"
+      ]
+    },
+    "operationKind": {
+      "enum": [
+        "append_teaching",
+        "replace_teaching",
+        "attach_media",
+        "attach_visual",
+        "add_assessment_variant",
+        "suggest_profile_correction"
+      ]
+    },
+    "versionedRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "version": {
+          "$ref": "#/$defs/version"
+        }
+      },
+      "required": [
+        "id",
+        "version"
+      ]
+    },
+    "numericalExpression": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "constant"
+            },
+            "value": {
+              "type": "number",
+              "minimum": -1000000000.0,
+              "maximum": 1000000000.0
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "variable"
+            },
+            "name": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{0,31}$"
+            }
+          },
+          "required": [
+            "type",
+            "name"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "unary"
+            },
+            "operator": {
+              "enum": [
+                "negate",
+                "abs"
+              ]
+            },
+            "value": {
+              "$ref": "#/$defs/numericalExpression"
+            }
+          },
+          "required": [
+            "type",
+            "operator",
+            "value"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "binary"
+            },
+            "operator": {
+              "enum": [
+                "add",
+                "subtract",
+                "multiply",
+                "divide",
+                "min",
+                "max"
+              ]
+            },
+            "left": {
+              "$ref": "#/$defs/numericalExpression"
+            },
+            "right": {
+              "$ref": "#/$defs/numericalExpression"
+            }
+          },
+          "required": [
+            "type",
+            "operator",
+            "left",
+            "right"
+          ]
+        }
+      ]
+    },
+    "numericalRecipe": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "version": {
+          "$ref": "#/$defs/version"
+        },
+        "promptTemplate": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 10000
+        },
+        "sourceRefs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/id"
+          },
+          "minItems": 1,
+          "maxItems": 256,
+          "uniqueItems": true
+        },
+        "variables": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,31}$"
+              },
+              "minimum": {
+                "type": "number",
+                "minimum": -1000000000.0,
+                "maximum": 1000000000.0
+              },
+              "maximum": {
+                "type": "number",
+                "minimum": -1000000000.0,
+                "maximum": 1000000000.0
+              },
+              "integer": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "name",
+              "minimum",
+              "maximum",
+              "integer"
+            ]
+          },
+          "minItems": 0,
+          "maxItems": 32
+        },
+        "expression": {
+          "$ref": "#/$defs/numericalExpression"
+        },
+        "maxNodes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 256
+        },
+        "maxDepth": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16
+        },
+        "maxAbsoluteValue": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1000000000000.0
+        },
+        "referenceCheck": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "verifierId": {
+              "$ref": "#/$defs/id"
+            },
+            "verifierVersion": {
+              "$ref": "#/$defs/version"
+            },
+            "checkId": {
+              "$ref": "#/$defs/id"
+            },
+            "absoluteTolerance": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          },
+          "required": [
+            "verifierId",
+            "verifierVersion",
+            "checkId",
+            "absoluteTolerance"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "promptTemplate",
+        "sourceRefs",
+        "variables",
+        "expression",
+        "maxNodes",
+        "maxDepth",
+        "maxAbsoluteValue",
+        "referenceCheck"
+      ]
+    },
+    "adaptationAuthoring": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "episodeId": {
+                "$ref": "#/$defs/id"
+              },
+              "objectiveIds": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/id"
+                },
+                "minItems": 1,
+                "maxItems": 256,
+                "uniqueItems": true
+              },
+              "allowedOperations": {
+                "type": "array",
+                "items": {
+                  "enum": [
+                    "append_teaching",
+                    "replace_teaching",
+                    "attach_media",
+                    "attach_visual",
+                    "add_assessment_variant"
+                  ]
+                },
+                "minItems": 1,
+                "maxItems": 5,
+                "uniqueItems": true
+              },
+              "replaceableBlockIds": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/id"
+                },
+                "minItems": 0,
+                "maxItems": 256,
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "episodeId",
+              "objectiveIds",
+              "allowedOperations",
+              "replaceableBlockIds"
+            ]
+          },
+          "minItems": 0,
+          "maxItems": 2000
+        },
+        "families": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "familyId": {
+                "$ref": "#/$defs/id"
+              },
+              "canonicalAssessmentId": {
+                "$ref": "#/$defs/id"
+              },
+              "generatorIds": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/id"
+                },
+                "minItems": 1,
+                "maxItems": 256,
+                "uniqueItems": true
+              },
+              "verifierIds": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/id"
+                },
+                "minItems": 1,
+                "maxItems": 256,
+                "uniqueItems": true
+              },
+              "maxVariantsPerPlan": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1000
+              },
+              "numericalRecipeIds": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/id"
+                },
+                "minItems": 0,
+                "maxItems": 256,
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "familyId",
+              "canonicalAssessmentId",
+              "generatorIds",
+              "verifierIds",
+              "maxVariantsPerPlan",
+              "numericalRecipeIds"
+            ]
+          },
+          "minItems": 0,
+          "maxItems": 256
+        },
+        "generators": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "$ref": "#/$defs/id"
+              },
+              "version": {
+                "$ref": "#/$defs/version"
+              },
+              "extensionId": {
+                "$ref": "#/$defs/id"
+              },
+              "sourceRefs": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/id"
+                },
+                "minItems": 1,
+                "maxItems": 256,
+                "uniqueItems": true
+              },
+              "artifactKinds": {
+                "type": "array",
+                "items": {
+                  "enum": [
+                    "explanation",
+                    "practice",
+                    "assessment_variant",
+                    "media",
+                    "visual",
+                    "profile_suggestion"
+                  ]
+                },
+                "minItems": 1,
+                "maxItems": 6,
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "id",
+              "version",
+              "extensionId",
+              "sourceRefs",
+              "artifactKinds"
+            ]
+          },
+          "minItems": 1,
+          "maxItems": 256
+        },
+        "verifiers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "$ref": "#/$defs/id"
+              },
+              "version": {
+                "$ref": "#/$defs/version"
+              },
+              "extensionId": {
+                "$ref": "#/$defs/id"
+              },
+              "sourceRefs": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/id"
+                },
+                "minItems": 1,
+                "maxItems": 256,
+                "uniqueItems": true
+              },
+              "artifactKinds": {
+                "type": "array",
+                "items": {
+                  "enum": [
+                    "explanation",
+                    "practice",
+                    "assessment_variant",
+                    "media",
+                    "visual",
+                    "profile_suggestion"
+                  ]
+                },
+                "minItems": 1,
+                "maxItems": 6,
+                "uniqueItems": true
+              },
+              "requiredCheckIds": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/id"
+                },
+                "minItems": 1,
+                "maxItems": 256,
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "id",
+              "version",
+              "extensionId",
+              "sourceRefs",
+              "artifactKinds",
+              "requiredCheckIds"
+            ]
+          },
+          "minItems": 1,
+          "maxItems": 256
+        },
+        "sourceRefs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/id"
+          },
+          "minItems": 1,
+          "maxItems": 256,
+          "uniqueItems": true
+        },
+        "profileFieldIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/id"
+          },
+          "minItems": 0,
+          "maxItems": 256,
+          "uniqueItems": true
+        },
+        "numericalRecipes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/numericalRecipe"
+          },
+          "minItems": 0,
+          "maxItems": 128
+        },
+        "limits": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "maxOperations": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 128
+            },
+            "maxArtifacts": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 128
+            },
+            "maxArtifactBytes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000000
+            },
+            "maxPlannedMinutesPerAssignment": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100000
+            },
+            "maxAdditionalEpisodesPerAssignment": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000
+            },
+            "allowedClassifications": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "required",
+                  "optional"
+                ]
+              },
+              "minItems": 1,
+              "maxItems": 2,
+              "uniqueItems": true
+            }
+          },
+          "required": [
+            "maxOperations",
+            "maxArtifacts",
+            "maxArtifactBytes",
+            "maxPlannedMinutesPerAssignment",
+            "maxAdditionalEpisodesPerAssignment",
+            "allowedClassifications"
+          ]
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "targets",
+        "families",
+        "generators",
+        "verifiers",
+        "sourceRefs",
+        "profileFieldIds",
+        "numericalRecipes",
+        "limits"
+      ]
     }
   }
 }

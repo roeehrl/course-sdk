@@ -1,0 +1,437 @@
+{
+  "course": {
+    "schemaVersion": 1,
+    "id": "language",
+    "version": "1.0.0",
+    "title": "Welcoming phrases",
+    "summary": "Synthetic public authoring fixture; not a live learner record.",
+    "locale": "en",
+    "platforms": [
+      "web"
+    ],
+    "objectives": [
+      {
+        "id": "language-objective",
+        "description": "Explain and apply the declared example task.",
+        "prerequisites": []
+      }
+    ],
+    "chapters": [
+      {
+        "id": "language-chapter",
+        "title": "Practice",
+        "episodes": [
+          {
+            "id": "language-episode",
+            "title": "Try a fresh representation",
+            "objectiveIds": [
+              "language-objective"
+            ],
+            "blocks": [
+              {
+                "id": "language-text",
+                "type": "text",
+                "markdown": "Original explanation."
+              },
+              {
+                "id": "language-check",
+                "type": "assessment",
+                "assessmentId": "language-canonical"
+              }
+            ],
+            "gateId": "language-gate"
+          }
+        ]
+      }
+    ],
+    "assessments": [
+      {
+        "id": "language-canonical",
+        "type": "choice",
+        "objectiveIds": [
+          "language-objective"
+        ],
+        "familyId": "language-family",
+        "prompt": "Choose a welcoming phrase.",
+        "options": [
+          {
+            "id": "welcome",
+            "text": "Welcome"
+          },
+          {
+            "id": "farewell",
+            "text": "Goodbye"
+          }
+        ],
+        "grading": {
+          "correctOptionId": "welcome",
+          "explanation": "Welcome greets an arriving person."
+        }
+      }
+    ],
+    "gates": [
+      {
+        "id": "language-gate",
+        "objectiveIds": [
+          "language-objective"
+        ],
+        "assessmentIds": [
+          "language-canonical"
+        ],
+        "minimumIndependentFamilies": 1,
+        "requireAllObjectives": true
+      }
+    ],
+    "sources": [
+      {
+        "id": "language-source",
+        "title": "Synthetic public teaching source",
+        "url": "urn:example:language",
+        "reviewedAt": "2026-10-12T00:00:00Z"
+      },
+      {
+        "id": "language-verifier-source",
+        "title": "Synthetic independent verifier specification",
+        "url": "urn:example:language:verifier",
+        "reviewedAt": "2026-10-12T00:00:00Z"
+      }
+    ],
+    "extensions": [
+      {
+        "id": "language-generator-extension",
+        "version": "1.0.0",
+        "platforms": [
+          "web"
+        ],
+        "execution": "server",
+        "capabilities": [
+          "teaching.generate"
+        ],
+        "entrypoint": "generators/exercises.js",
+        "integrity": "sha256-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "accessibility": {
+          "keyboard": true,
+          "reducedMotion": true,
+          "textAlternative": "Text exercise generation"
+        }
+      },
+      {
+        "id": "language-verifier-extension",
+        "version": "1.0.0",
+        "platforms": [
+          "web"
+        ],
+        "execution": "server",
+        "capabilities": [
+          "teaching.verify"
+        ],
+        "entrypoint": "verifiers/reference.js",
+        "integrity": "sha256-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "accessibility": {
+          "keyboard": true,
+          "reducedMotion": true,
+          "textAlternative": "Server reference checks"
+        }
+      }
+    ],
+    "visuals": [],
+    "media": [],
+    "policy": {
+      "mode": "bounded",
+      "work": {
+        "additionalEpisodes": 5
+      },
+      "existingMaterialAccess": "read_only"
+    },
+    "adaptation": {
+      "schemaVersion": 1,
+      "targets": [
+        {
+          "episodeId": "language-episode",
+          "objectiveIds": [
+            "language-objective"
+          ],
+          "allowedOperations": [
+            "append_teaching",
+            "replace_teaching",
+            "attach_media",
+            "attach_visual",
+            "add_assessment_variant"
+          ],
+          "replaceableBlockIds": [
+            "language-text"
+          ]
+        }
+      ],
+      "families": [
+        {
+          "familyId": "language-family",
+          "canonicalAssessmentId": "language-canonical",
+          "generatorIds": [
+            "language-generator"
+          ],
+          "verifierIds": [
+            "language-verifier"
+          ],
+          "maxVariantsPerPlan": 3,
+          "numericalRecipeIds": []
+        }
+      ],
+      "generators": [
+        {
+          "id": "language-generator",
+          "version": "1.0.0",
+          "extensionId": "language-generator-extension",
+          "sourceRefs": [
+            "language-source"
+          ],
+          "artifactKinds": [
+            "explanation",
+            "practice",
+            "assessment_variant",
+            "media",
+            "visual",
+            "profile_suggestion"
+          ]
+        }
+      ],
+      "verifiers": [
+        {
+          "id": "language-verifier",
+          "version": "1.0.0",
+          "extensionId": "language-verifier-extension",
+          "sourceRefs": [
+            "language-verifier-source"
+          ],
+          "artifactKinds": [
+            "explanation",
+            "practice",
+            "assessment_variant",
+            "media",
+            "visual",
+            "profile_suggestion"
+          ],
+          "requiredCheckIds": [
+            "reference",
+            "negative-control",
+            "source-review"
+          ]
+        }
+      ],
+      "sourceRefs": [
+        "language-source",
+        "language-verifier-source"
+      ],
+      "profileFieldIds": [
+        "preferred.presentation"
+      ],
+      "numericalRecipes": [],
+      "limits": {
+        "maxOperations": 8,
+        "maxArtifacts": 8,
+        "maxArtifactBytes": 100000,
+        "maxPlannedMinutesPerAssignment": 15,
+        "maxAdditionalEpisodesPerAssignment": 1,
+        "allowedClassifications": [
+          "required",
+          "optional"
+        ]
+      }
+    }
+  },
+  "baseCourseDigest": "673b3a8e2c6acab7ea6e214635b43b45cd11a2f8f6be791b2a53dcfa65fdf7c0",
+  "plan": {
+    "revision": 0,
+    "digest": "17fde137941c49b8f3a6695c54898309f9bedcf78a02d78323d2e6ede06d5eb2",
+    "occupiedIds": [],
+    "targetDigests": [],
+    "variantCounts": [],
+    "baseCourseDigest": "673b3a8e2c6acab7ea6e214635b43b45cd11a2f8f6be791b2a53dcfa65fdf7c0"
+  },
+  "registeredVerifiers": [
+    {
+      "id": "language-verifier",
+      "version": "1.0.0",
+      "implementationDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceRefs": [
+        "language-verifier-source"
+      ],
+      "artifactKinds": [
+        "explanation",
+        "practice",
+        "assessment_variant",
+        "media",
+        "visual",
+        "profile_suggestion"
+      ],
+      "checkIds": [
+        "reference",
+        "negative-control",
+        "source-review"
+      ]
+    }
+  ],
+  "proposal": {
+    "schemaVersion": 1,
+    "id": "language-proposal",
+    "baseCourseDigest": "673b3a8e2c6acab7ea6e214635b43b45cd11a2f8f6be791b2a53dcfa65fdf7c0",
+    "expectedPlanRevision": 0,
+    "expectedPlanDigest": "17fde137941c49b8f3a6695c54898309f9bedcf78a02d78323d2e6ede06d5eb2",
+    "rationale": "Offer an alternative representation within declared author constraints.",
+    "artifacts": [
+      {
+        "id": "language-assessment_variant-artifact",
+        "kind": "assessment_variant",
+        "objectiveIds": [
+          "language-objective"
+        ],
+        "sourceRefs": [
+          "language-source"
+        ],
+        "generator": {
+          "id": "language-generator",
+          "version": "1.0.0"
+        },
+        "canonicalAssessmentId": "language-canonical",
+        "assessment": {
+          "id": "language-variant",
+          "type": "choice",
+          "objectiveIds": [
+            "language-objective"
+          ],
+          "familyId": "language-family",
+          "prompt": "A visitor has just arrived. Which phrase welcomes them?",
+          "options": [
+            {
+              "id": "greeting",
+              "text": "Good morning; please come in."
+            },
+            {
+              "id": "leaving",
+              "text": "Farewell; see you next month."
+            }
+          ],
+          "grading": {
+            "correctOptionId": "greeting",
+            "explanation": "The first phrase greets an arriving visitor."
+          }
+        },
+        "hiddenFixtures": {
+          "acceptedParaphrases": [
+            "Hello; welcome inside."
+          ],
+          "privateMarker": "LANGUAGE_FIXTURE_NOT_FOR_LEARNER"
+        },
+        "digest": "f7f062bb5ba9bdca73239d607112fa39c6f52a50ee4f596e7ec849f50d1f5024"
+      },
+      {
+        "id": "language-profile_suggestion-artifact",
+        "kind": "profile_suggestion",
+        "objectiveIds": [
+          "language-objective"
+        ],
+        "sourceRefs": [
+          "language-source"
+        ],
+        "generator": {
+          "id": "language-generator",
+          "version": "1.0.0"
+        },
+        "fieldId": "preferred.presentation",
+        "proposedValue": "examples-first",
+        "rationale": "Suggest a presentation preference for learner review; change no assessed skill.",
+        "digest": "5291efb25f87e64af8a756d760e3a6364333b06dfb6f4a53a2fd119fd9462234"
+      }
+    ],
+    "operations": [
+      {
+        "id": "language-assessment_variant-operation",
+        "type": "add_assessment_variant",
+        "episodeId": "language-episode",
+        "artifactId": "language-assessment_variant-artifact"
+      },
+      {
+        "id": "language-profile_suggestion-operation",
+        "type": "suggest_profile_correction",
+        "artifactId": "language-profile_suggestion-artifact"
+      }
+    ],
+    "proofReceipts": [
+      {
+        "id": "language-proof-0",
+        "proposalDigest": "efd2de4c8db6fa896b397c9d946fcb4b24f705b90ea392dcc9bd6bdd59253692",
+        "artifactId": "language-assessment_variant-artifact",
+        "artifactDigest": "f7f062bb5ba9bdca73239d607112fa39c6f52a50ee4f596e7ec849f50d1f5024",
+        "verifierId": "language-verifier",
+        "verifierVersion": "1.0.0",
+        "verifierImplementationDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "sourceRefs": [
+          "language-source"
+        ],
+        "verifierSourceRefs": [
+          "language-verifier-source"
+        ],
+        "checks": [
+          {
+            "id": "reference",
+            "result": "passed"
+          },
+          {
+            "id": "negative-control",
+            "result": "passed"
+          },
+          {
+            "id": "source-review",
+            "result": "passed"
+          }
+        ],
+        "outcome": "passed",
+        "issuedAt": "2026-10-12T00:00:00Z",
+        "receiptRef": "language-synthetic-receipt-0"
+      },
+      {
+        "id": "language-proof-1",
+        "proposalDigest": "efd2de4c8db6fa896b397c9d946fcb4b24f705b90ea392dcc9bd6bdd59253692",
+        "artifactId": "language-profile_suggestion-artifact",
+        "artifactDigest": "5291efb25f87e64af8a756d760e3a6364333b06dfb6f4a53a2fd119fd9462234",
+        "verifierId": "language-verifier",
+        "verifierVersion": "1.0.0",
+        "verifierImplementationDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "sourceRefs": [
+          "language-source"
+        ],
+        "verifierSourceRefs": [
+          "language-verifier-source"
+        ],
+        "checks": [
+          {
+            "id": "reference",
+            "result": "passed"
+          },
+          {
+            "id": "negative-control",
+            "result": "passed"
+          },
+          {
+            "id": "source-review",
+            "result": "passed"
+          }
+        ],
+        "outcome": "passed",
+        "issuedAt": "2026-10-12T00:00:00Z",
+        "receiptRef": "language-synthetic-receipt-1"
+      }
+    ]
+  },
+  "assignments": [
+    {
+      "operationId": "language-assessment_variant-operation",
+      "proposalDigest": "efd2de4c8db6fa896b397c9d946fcb4b24f705b90ea392dcc9bd6bdd59253692",
+      "classification": "optional",
+      "plannedMinutes": 5,
+      "additionalEpisodes": 0,
+      "authority": "server",
+      "authorityReceiptRef": "language-assignment-add_assessment_variant"
+    }
+  ]
+}

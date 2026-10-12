@@ -62,11 +62,11 @@ jobs:
         run: npm ci --ignore-scripts --registry=https://registry.npmjs.org/ --no-audit --no-fund
       - name: Typecheck
         run: npm run typecheck
-      - name: Test
+      - name: Test contracts, adversarial adaptations, CSP and bundled licenses
         run: npm test
       - name: Build
         run: npm run build
-      - name: Inspect tarball and exercise an isolated installed consumer
+      - name: Inspect tarball, license notices and isolated course/adaptation consumers
         run: node scripts/check-packed.mjs --output-dir "$RUNNER_TEMP/verified-sdk"
       - name: Retain verified release candidate
         if: inputs.release && matrix.node == '24' && github.repository == 'roeehrl/course-sdk' && github.ref_type == 'tag'

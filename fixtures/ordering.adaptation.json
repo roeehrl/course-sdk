@@ -1,0 +1,666 @@
+{
+  "course": {
+    "schemaVersion": 1,
+    "id": "ordering",
+    "version": "1.0.0",
+    "title": "Ordering examples",
+    "summary": "Synthetic public authoring fixture; not a live learner record.",
+    "locale": "en",
+    "platforms": [
+      "web"
+    ],
+    "objectives": [
+      {
+        "id": "ordering-objective",
+        "description": "Explain and apply the declared example task.",
+        "prerequisites": []
+      }
+    ],
+    "chapters": [
+      {
+        "id": "ordering-chapter",
+        "title": "Practice",
+        "episodes": [
+          {
+            "id": "ordering-episode",
+            "title": "Try a fresh representation",
+            "objectiveIds": [
+              "ordering-objective"
+            ],
+            "blocks": [
+              {
+                "id": "ordering-text",
+                "type": "text",
+                "markdown": "Original explanation."
+              },
+              {
+                "id": "ordering-check",
+                "type": "assessment",
+                "assessmentId": "ordering-canonical"
+              }
+            ],
+            "gateId": "ordering-gate"
+          }
+        ]
+      }
+    ],
+    "assessments": [
+      {
+        "id": "ordering-canonical",
+        "type": "numeric",
+        "objectiveIds": [
+          "ordering-objective"
+        ],
+        "familyId": "ordering-family",
+        "prompt": "Calculate the declared quantity.",
+        "grading": {
+          "expected": 1,
+          "absoluteTolerance": 0,
+          "explanation": "Synthetic canonical scoring standard."
+        }
+      }
+    ],
+    "gates": [
+      {
+        "id": "ordering-gate",
+        "objectiveIds": [
+          "ordering-objective"
+        ],
+        "assessmentIds": [
+          "ordering-canonical"
+        ],
+        "minimumIndependentFamilies": 1,
+        "requireAllObjectives": true
+      }
+    ],
+    "sources": [
+      {
+        "id": "ordering-source",
+        "title": "Synthetic public teaching source",
+        "url": "urn:example:ordering",
+        "reviewedAt": "2026-10-12T00:00:00Z"
+      },
+      {
+        "id": "ordering-verifier-source",
+        "title": "Synthetic independent verifier specification",
+        "url": "urn:example:ordering:verifier",
+        "reviewedAt": "2026-10-12T00:00:00Z"
+      }
+    ],
+    "extensions": [
+      {
+        "id": "ordering-generator-extension",
+        "version": "1.0.0",
+        "platforms": [
+          "web"
+        ],
+        "execution": "server",
+        "capabilities": [
+          "teaching.generate"
+        ],
+        "entrypoint": "generators/exercises.js",
+        "integrity": "sha256-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "accessibility": {
+          "keyboard": true,
+          "reducedMotion": true,
+          "textAlternative": "Text exercise generation"
+        }
+      },
+      {
+        "id": "ordering-verifier-extension",
+        "version": "1.0.0",
+        "platforms": [
+          "web"
+        ],
+        "execution": "server",
+        "capabilities": [
+          "teaching.verify"
+        ],
+        "entrypoint": "verifiers/reference.js",
+        "integrity": "sha256-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "accessibility": {
+          "keyboard": true,
+          "reducedMotion": true,
+          "textAlternative": "Server reference checks"
+        }
+      },
+      {
+        "id": "ordering-renderer",
+        "version": "1.0.0",
+        "platforms": [
+          "web"
+        ],
+        "execution": "declarative",
+        "capabilities": [
+          "visual.render"
+        ],
+        "entrypoint": "renderers/order.js",
+        "integrity": "sha256-cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "accessibility": {
+          "keyboard": true,
+          "reducedMotion": true,
+          "textAlternative": "Two ordered values"
+        }
+      }
+    ],
+    "visuals": [],
+    "media": [],
+    "policy": {
+      "mode": "bounded",
+      "work": {
+        "additionalEpisodes": 5
+      },
+      "existingMaterialAccess": "read_only"
+    },
+    "adaptation": {
+      "schemaVersion": 1,
+      "targets": [
+        {
+          "episodeId": "ordering-episode",
+          "objectiveIds": [
+            "ordering-objective"
+          ],
+          "allowedOperations": [
+            "append_teaching",
+            "replace_teaching",
+            "attach_media",
+            "attach_visual",
+            "add_assessment_variant"
+          ],
+          "replaceableBlockIds": [
+            "ordering-text"
+          ]
+        }
+      ],
+      "families": [
+        {
+          "familyId": "ordering-family",
+          "canonicalAssessmentId": "ordering-canonical",
+          "generatorIds": [
+            "ordering-generator"
+          ],
+          "verifierIds": [
+            "ordering-verifier"
+          ],
+          "maxVariantsPerPlan": 3,
+          "numericalRecipeIds": [
+            "ordering-recipe"
+          ]
+        }
+      ],
+      "generators": [
+        {
+          "id": "ordering-generator",
+          "version": "1.0.0",
+          "extensionId": "ordering-generator-extension",
+          "sourceRefs": [
+            "ordering-source"
+          ],
+          "artifactKinds": [
+            "explanation",
+            "practice",
+            "assessment_variant",
+            "media",
+            "visual",
+            "profile_suggestion"
+          ]
+        }
+      ],
+      "verifiers": [
+        {
+          "id": "ordering-verifier",
+          "version": "1.0.0",
+          "extensionId": "ordering-verifier-extension",
+          "sourceRefs": [
+            "ordering-verifier-source"
+          ],
+          "artifactKinds": [
+            "explanation",
+            "practice",
+            "assessment_variant",
+            "media",
+            "visual",
+            "profile_suggestion"
+          ],
+          "requiredCheckIds": [
+            "reference",
+            "negative-control",
+            "source-review"
+          ]
+        }
+      ],
+      "sourceRefs": [
+        "ordering-source",
+        "ordering-verifier-source"
+      ],
+      "profileFieldIds": [
+        "preferred.presentation"
+      ],
+      "numericalRecipes": [
+        {
+          "id": "ordering-recipe",
+          "version": "1.0.0",
+          "promptTemplate": "Enter the smaller of {{a}} and {{b}}.",
+          "sourceRefs": [
+            "ordering-source"
+          ],
+          "variables": [
+            {
+              "name": "a",
+              "minimum": 0,
+              "maximum": 100,
+              "integer": true
+            },
+            {
+              "name": "b",
+              "minimum": 0,
+              "maximum": 100,
+              "integer": true
+            }
+          ],
+          "expression": {
+            "type": "binary",
+            "operator": "min",
+            "left": {
+              "type": "variable",
+              "name": "a"
+            },
+            "right": {
+              "type": "variable",
+              "name": "b"
+            }
+          },
+          "maxNodes": 16,
+          "maxDepth": 8,
+          "maxAbsoluteValue": 1000,
+          "referenceCheck": {
+            "verifierId": "ordering-verifier",
+            "verifierVersion": "1.0.0",
+            "checkId": "reference",
+            "absoluteTolerance": 0
+          }
+        }
+      ],
+      "limits": {
+        "maxOperations": 8,
+        "maxArtifacts": 8,
+        "maxArtifactBytes": 100000,
+        "maxPlannedMinutesPerAssignment": 15,
+        "maxAdditionalEpisodesPerAssignment": 1,
+        "allowedClassifications": [
+          "required",
+          "optional"
+        ]
+      }
+    }
+  },
+  "baseCourseDigest": "439f717ef2bb096211e3bb2273b9ecbc1f9d615162d32213d88f45d646a5afe7",
+  "plan": {
+    "revision": 0,
+    "digest": "17ebdbe0c9c3cd2846f709c00c2e65661f50cd6f3e307b0482243598be059351",
+    "occupiedIds": [],
+    "targetDigests": [],
+    "variantCounts": [],
+    "baseCourseDigest": "439f717ef2bb096211e3bb2273b9ecbc1f9d615162d32213d88f45d646a5afe7"
+  },
+  "registeredVerifiers": [
+    {
+      "id": "ordering-verifier",
+      "version": "1.0.0",
+      "implementationDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sourceRefs": [
+        "ordering-verifier-source"
+      ],
+      "artifactKinds": [
+        "explanation",
+        "practice",
+        "assessment_variant",
+        "media",
+        "visual",
+        "profile_suggestion"
+      ],
+      "checkIds": [
+        "reference",
+        "negative-control",
+        "source-review"
+      ]
+    }
+  ],
+  "proposal": {
+    "schemaVersion": 1,
+    "id": "ordering-proposal",
+    "baseCourseDigest": "439f717ef2bb096211e3bb2273b9ecbc1f9d615162d32213d88f45d646a5afe7",
+    "expectedPlanRevision": 0,
+    "expectedPlanDigest": "17ebdbe0c9c3cd2846f709c00c2e65661f50cd6f3e307b0482243598be059351",
+    "rationale": "Offer an alternative representation within declared author constraints.",
+    "artifacts": [
+      {
+        "id": "ordering-explanation-artifact",
+        "kind": "explanation",
+        "objectiveIds": [
+          "ordering-objective"
+        ],
+        "sourceRefs": [
+          "ordering-source"
+        ],
+        "generator": {
+          "id": "ordering-generator",
+          "version": "1.0.0"
+        },
+        "markdown": "Compare positions on a number line, then order the values.",
+        "digest": "42388fb6a61ed78e7122c6f04b7757d213d31c8b40e0ce4cf376163dec50b227"
+      },
+      {
+        "id": "ordering-practice-artifact",
+        "kind": "practice",
+        "objectiveIds": [
+          "ordering-objective"
+        ],
+        "sourceRefs": [
+          "ordering-source"
+        ],
+        "generator": {
+          "id": "ordering-generator",
+          "version": "1.0.0"
+        },
+        "markdown": "Place two fresh values in ascending order and explain your comparison.",
+        "digest": "a1ffc8d3ea459ea19ab4953fbae60854d63f81487395d6529f57bd9c3739e901"
+      },
+      {
+        "id": "ordering-visual-artifact",
+        "kind": "visual",
+        "objectiveIds": [
+          "ordering-objective"
+        ],
+        "sourceRefs": [
+          "ordering-source"
+        ],
+        "generator": {
+          "id": "ordering-generator",
+          "version": "1.0.0"
+        },
+        "visual": {
+          "id": "ordering-visual",
+          "rendererId": "ordering-renderer",
+          "platforms": [
+            "web"
+          ],
+          "state": {
+            "values": [
+              4,
+              9
+            ]
+          },
+          "scene": {
+            "kind": "number-line"
+          },
+          "layouts": {
+            "compact": {
+              "orientation": "vertical"
+            },
+            "expanded": {
+              "orientation": "horizontal"
+            }
+          },
+          "timeline": {
+            "durationMs": 0,
+            "seekable": true,
+            "cues": []
+          },
+          "accessibility": {
+            "description": "Four appears before nine.",
+            "reducedMotion": {
+              "static": true
+            }
+          },
+          "referenceChecks": [
+            "reference"
+          ]
+        },
+        "digest": "75d4ab0411dac46aab655a4c4063b913013111ed1d68ec64ba1df394319b7de8"
+      },
+      {
+        "id": "ordering-assessment_variant-artifact",
+        "kind": "assessment_variant",
+        "objectiveIds": [
+          "ordering-objective"
+        ],
+        "sourceRefs": [
+          "ordering-source"
+        ],
+        "generator": {
+          "id": "ordering-generator",
+          "version": "1.0.0"
+        },
+        "canonicalAssessmentId": "ordering-canonical",
+        "assessment": {
+          "id": "ordering-variant",
+          "type": "numeric",
+          "objectiveIds": [
+            "ordering-objective"
+          ],
+          "familyId": "ordering-family",
+          "prompt": "Enter the smaller of 4 and 9.",
+          "grading": {
+            "expected": 4,
+            "absoluteTolerance": 0,
+            "explanation": "Apply the declared source template."
+          }
+        },
+        "recipe": {
+          "templateId": "ordering-recipe",
+          "templateVersion": "1.0.0",
+          "templateDigest": "22f1df633b8d526a302799c23261ca8bddce6ac30820fdfe22c051b7488efd1a",
+          "variables": {
+            "a": 4,
+            "b": 9
+          }
+        },
+        "hiddenFixtures": {
+          "privateMarker": "NUMERICAL_FIXTURE_NOT_FOR_LEARNER",
+          "negativeAnswers": [
+            -99,
+            999
+          ]
+        },
+        "digest": "7af6d6893f46a2d9316ee0d8e7ba4674662f679469de7dea3042af5dd63a2d73"
+      }
+    ],
+    "operations": [
+      {
+        "id": "ordering-explanation-operation",
+        "type": "append_teaching",
+        "episodeId": "ordering-episode",
+        "artifactId": "ordering-explanation-artifact"
+      },
+      {
+        "id": "ordering-practice-operation",
+        "type": "replace_teaching",
+        "episodeId": "ordering-episode",
+        "artifactId": "ordering-practice-artifact",
+        "blockId": "ordering-text",
+        "expectedTargetDigest": "6e26586b47cae948073fdaa60cf4eb17ae7686e043d03d82dec8e05c75e35be3"
+      },
+      {
+        "id": "ordering-visual-operation",
+        "type": "attach_visual",
+        "episodeId": "ordering-episode",
+        "artifactId": "ordering-visual-artifact"
+      },
+      {
+        "id": "ordering-assessment_variant-operation",
+        "type": "add_assessment_variant",
+        "episodeId": "ordering-episode",
+        "artifactId": "ordering-assessment_variant-artifact"
+      }
+    ],
+    "proofReceipts": [
+      {
+        "id": "ordering-proof-0",
+        "proposalDigest": "7c4d38113664baf8f6721b4c8ac4dd74beee95652858af5e911f3347bbf6f488",
+        "artifactId": "ordering-explanation-artifact",
+        "artifactDigest": "42388fb6a61ed78e7122c6f04b7757d213d31c8b40e0ce4cf376163dec50b227",
+        "verifierId": "ordering-verifier",
+        "verifierVersion": "1.0.0",
+        "verifierImplementationDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "sourceRefs": [
+          "ordering-source"
+        ],
+        "verifierSourceRefs": [
+          "ordering-verifier-source"
+        ],
+        "checks": [
+          {
+            "id": "reference",
+            "result": "passed"
+          },
+          {
+            "id": "negative-control",
+            "result": "passed"
+          },
+          {
+            "id": "source-review",
+            "result": "passed"
+          }
+        ],
+        "outcome": "passed",
+        "issuedAt": "2026-10-12T00:00:00Z",
+        "receiptRef": "ordering-synthetic-receipt-0"
+      },
+      {
+        "id": "ordering-proof-1",
+        "proposalDigest": "7c4d38113664baf8f6721b4c8ac4dd74beee95652858af5e911f3347bbf6f488",
+        "artifactId": "ordering-practice-artifact",
+        "artifactDigest": "a1ffc8d3ea459ea19ab4953fbae60854d63f81487395d6529f57bd9c3739e901",
+        "verifierId": "ordering-verifier",
+        "verifierVersion": "1.0.0",
+        "verifierImplementationDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "sourceRefs": [
+          "ordering-source"
+        ],
+        "verifierSourceRefs": [
+          "ordering-verifier-source"
+        ],
+        "checks": [
+          {
+            "id": "reference",
+            "result": "passed"
+          },
+          {
+            "id": "negative-control",
+            "result": "passed"
+          },
+          {
+            "id": "source-review",
+            "result": "passed"
+          }
+        ],
+        "outcome": "passed",
+        "issuedAt": "2026-10-12T00:00:00Z",
+        "receiptRef": "ordering-synthetic-receipt-1"
+      },
+      {
+        "id": "ordering-proof-2",
+        "proposalDigest": "7c4d38113664baf8f6721b4c8ac4dd74beee95652858af5e911f3347bbf6f488",
+        "artifactId": "ordering-visual-artifact",
+        "artifactDigest": "75d4ab0411dac46aab655a4c4063b913013111ed1d68ec64ba1df394319b7de8",
+        "verifierId": "ordering-verifier",
+        "verifierVersion": "1.0.0",
+        "verifierImplementationDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "sourceRefs": [
+          "ordering-source"
+        ],
+        "verifierSourceRefs": [
+          "ordering-verifier-source"
+        ],
+        "checks": [
+          {
+            "id": "reference",
+            "result": "passed"
+          },
+          {
+            "id": "negative-control",
+            "result": "passed"
+          },
+          {
+            "id": "source-review",
+            "result": "passed"
+          }
+        ],
+        "outcome": "passed",
+        "issuedAt": "2026-10-12T00:00:00Z",
+        "receiptRef": "ordering-synthetic-receipt-2"
+      },
+      {
+        "id": "ordering-proof-3",
+        "proposalDigest": "7c4d38113664baf8f6721b4c8ac4dd74beee95652858af5e911f3347bbf6f488",
+        "artifactId": "ordering-assessment_variant-artifact",
+        "artifactDigest": "7af6d6893f46a2d9316ee0d8e7ba4674662f679469de7dea3042af5dd63a2d73",
+        "verifierId": "ordering-verifier",
+        "verifierVersion": "1.0.0",
+        "verifierImplementationDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "sourceRefs": [
+          "ordering-source"
+        ],
+        "verifierSourceRefs": [
+          "ordering-verifier-source"
+        ],
+        "checks": [
+          {
+            "id": "reference",
+            "result": "passed"
+          },
+          {
+            "id": "negative-control",
+            "result": "passed"
+          },
+          {
+            "id": "source-review",
+            "result": "passed"
+          }
+        ],
+        "outcome": "passed",
+        "issuedAt": "2026-10-12T00:00:00Z",
+        "receiptRef": "ordering-synthetic-receipt-3"
+      }
+    ]
+  },
+  "assignments": [
+    {
+      "operationId": "ordering-explanation-operation",
+      "proposalDigest": "7c4d38113664baf8f6721b4c8ac4dd74beee95652858af5e911f3347bbf6f488",
+      "classification": "optional",
+      "plannedMinutes": 5,
+      "additionalEpisodes": 0,
+      "authority": "server",
+      "authorityReceiptRef": "ordering-assignment-append_teaching"
+    },
+    {
+      "operationId": "ordering-practice-operation",
+      "proposalDigest": "7c4d38113664baf8f6721b4c8ac4dd74beee95652858af5e911f3347bbf6f488",
+      "classification": "optional",
+      "plannedMinutes": 5,
+      "additionalEpisodes": 0,
+      "authority": "server",
+      "authorityReceiptRef": "ordering-assignment-replace_teaching"
+    },
+    {
+      "operationId": "ordering-visual-operation",
+      "proposalDigest": "7c4d38113664baf8f6721b4c8ac4dd74beee95652858af5e911f3347bbf6f488",
+      "classification": "optional",
+      "plannedMinutes": 5,
+      "additionalEpisodes": 0,
+      "authority": "server",
+      "authorityReceiptRef": "ordering-assignment-attach_visual"
+    },
+    {
+      "operationId": "ordering-assessment_variant-operation",
+      "proposalDigest": "7c4d38113664baf8f6721b4c8ac4dd74beee95652858af5e911f3347bbf6f488",
+      "classification": "optional",
+      "plannedMinutes": 5,
+      "additionalEpisodes": 0,
+      "authority": "server",
+      "authorityReceiptRef": "ordering-assignment-add_assessment_variant"
+    }
+  ]
+}
