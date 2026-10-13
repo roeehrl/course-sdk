@@ -114,6 +114,17 @@ apply only to the named generated operations, never to an existing episode. Opti
 does not exempt consumed work from caps or consent rules, and generated optional work
 cannot make a required base episode optional.
 
+## Whole personal episodes (0.4)
+
+Authors can permit `insert_episode` on an adaptation target. A proposal then
+pairs an `episode` artifact (title plus 1–12 text blocks; no new grading) with
+`{ type: 'insert_episode', afterEpisodeId, artifactId }`, placing a personal
+episode immediately after an existing base episode. The artifact ID becomes the
+episode ID and every block ID must be new. Verifiers and generators must declare
+the `episode` kind, and the host's assignment decision must meter it as at least
+one additional episode (`EPISODE_COST_REQUIRED`). As with every adaptation, the
+SDK validates data only; hosts authenticate proofs, enforce caps and apply it.
+
 ## Delayed retention checks (0.3)
 
 `retention` declares delayed independent checks that can show an objective is

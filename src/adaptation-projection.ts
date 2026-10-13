@@ -10,6 +10,7 @@ export interface LearnerAdaptationArtifact {
   visual?: Extract<CourseAdaptation['artifacts'][number], { kind: 'visual' }>['visual'];
   assessment?: { id: string; type: string; objectiveIds: string[] };
   suggestion?: { fieldId: string; proposedValue: string | number | boolean | null; rationale: string };
+  episode?: { title: string; blocks: { id: string; markdown: string }[] };
 }
 export interface LearnerAdaptation {
   id: string;
@@ -31,6 +32,7 @@ export function projectLearnerAdaptation(proposal: CourseAdaptation): LearnerAda
       if (artifact.kind === 'media') publicArtifact.media = structuredClone(artifact.media);
       if (artifact.kind === 'visual') publicArtifact.visual = structuredClone(artifact.visual);
       if (artifact.kind === 'assessment_variant') publicArtifact.assessment = { id: artifact.assessment.id, type: artifact.assessment.type, objectiveIds: [...artifact.assessment.objectiveIds] };
+      if (artifact.kind === 'episode') publicArtifact.episode = { title: artifact.title, blocks: structuredClone(artifact.blocks) };
       if (artifact.kind === 'profile_suggestion') publicArtifact.suggestion = { fieldId: artifact.fieldId, proposedValue: artifact.proposedValue, rationale: artifact.rationale };
       return publicArtifact;
     }),

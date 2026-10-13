@@ -106,6 +106,9 @@ export async function validateCourseAdaptation(input: unknown, contextInput: Ada
       claimId(artifact.visual.id, path + '/visual/id');
       const renderer = course.extensions.find(e => e.id === artifact.visual.rendererId);
       if (!renderer?.capabilities.includes('visual.render') || renderer.execution === 'server' || course.platforms.some(p => !artifact.visual.platforms.includes(p)) || !validateCourse({ ...course, visuals: [...course.visuals, artifact.visual] }).valid) report('INVALID_VISUAL', path, 'Visual must use a declared client renderer and support all course targets.');
+    } else if (artifact.kind === 'episode') {
+      // The artifact ID becomes the personal episode ID; its blocks are new IDs too.
+      for (const [b, block] of artifact.blocks.entries()) claimId(block.id, `${path}/blocks/${b}/id`);
     } else if (artifact.kind === 'profile_suggestion' && !authoring.profileFieldIds.includes(artifact.fieldId)) report('PROFILE_FIELD_NOT_ALLOWED', path, 'Only author-declared non-authority profile fields may be suggested.');
   }
   const used = new Set<string>(), replaced = new Set<string>(), assignmentOperationIds: string[] = [];
@@ -118,11 +121,15 @@ export async function validateCourseAdaptation(input: unknown, contextInput: Ada
     used.add(artifact.id);
     if (operation.type === 'append_teaching' || operation.type === 'replace_teaching') {
       if (!['explanation', 'practice'].includes(artifact.kind)) report('ARTIFACT_KIND', path, 'Teaching operations accept only explanation or practice artifacts.');
+    } else if (operation.type === 'insert_episode') {
+      if (artifact.kind !== 'episode') report('ARTIFACT_KIND', path, 'Episode insertion accepts only an episode artifact.');
     } else if (artifact.kind !== expectedKinds[operation.type]) report('ARTIFACT_KIND', path, 'Operation and artifact kinds differ.');
     if (operation.type === 'suggest_profile_correction') continue;
     assignmentOperationIds.push(operation.id);
-    const target = authoring.targets.find(t => t.episodeId === operation.episodeId);
-    const episode = episodes.find(e => e.id === operation.episodeId);
+    const anchorId = operation.type === 'insert_episode' ? operation.afterEpisodeId : operation.episodeId;
+    const target = authoring.targets.find(t => t.episodeId === anchorId);
+    const episode = episodes.find(e => e.id === anchorId);
+    if (operation.type === 'insert_episode' && !episode) report('MISSING_REFERENCE', path, 'A personal episode must follow an existing base episode.');
     if (!target?.allowedOperations.includes(operation.type) || artifact.objectiveIds.some(id => !target.objectiveIds.includes(id))) report('AUTHOR_TARGET', path, 'Operation is outside its author-declared episode/objective scope.');
     if (operation.type === 'replace_teaching') {
       const key = `${operation.episodeId}/${operation.blockId}`;
@@ -184,6 +191,9 @@ export async function validateAssignmentDecisions(proposal: CourseAdaptation, co
     seen.add(decision.operationId);
     if (decision.proposalDigest !== validated.proposalDigest) issues.push({ code: 'ASSIGNMENT_BINDING', path: `/${i}`, message: 'Decision must bind the exact proposal.' });
     if (!limits.allowedClassifications.includes(decision.classification) || decision.plannedMinutes > limits.maxPlannedMinutesPerAssignment || decision.additionalEpisodes > limits.maxAdditionalEpisodesPerAssignment) issues.push({ code: 'AUTHOR_LIMIT', path: `/${i}`, message: 'Assignment exceeds author-declared classification/cost bounds.' });
+    // A whole episode is real added work: it must be metered as at least one episode.
+    const operation = proposal.operations.find(o => o.id === decision.operationId);
+    if (operation?.type === 'insert_episode' && decision.additionalEpisodes < 1) issues.push({ code: 'EPISODE_COST_REQUIRED', path: `/${i}`, message: 'An inserted episode must count as at least one additional episode.' });
   }
   if (validated.assignmentOperationIds.some(id => !seen.has(id))) issues.push({ code: 'MISSING_ASSIGNMENT', path: '', message: 'The host must supply every required assignment decision.' });
   return issues.length ? { valid: false as const, issues } : { valid: true as const, decisions, issues: [], authorityAuthenticity: 'not_checked' as const };
