@@ -1,7 +1,7 @@
 import type { Assessment, CourseManifest, Json, MediaResource, ValidationIssue, VisualExperience } from './types.js';
 
-export type TeachingArtifactKind = 'explanation' | 'practice' | 'assessment_variant' | 'media' | 'visual' | 'profile_suggestion';
-export type AdaptationOperationKind = 'append_teaching' | 'replace_teaching' | 'attach_media' | 'attach_visual' | 'add_assessment_variant' | 'suggest_profile_correction';
+export type TeachingArtifactKind = 'explanation' | 'practice' | 'assessment_variant' | 'media' | 'visual' | 'profile_suggestion' | 'episode';
+export type AdaptationOperationKind = 'append_teaching' | 'replace_teaching' | 'attach_media' | 'attach_visual' | 'add_assessment_variant' | 'suggest_profile_correction' | 'insert_episode';
 export interface VersionedRef { id: string; version: string }
 export interface VerifierDeclaration extends VersionedRef {
   extensionId: string;
@@ -80,12 +80,16 @@ export type TeachingArtifact = ArtifactBase & (
   | { kind: 'media'; media: MediaResource }
   | { kind: 'visual'; visual: VisualExperience }
   | { kind: 'profile_suggestion'; fieldId: string; proposedValue: string | number | boolean | null; rationale: string }
+  /** A whole personal teaching episode: text blocks only, no new grading. */
+  | { kind: 'episode'; title: string; blocks: { id: string; markdown: string }[] }
 );
 export type TeachingArtifactDraft = TeachingArtifact extends infer A ? A extends TeachingArtifact ? Omit<A, 'digest'> : never : never;
 export type AdaptationOperation =
   | { id: string; type: 'append_teaching' | 'attach_media' | 'attach_visual' | 'add_assessment_variant'; episodeId: string; artifactId: string }
   | { id: string; type: 'replace_teaching'; episodeId: string; blockId: string; expectedTargetDigest: string; artifactId: string }
-  | { id: string; type: 'suggest_profile_correction'; artifactId: string };
+  | { id: string; type: 'suggest_profile_correction'; artifactId: string }
+  /** Inserts a personal episode immediately after an existing base episode. */
+  | { id: string; type: 'insert_episode'; afterEpisodeId: string; artifactId: string };
 
 /** A claimed receipt, not a credential. The host must authenticate its issuer/ref. */
 export interface ArtifactProofReceipt {
