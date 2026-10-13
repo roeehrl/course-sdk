@@ -1,6 +1,6 @@
 {
   "name": "@course-core/sdk",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Portable authoring contracts and validation for adaptive courses",
   "type": "module",
   "license": "Apache-2.0",

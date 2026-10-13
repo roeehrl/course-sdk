@@ -103,6 +103,15 @@ export interface PlacementPolicy {
   maxItems: number;
 }
 
+/** Delayed independent checks. Items are held out of gates and placement so a
+ * later success is new evidence, not a repeat; hosts schedule and record them. */
+export interface RetentionPolicy {
+  /** Days after an objective is first demonstrated; strictly increasing. */
+  intervalsDays: number[];
+  objectiveIds: string[];
+  assessmentIds: string[];
+}
+
 export interface ExtensionManifest {
   id: string;
   version: string;
@@ -154,6 +163,8 @@ export interface CourseManifest {
   sources: SourceReference[];
   policy: LearningPolicy;
   placement?: PlacementPolicy;
+  /** Optional delayed checks that can establish retained understanding. */
+  retention?: RetentionPolicy;
   /** Optional additive authoring rules. Runtime trust and application are host-owned. */
   adaptation?: AdaptationAuthoring;
   /** Public research declarations; trusted author approval is enforced by the host. */

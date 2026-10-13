@@ -22,6 +22,7 @@
     "sources": { "type": "array", "maxItems": 10000, "items": { "$ref": "#/$defs/source" } },
     "policy": { "$ref": "#/$defs/policy" },
     "placement": { "$ref": "#/$defs/placement" },
+    "retention": { "$ref": "#/$defs/retention" },
     "adaptation": { "$ref": "#/$defs/adaptationAuthoring" },
     "research": { "$ref": "#/$defs/researchAuthoring" }
   },
@@ -126,6 +127,10 @@
     "placement": {
       "type": "object", "additionalProperties": false, "required": ["enabled", "learnerMayDecline", "objectiveIds", "assessmentIds", "protectedEpisodeIds", "maxItems"],
       "properties": { "enabled": { "type": "boolean" }, "learnerMayDecline": { "const": true }, "objectiveIds": { "$ref": "#/$defs/ids" }, "assessmentIds": { "$ref": "#/$defs/ids" }, "protectedEpisodeIds": { "$ref": "#/$defs/ids" }, "maxItems": { "type": "integer", "minimum": 1, "maximum": 1000 } }
+    },
+    "retention": {
+      "type": "object", "additionalProperties": false, "required": ["intervalsDays", "objectiveIds", "assessmentIds"],
+      "properties": { "intervalsDays": { "type": "array", "minItems": 1, "maxItems": 8, "items": { "type": "integer", "minimum": 1, "maximum": 365 } }, "objectiveIds": { "$ref": "#/$defs/ids", "type": "array", "minItems": 1 }, "assessmentIds": { "$ref": "#/$defs/ids", "type": "array", "minItems": 1 } }
     },
     "extension": {
       "type": "object", "additionalProperties": false,
