@@ -187,6 +187,19 @@ export function validateCourse(input: unknown): ValidationResult {
       }
     }
   }
+  if (course.retention) {
+    const r = course.retention;
+    refs(r.objectiveIds, objectives, '/retention/objectiveIds');
+    refs(r.assessmentIds, assessments, '/retention/assessmentIds');
+    if (r.intervalsDays.some((d, i) => !Number.isInteger(d) || d < 1 || d > 365 || (i > 0 && d <= r.intervalsDays[i - 1]!)))
+      report('INVALID_RETENTION_INTERVALS', '/retention/intervalsDays', 'Intervals must be strictly increasing whole days between 1 and 365.');
+    // Held-out items must never be seen before the delayed check.
+    const exposed = new Set([...course.gates.flatMap((g) => g.assessmentIds), ...(course.placement?.assessmentIds ?? []),
+      ...course.chapters.flatMap((c) => c.episodes.flatMap((e) => e.blocks.flatMap((b) => (b.type === 'assessment' ? [b.assessmentId] : []))))]);
+    for (const id of r.assessmentIds) if (exposed.has(id)) report('RETENTION_ITEM_NOT_HELD_OUT', '/retention/assessmentIds', `${id} is also used in a gate, placement or episode.`);
+    for (const id of r.objectiveIds)
+      if (!r.assessmentIds.some((item) => assessments.get(item)?.objectiveIds.includes(id))) report('UNCOVERED_RETENTION_OBJECTIVE', '/retention', `No retention item covers ${id}.`);
+  }
   issues.push(...adaptationAuthoringIssues(course));
   return issues.length ? { valid: false, issues } : { valid: true, course: structuredClone(course), issues: [] };
 }

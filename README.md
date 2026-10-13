@@ -114,6 +114,27 @@ apply only to the named generated operations, never to an existing episode. Opti
 does not exempt consumed work from caps or consent rules, and generated optional work
 cannot make a required base episode optional.
 
+## Delayed retention checks (0.3)
+
+`retention` declares delayed independent checks that can show an objective is
+*retained*, not only demonstrated:
+
+```ts
+retention: {
+  intervalsDays: [1, 3, 7, 21],     // strictly increasing whole days, 1–365, at most 8
+  objectiveIds: ['compare'],
+  assessmentIds: ['later-min'],     // held-out items, never used by a gate, placement or episode block
+}
+```
+
+Validation rejects items that are not held out (`RETENTION_ITEM_NOT_HELD_OUT`),
+objectives without an item (`UNCOVERED_RETENTION_OBJECTIVE`) and invalid
+intervals. The learner bundle receives only the schedule; held-out item identities,
+prompts and keys stay in the server bundle. Hosts decide when a check is due,
+record it as independent evidence and keep demonstrated and retained states
+distinct. Intervals are author defaults to validate with real learners, not a
+scientific constant.
+
 ## Verify a checkout
 
 ```sh

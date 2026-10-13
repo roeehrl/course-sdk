@@ -15,10 +15,12 @@ export class CourseValidationError extends Error {
   }
 }
 
-export type LearnerCourse = Omit<CourseManifest, 'assessments' | 'gates' | 'placement' | 'extensions' | 'adaptation' | 'research'> & {
+export type LearnerCourse = Omit<CourseManifest, 'assessments' | 'gates' | 'placement' | 'retention' | 'extensions' | 'adaptation' | 'research'> & {
   assessments: { id: string; type: string; objectiveIds: string[] }[];
   gates: { id: string; objectiveIds: string[]; minimumIndependentFamilies: number; requireAllObjectives: boolean }[];
   placement?: { enabled: boolean; learnerMayDecline: true; objectiveIds: string[]; maxItems: number };
+  /** Schedule only; held-out item identities and keys stay server-side. */
+  retention?: { intervalsDays: number[]; objectiveIds: string[] };
   extensions: CourseManifest['extensions'];
 };
 
@@ -35,13 +37,15 @@ export function compileCourse(input: unknown): CompiledCourse {
   if (!result.valid) throw new CourseValidationError(result.issues);
   const server = result.course;
   const digest = createHash('sha256').update(canonicalJson(server)).digest('hex');
-  const { assessments, gates, placement, extensions, adaptation: _authoring, research: _research, ...rest } = structuredClone(server);
+  const { assessments, gates, placement, retention, extensions, adaptation: _authoring, research: _research, ...rest } = structuredClone(server);
   const learner: LearnerCourse = {
     ...rest,
-    assessments: assessments.map(({ id, type, objectiveIds }) => ({ id, type, objectiveIds })),
+    // Held-out retention items stay entirely server-side until issued.
+    assessments: assessments.filter(({ id }) => !retention?.assessmentIds.includes(id)).map(({ id, type, objectiveIds }) => ({ id, type, objectiveIds })),
     gates: gates.map(({ id, objectiveIds, minimumIndependentFamilies, requireAllObjectives }) => ({ id, objectiveIds, minimumIndependentFamilies, requireAllObjectives })),
     extensions: extensions.filter((extension) => extension.execution !== 'server'),
   };
+  if (retention) learner.retention = { intervalsDays: retention.intervalsDays, objectiveIds: retention.objectiveIds };
   if (placement) {
     learner.placement = { enabled: placement.enabled, learnerMayDecline: true, objectiveIds: placement.objectiveIds, maxItems: placement.maxItems };
   }
