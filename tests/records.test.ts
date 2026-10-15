@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { RECORD_KINDS, validateRecord } from '../src/index.js';
 import type { RecordKind } from '../src/index.js';
+import schemaJson from '../src/course.schema.json' with { type: 'json' };
+import { RECORD_DEFINITIONS } from '../scripts/contract-map.mjs';
 
 const digest = 'a'.repeat(64), at = '2026-10-15T10:00:00Z', later = '2026-10-20T10:00:00Z';
 const assistance = { hintsUsed: 0, answerRevealed: false, tutorAuthoredContent: false };
@@ -130,4 +132,130 @@ describe('runtime record contracts', () => {
     expect(validateRecord('evidence', { ...evidenceSample(), outcome: 'abstained', confidence: null }).valid).toBe(true);
   });
   it('rejects unknown record kinds', () => expect(validateRecord('banana' as RecordKind, {}).issues[0]!.code).toBe('UNKNOWN_RECORD'));
+});
+
+// Host-generated identifiers (enrollments, attempts, evidence, decisions, jobs, users, ...) are opaque:
+// hosts mint them with randomUUID() and similar, so they may start with a digit or contain upper case.
+// Author-defined course identifiers keep the course-ID pattern.
+const uuids = ['0d4b5f7e-2c1a-4e8b-9f3d-6a7b8c9d0e1f', '9f1c2d3e-4b5a-4c6d-8e7f-a0b1c2d3e4f5', '3f2b6c1e-8d4a-4c1b-9e7f-0a1b2c3d4e5f', '7C9E6679-7425-40DE-944B-E07FC1F90AE7'];
+type Field = [kind: RecordKind, pointer: string, many: boolean, prepare?: (v: any) => void];
+const HOST_ID_FIELDS: Field[] = [
+  ['attempt', '/attemptId', false], ['attempt', '/enrollmentId', false], ['attempt', '/reattemptOf', false],
+  ['evidence', '/id', false], ['evidence', '/attemptId', false], ['evidence', '/enrollmentId', false], ['evidence', '/reattemptOf', false],
+  ['evidence', '/citedSpans/0/turnId', false, v => { v.citedSpans = [{ turnId: 'turn-1', quote: 'Longer swings take longer.' }]; }],
+  ['gateDecision', '/decisionId', false], ['gateDecision', '/enrollmentId', false], ['gateDecision', '/supersedes', false],
+  ['gateDecision', '/evidenceRefs', true], ['gateDecision', '/criterionResults/0/evidenceRefs', true],
+  ['teachingHypothesis', '/id', false], ['teachingHypothesis', '/enrollmentId', false], ['teachingHypothesis', '/evidenceRefs', true],
+  ['interventionPlan', '/id', false], ['interventionPlan', '/enrollmentId', false], ['interventionPlan', '/hypothesisIds', true], ['interventionPlan', '/evidenceRefs', true],
+  ['learnerClaim', '/id', false], ['learnerClaim', '/enrollmentId', false], ['learnerClaim', '/evidenceRefs', true],
+  ['researchRequest', '/requestId', false], ['researchResult', '/requestId', false], ['mediaCandidate', '/requestId', false],
+  ['mediaReview', '/id', false], ['mediaReview', '/subject/ref', false], ['mediaReview', '/reviewer/id', false],
+  ['mediaJob', '/jobId', false],
+  ['placementEvidence', '/id', false], ['placementEvidence', '/placementRunId', false], ['placementEvidence', '/enrollmentId', false], ['placementEvidence', '/evidenceRefs', true],
+  ['pathExemption', '/id', false], ['pathExemption', '/enrollmentId', false], ['pathExemption', '/placementEvidenceRefs', true],
+  ['resolvedConstraintSnapshot', '/enrollmentId', false],
+  ['extensionOffer', '/offerId', false], ['extensionOffer', '/enrollmentId', false], ['extensionOffer', '/rationaleEvidenceRefs', true],
+  ['extensionGrant', '/grantId', false], ['extensionGrant', '/offerId', false],
+  ['closureOutcome', '/enrollmentId', false],
+  ['adminCapability', '/scope/enrollmentId', false, v => { v.scope = { kind: 'enrollment', enrollmentId: 'enr-1' }; }],
+  ['adminCapability', '/grantedTo', false], ['adminCapability', '/grantedBy', false],
+  ['toolCapability', '/grantedTo/id', false, v => { v.grantedTo.kind = 'service'; }], ['toolCapability', '/jobId', false],
+  ['artifactValidation', '/artifactId', false],
+  ['activityInstance', '/instanceId', false], ['activityInstance', '/enrollmentId', false],
+  ['debugTrace', '/enrollmentId', false], ['debugTrace', '/attemptId', false], ['debugTrace', '/jobId', false],
+  ['decisionRecord', '/id', false], ['decisionRecord', '/subjectRef', false], ['decisionRecord', '/enrollmentId', false],
+  ['decisionRecord', '/decidedBy/id', false], ['decisionRecord', '/inputEvidenceRefs', true],
+  ['contextCapsule', '/enrollmentId', false], ['contextCapsule', '/attemptId', false], ['contextCapsule', '/evidenceRefs', true],
+  ['contextCapsule', '/artifactRefs/0/id', false, v => { v.artifactRefs = [{ id: 'artifact-1', digest }]; }],
+  ['learningEventExport', '/enrollmentRef', false], ['learningEventExport', '/events/0/eventId', false],
+];
+// Author-defined course identifiers: a digit-leading UUID is still not a course ID.
+const COURSE_ID_FIELDS: [RecordKind, string, boolean][] = [
+  ['attempt', '/assessmentId', false], ['evidence', '/objectiveIds', true], ['evidence', '/familyId', false], ['evidence', '/misconceptionIds', true],
+  ['evidence', '/evaluator/id', false], ['gateDecision', '/gateId', false], ['gateDecision', '/criterionResults/0/criterionId', false],
+  ['gateDecision', '/nextActivityId', false], ['teachingHypothesis', '/templateId', false], ['interventionPlan', '/probeIds', true],
+  ['interventionPlan', '/actions/0/ref', false], ['researchRequest', '/taskId', false], ['researchRequest', '/objective', false],
+  ['researchRequest', '/episodeRevision/episodeId', false], ['researchRequest', '/sourcePolicy/publicTopicId', false], ['mediaJob', '/storyboardRef/id', false],
+  ['placementEvidence', '/objectiveId', false], ['pathExemption', '/episodeId', false], ['extensionAllowance', '/poolId', false],
+  ['extensionAllowance', '/scopeId', false], ['extensionOffer', '/proposedActivities', true], ['closureOutcome', '/gapObjectiveIds', true],
+  ['platformCapabilities', '/rendererIds', true], ['adminCapability', '/sectionId', false], ['toolCapability', '/toolId', false],
+  ['artifactValidation', '/validator/id', false], ['activityInstance', '/activityId', false], ['episodeRevision', '/episodeId', false],
+  ['conceptGraph', '/nodes/0/id', false], ['debugTrace', '/activityId', false], ['contextCapsule', '/episodeId', false],
+  ['learningEventExport', '/course/id', false],
+];
+
+const segments = (pointer: string) => pointer.slice(1).split('/');
+function setAt(target: any, pointer: string, value: unknown) {
+  const keys = segments(pointer), last = keys.pop()!;
+  for (const key of keys) target = target[key];
+  target[last] = value;
+}
+function withId(kind: RecordKind, pointer: string, many: boolean, id: string, prepare?: (v: any) => void) {
+  const value = structuredClone(samples[kind]); prepare?.(value);
+  setAt(value, pointer, many ? [id] : id);
+  return value;
+}
+const schemaPaths = (kind: RecordKind, value: unknown) => validateRecord(kind, value).issues.filter(i => i.code === 'SCHEMA').map(i => i.path);
+// Every opaque reference in the record definitions, as a pointer with `*` for array items.
+function opaquePointers(definition: string): string[] {
+  const defs = (schemaJson as { $defs: Record<string, any> }).$defs, out = new Set<string>();
+  const walk = (node: any, path: string, seen: Set<string>) => {
+    if (!node || typeof node !== 'object') return;
+    if (node.$ref) {
+      const name = node.$ref.slice('#/$defs/'.length);
+      // A list of opaque IDs counts as one field whether it uses opaqueIds or an inline array.
+      if (name === 'opaqueId' || name === 'opaqueIds') out.add(path.replace(/\/\*$/, ''));
+      else if (!seen.has(name)) walk(defs[name], path, new Set([...seen, name]));
+      return;
+    }
+    for (const [key, child] of Object.entries(node.properties ?? {})) walk(child, `${path}/${key}`, seen);
+    if (node.items) walk(node.items, `${path}/*`, seen);
+    for (const variant of node.oneOf ?? []) walk(variant, path, seen);
+  };
+  walk(defs[definition], '', new Set([definition]));
+  return [...out].sort();
+}
+
+describe('host-generated record identifiers', () => {
+  it('accepts a whole record whose host IDs are all digit-leading UUIDs', () => {
+    for (const kind of RECORD_KINDS) {
+      const fields = HOST_ID_FIELDS.filter(([k, , , prepare]) => k === kind && !prepare);
+      const value = structuredClone(samples[kind]) as any, mapped = new Map<string, string>();
+      // Map each existing ID to one UUID so cross-references (criterion evidence within decision evidence) stay linked.
+      const fresh = (old: string | null) => {
+        if (old === null) return null;
+        const n = mapped.size;
+        if (!mapped.has(old)) mapped.set(old, `${n % 10}d4b5f7e-2c1a-4e8b-9f3d-${String(n).padStart(12, '0')}`);
+        return mapped.get(old)!;
+      };
+      for (const [, pointer, many] of fields) {
+        const keys = segments(pointer); let node = value; for (const key of keys.slice(0, -1)) node = node[key];
+        const last = keys.at(-1)!, current = node[last];
+        node[last] = many ? current.map(fresh) : fresh(current);
+      }
+      expect(validateRecord(kind, value).issues, kind).toEqual([]);
+      for (const id of mapped.values()) expect(id).toMatch(/^[0-9][0-9a-f]{7}-/);
+    }
+  });
+  it.each(HOST_ID_FIELDS)('%s %s accepts UUIDs and Core-style host IDs', (kind, pointer, many, prepare) => {
+    for (const id of [...uuids, 'artifact-0d4b5f7e-2c1a-4e8b-9f3d-6a7b8c9d0e1f', 'admin-evidence:9f1c2d3e-4b5a-4c6d-8e7f-a0b1c2d3e4f5', `adapt-${'0'.repeat(64)}`, 'enr-1', '4'])
+      expect(schemaPaths(kind, withId(kind, pointer, many, id, prepare)), id).toEqual([]);
+  });
+  it.each(HOST_ID_FIELDS)('%s %s rejects oversized or unsafe host IDs', (kind, pointer, many, prepare) => {
+    const expected = many ? `${pointer}/0` : pointer;
+    for (const id of ['', '1'.repeat(201), `${uuids[0]}/../x`, `${uuids[0]} `, `${uuids[0]}\n`, '-leading', '.hidden', 'é-id', 'a<b>', 'x@y'])
+      expect(schemaPaths(kind, withId(kind, pointer, many, id, prepare)), JSON.stringify(id)).toContain(expected);
+    expect(schemaPaths(kind, withId(kind, pointer, many, '1'.repeat(200), prepare))).toEqual([]);
+  });
+  it.each(COURSE_ID_FIELDS)('%s %s keeps the author course-ID pattern', (kind, pointer, many) => {
+    expect(schemaPaths(kind, withId(kind, pointer, many, uuids[0]!))).toContain(many ? `${pointer}/0` : pointer);
+  });
+  it('lists every opaque record field (schema and tests agree)', () => {
+    const star = (p: string) => p.replace(/\/\d+(?=\/|$)/g, '/*');
+    for (const kind of RECORD_KINDS) {
+      const definition = (RECORD_DEFINITIONS as Record<string, string>)[kind]!;
+      const tested = [...new Set(HOST_ID_FIELDS.filter(([k]) => k === kind).map(([, p]) => star(p)))].sort();
+      expect(opaquePointers(definition), kind).toEqual(tested);
+    }
+  });
 });
