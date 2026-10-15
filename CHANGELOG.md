@@ -24,10 +24,17 @@ verify. The fixtures in `fixtures/compat-0.5.0` were produced by the released 0.
 - Roadmap stages: stage `subtitle` and `iconAsset`, and `courseRoadmap(course)` grouping chapters by stage.
   Lint reports split (`STAGE_NOT_CONTIGUOUS`) and unused stages.
 - `mediaCandidate` record kind, validated like `researchResult`.
+- Record kinds `contextCapsule`, `rubricRevision` and the portable event export `learningEventExport`
+  (64-bit-safe decimal sequences, strictly increasing within the cursor range).
+- TypeScript generated from `course.schema.json`, with a type-level equality test against every public
+  contract and record type and `CourseManifest`.
 
 ### Changed
 - A legacy gate with `conversationalEvaluatorId` is no longer exempt from its family and objective
   coverage checks.
+- TypeScript only: `EvaluatorDefinition.itemTypes` is `AssessmentType[]`, `AgentStrategy.autonomy.mayApply`
+  is `AdaptationOperationKind[]` and `AdminCapability.permission` is `AdminPermission`, matching what the
+  schema already accepted. Data validity is unchanged.
 - Conformance reports gain the `publishable` check, so a 0.6 bundle's `conformance.json` differs
   from a 0.5 one. 0.5 bundles still verify (with a `DIFFERENT_SDK_VERSION` warning).
 
