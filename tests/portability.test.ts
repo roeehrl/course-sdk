@@ -3,6 +3,7 @@ import { createContext, Script } from 'node:vm';
 import { describe, expect, it } from 'vitest';
 import { courseFixture } from './fixture.js';
 import { adaptationFixture } from './adaptation-fixture.js';
+import { richCourse } from './contracts-fixture.js';
 
 describe('portable runtime export', () => {
   it('validates under a CSP-like runtime that forbids dynamic code generation', async () => {
@@ -45,5 +46,16 @@ describe('portable runtime export', () => {
         processType: typeof process, bufferType: typeof Buffer, compilerExposed: 'compileCourse' in CourseSDK };
     })()`).runInContext(vm);
     expect(checked).toEqual({ valid: true, trust: 'not_checked', answer: 2, processType: 'undefined', bufferType: 'undefined', compilerExposed: false });
+  });
+  it('validates 0.5 contracts, records and gate decisions without code generation', async () => {
+    const result = await build({ entryPoints: ['src/index.ts'], bundle: true, platform: 'browser', format: 'iife', globalName: 'CourseSDK', write: false, metafile: true });
+    expect(Object.keys(result.metafile!.inputs).some(path => /(?:compiler|cli|tooling)\.ts$/.test(path))).toBe(false);
+    const vm = createContext({ structuredClone, courseJson: JSON.stringify(richCourse()) }, { codeGeneration: { strings: false, wasm: false } });
+    new Script(result.outputFiles[0]!.text).runInContext(vm);
+    expect(new Script(`(() => {
+      const c = JSON.parse(courseJson);
+      const decision = CourseSDK.decideGate(c, 'length-ready', [], { decisionId: 'd', enrollmentId: 'e', courseDigest: 'a'.repeat(64), policyRevision: 1, decidedAt: '2026-10-15T00:00:00Z' });
+      return [CourseSDK.validateCourse(c).valid, CourseSDK.validateContract('activity', c.activities[0]).valid, CourseSDK.validateRecord('evidence', {}).valid, decision.decision.status, CourseSDK.lintCourse(c).length];
+    })()`).runInContext(vm)).toEqual([true, true, false, 'needs_evidence', 1]);
   });
 });

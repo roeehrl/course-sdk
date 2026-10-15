@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { validateCourse } from '../src/index.js';
 import { courseFixture } from './fixture.js';
+import type { LegacyProgressionGate } from '../src/types.js';
 
 function withVisual() {
   const course = courseFixture();
@@ -54,7 +55,7 @@ describe('renderer, media and platform contracts', () => {
   });
   it('does not accept a client renderer as an authoritative evaluator', () => {
     const course = withVisual();
-    course.gates[0]!.conversationalEvaluatorId = 'example:vector';
+    (course.gates[0] as LegacyProgressionGate).conversationalEvaluatorId = 'example:vector';
     expect(validateCourse(course).issues.some((e) => e.code === 'INVALID_EVALUATOR')).toBe(true);
   });
 });

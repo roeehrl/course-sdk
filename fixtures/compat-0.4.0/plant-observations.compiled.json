@@ -1,0 +1,384 @@
+{
+  "formatVersion": 1,
+  "digest": "f190ae841ab16dc4c9338ed2dcfbeceda3549423990724a5065f6e8a5cfad2e4",
+  "server": {
+    "schemaVersion": 1,
+    "id": "plant-observations",
+    "version": "1.0.0",
+    "title": "Plant observation notebooks",
+    "summary": "Synthetic public authoring fixture; not a live learner record.",
+    "locale": "en",
+    "platforms": [
+      "web"
+    ],
+    "objectives": [
+      {
+        "id": "plant-observations-objective",
+        "description": "Explain and apply the declared example task.",
+        "prerequisites": []
+      }
+    ],
+    "chapters": [
+      {
+        "id": "plant-observations-chapter",
+        "title": "Practice",
+        "episodes": [
+          {
+            "id": "plant-observations-episode",
+            "title": "Try a fresh representation",
+            "objectiveIds": [
+              "plant-observations-objective"
+            ],
+            "blocks": [
+              {
+                "id": "plant-observations-text",
+                "type": "text",
+                "markdown": "Original explanation."
+              },
+              {
+                "id": "plant-observations-check",
+                "type": "assessment",
+                "assessmentId": "plant-observations-canonical"
+              }
+            ],
+            "gateId": "plant-observations-gate"
+          }
+        ]
+      }
+    ],
+    "assessments": [
+      {
+        "id": "plant-observations-canonical",
+        "type": "numeric",
+        "objectiveIds": [
+          "plant-observations-objective"
+        ],
+        "familyId": "plant-observations-family",
+        "prompt": "Calculate the declared quantity.",
+        "grading": {
+          "expected": 1,
+          "absoluteTolerance": 0,
+          "explanation": "Synthetic canonical scoring standard."
+        }
+      }
+    ],
+    "gates": [
+      {
+        "id": "plant-observations-gate",
+        "objectiveIds": [
+          "plant-observations-objective"
+        ],
+        "assessmentIds": [
+          "plant-observations-canonical"
+        ],
+        "minimumIndependentFamilies": 1,
+        "requireAllObjectives": true
+      }
+    ],
+    "sources": [
+      {
+        "id": "plant-observations-source",
+        "title": "Synthetic public teaching source",
+        "url": "urn:example:plant-observations",
+        "reviewedAt": "2026-10-12T00:00:00Z"
+      },
+      {
+        "id": "plant-observations-verifier-source",
+        "title": "Synthetic independent verifier specification",
+        "url": "urn:example:plant-observations:verifier",
+        "reviewedAt": "2026-10-12T00:00:00Z"
+      }
+    ],
+    "extensions": [
+      {
+        "id": "plant-observations-generator-extension",
+        "version": "1.0.0",
+        "platforms": [
+          "web"
+        ],
+        "execution": "server",
+        "capabilities": [
+          "teaching.generate"
+        ],
+        "entrypoint": "generators/exercises.js",
+        "integrity": "sha256-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "accessibility": {
+          "keyboard": true,
+          "reducedMotion": true,
+          "textAlternative": "Text exercise generation"
+        }
+      },
+      {
+        "id": "plant-observations-verifier-extension",
+        "version": "1.0.0",
+        "platforms": [
+          "web"
+        ],
+        "execution": "server",
+        "capabilities": [
+          "teaching.verify"
+        ],
+        "entrypoint": "verifiers/reference.js",
+        "integrity": "sha256-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "accessibility": {
+          "keyboard": true,
+          "reducedMotion": true,
+          "textAlternative": "Server reference checks"
+        }
+      }
+    ],
+    "visuals": [],
+    "media": [],
+    "policy": {
+      "mode": "bounded",
+      "work": {
+        "additionalEpisodes": 5
+      },
+      "existingMaterialAccess": "read_only"
+    },
+    "adaptation": {
+      "schemaVersion": 1,
+      "targets": [
+        {
+          "episodeId": "plant-observations-episode",
+          "objectiveIds": [
+            "plant-observations-objective"
+          ],
+          "allowedOperations": [
+            "append_teaching",
+            "replace_teaching",
+            "attach_media",
+            "attach_visual",
+            "add_assessment_variant"
+          ],
+          "replaceableBlockIds": [
+            "plant-observations-text"
+          ]
+        }
+      ],
+      "families": [
+        {
+          "familyId": "plant-observations-family",
+          "canonicalAssessmentId": "plant-observations-canonical",
+          "generatorIds": [
+            "plant-observations-generator"
+          ],
+          "verifierIds": [
+            "plant-observations-verifier"
+          ],
+          "maxVariantsPerPlan": 3,
+          "numericalRecipeIds": [
+            "plant-observations-recipe"
+          ]
+        }
+      ],
+      "generators": [
+        {
+          "id": "plant-observations-generator",
+          "version": "1.0.0",
+          "extensionId": "plant-observations-generator-extension",
+          "sourceRefs": [
+            "plant-observations-source"
+          ],
+          "artifactKinds": [
+            "explanation",
+            "practice",
+            "assessment_variant",
+            "media",
+            "visual",
+            "profile_suggestion"
+          ]
+        }
+      ],
+      "verifiers": [
+        {
+          "id": "plant-observations-verifier",
+          "version": "1.0.0",
+          "extensionId": "plant-observations-verifier-extension",
+          "sourceRefs": [
+            "plant-observations-verifier-source"
+          ],
+          "artifactKinds": [
+            "explanation",
+            "practice",
+            "assessment_variant",
+            "media",
+            "visual",
+            "profile_suggestion"
+          ],
+          "requiredCheckIds": [
+            "reference",
+            "negative-control",
+            "source-review"
+          ]
+        }
+      ],
+      "sourceRefs": [
+        "plant-observations-source",
+        "plant-observations-verifier-source"
+      ],
+      "profileFieldIds": [
+        "preferred.presentation"
+      ],
+      "numericalRecipes": [
+        {
+          "id": "plant-observations-recipe",
+          "version": "1.0.0",
+          "promptTemplate": "A plant measured {{start}} cm, then {{end}} cm after {{days}} days. Compute the change per day.",
+          "sourceRefs": [
+            "plant-observations-source"
+          ],
+          "variables": [
+            {
+              "name": "start",
+              "minimum": 0,
+              "maximum": 100,
+              "integer": true
+            },
+            {
+              "name": "end",
+              "minimum": 0,
+              "maximum": 100,
+              "integer": true
+            },
+            {
+              "name": "days",
+              "minimum": 1,
+              "maximum": 100,
+              "integer": true
+            }
+          ],
+          "expression": {
+            "type": "binary",
+            "operator": "divide",
+            "left": {
+              "type": "binary",
+              "operator": "subtract",
+              "left": {
+                "type": "variable",
+                "name": "end"
+              },
+              "right": {
+                "type": "variable",
+                "name": "start"
+              }
+            },
+            "right": {
+              "type": "variable",
+              "name": "days"
+            }
+          },
+          "maxNodes": 16,
+          "maxDepth": 8,
+          "maxAbsoluteValue": 1000,
+          "referenceCheck": {
+            "verifierId": "plant-observations-verifier",
+            "verifierVersion": "1.0.0",
+            "checkId": "reference",
+            "absoluteTolerance": 0
+          }
+        }
+      ],
+      "limits": {
+        "maxOperations": 8,
+        "maxArtifacts": 8,
+        "maxArtifactBytes": 100000,
+        "maxPlannedMinutesPerAssignment": 15,
+        "maxAdditionalEpisodesPerAssignment": 1,
+        "allowedClassifications": [
+          "required",
+          "optional"
+        ]
+      }
+    }
+  },
+  "learner": {
+    "schemaVersion": 1,
+    "id": "plant-observations",
+    "version": "1.0.0",
+    "title": "Plant observation notebooks",
+    "summary": "Synthetic public authoring fixture; not a live learner record.",
+    "locale": "en",
+    "platforms": [
+      "web"
+    ],
+    "objectives": [
+      {
+        "id": "plant-observations-objective",
+        "description": "Explain and apply the declared example task.",
+        "prerequisites": []
+      }
+    ],
+    "chapters": [
+      {
+        "id": "plant-observations-chapter",
+        "title": "Practice",
+        "episodes": [
+          {
+            "id": "plant-observations-episode",
+            "title": "Try a fresh representation",
+            "objectiveIds": [
+              "plant-observations-objective"
+            ],
+            "blocks": [
+              {
+                "id": "plant-observations-text",
+                "type": "text",
+                "markdown": "Original explanation."
+              },
+              {
+                "id": "plant-observations-check",
+                "type": "assessment",
+                "assessmentId": "plant-observations-canonical"
+              }
+            ],
+            "gateId": "plant-observations-gate"
+          }
+        ]
+      }
+    ],
+    "sources": [
+      {
+        "id": "plant-observations-source",
+        "title": "Synthetic public teaching source",
+        "url": "urn:example:plant-observations",
+        "reviewedAt": "2026-10-12T00:00:00Z"
+      },
+      {
+        "id": "plant-observations-verifier-source",
+        "title": "Synthetic independent verifier specification",
+        "url": "urn:example:plant-observations:verifier",
+        "reviewedAt": "2026-10-12T00:00:00Z"
+      }
+    ],
+    "visuals": [],
+    "media": [],
+    "policy": {
+      "mode": "bounded",
+      "work": {
+        "additionalEpisodes": 5
+      },
+      "existingMaterialAccess": "read_only"
+    },
+    "assessments": [
+      {
+        "id": "plant-observations-canonical",
+        "type": "numeric",
+        "objectiveIds": [
+          "plant-observations-objective"
+        ]
+      }
+    ],
+    "gates": [
+      {
+        "id": "plant-observations-gate",
+        "objectiveIds": [
+          "plant-observations-objective"
+        ],
+        "minimumIndependentFamilies": 1,
+        "requireAllObjectives": true
+      }
+    ],
+    "extensions": []
+  }
+}

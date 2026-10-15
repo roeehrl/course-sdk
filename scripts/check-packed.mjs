@@ -21,6 +21,9 @@ const requiredFiles = [
   'dist/numerical-recipe.js', 'dist/validator-dependencies.json',
   'dist/research.js', 'dist/research.d.ts', 'dist/research-types.d.ts', 'dist/generated/research-selection-validator.js',
   'dist/episode.js', 'dist/episode.d.ts',
+  'dist/define.js', 'dist/define.d.ts', 'dist/records.js', 'dist/records.d.ts', 'dist/gate-decision.js', 'dist/gate-decision.d.ts',
+  'dist/lint.js', 'dist/tooling.js', 'dist/tooling.d.ts', 'dist/contracts-types.d.ts', 'dist/record-types.d.ts',
+  'dist/generated/contracts-validator.js', 'dist/generated/records-validator.js',
 ];
 
 function check(condition, message) {
@@ -259,7 +262,7 @@ function auditPackage(entries, manifest, report) {
   const notice = entries.get('NOTICE').bytes.toString('utf8');
   const inventory = JSON.parse(entries.get('dist/validator-dependencies.json').bytes.toString('utf8'));
   const bundledNames = new Set();
-  assert.deepEqual(inventory.map(row => row.validator).sort(), ['adaptation', 'adaptation-context', 'assignment-decisions', 'course', 'numerical-recipe', 'recipe-instance', 'research-selection'], 'Unexpected validator inventory');
+  assert.deepEqual(inventory.map(row => row.validator).sort(), ['adaptation', 'adaptation-context', 'assignment-decisions', 'contracts', 'course', 'numerical-recipe', 'recipe-instance', 'records', 'research-selection'], 'Unexpected validator inventory');
   for (const row of inventory) {
     const bundle = entries.get(`dist/generated/${row.validator}-validator.js`);
     check(bundle, 'A generated validator listed in the inventory is missing');
@@ -493,6 +496,23 @@ void privateSelection;
   mustFail(['compile', 'invalid.json', 'invalid-output.json'], 'CLI must not compile an invalid manifest');
   check(!(await readdir(consumer)).includes('invalid-output.json'), 'Invalid compilation created an output');
   mustFail(['--definitely-invalid-package-smoke-option'], 'Unknown CLI options must fail');
+  // 0.5 commands: scaffold, conformance, lint, deterministic bundle and verification.
+  run(cli, ['init', 'starter'], { cwd: consumer, env });
+  mustFail(['init', 'starter'], 'init must refuse an existing directory');
+  const conformance = JSON.parse(run(cli, ['test', 'starter/course.json'], { cwd: consumer, env }));
+  check(conformance.status === 'passed', 'The scaffolded course must pass conformance');
+  run(cli, ['lint', 'starter/course.json', '--strict'], { cwd: consumer, env });
+  mustFail(['lint', 'fixture.json', '--strict'], 'Strict lint must flag a recognition-only legacy gate');
+  run(cli, ['pack', 'starter/course.json', 'bundle'], { cwd: consumer, env });
+  run(cli, ['pack', 'starter/course.json', 'bundle-again'], { cwd: consumer, env });
+  for (const name of await readdir(path.join(consumer, 'bundle')))
+    assert.deepEqual(await readFile(path.join(consumer, 'bundle', name)), await readFile(path.join(consumer, 'bundle-again', name)), `Bundle file ${name} is not deterministic`);
+  mustFail(['pack', 'starter/course.json', 'bundle'], 'pack must refuse an existing output directory');
+  check(JSON.parse(run(cli, ['verify', 'bundle'], { cwd: consumer, env })).valid === true, 'Installed CLI must verify its bundle');
+  const licenses = path.join(consumer, 'bundle-again', 'licenses.json');
+  await writeFile(licenses, (await readFile(licenses, 'utf8')).replace('"inventoryFormat": 1', '"inventoryFormat": 1 '));
+  mustFail(['verify', 'bundle-again'], 'A tampered bundle must fail verification');
+  run(cli, ['import', 'bundle', 'imported.json'], { cwd: consumer, env });
 }
 
 async function selfTest() {
@@ -665,7 +685,8 @@ async function main() {
       sha256: createHash('sha256').update(compressed).digest('hex'), files,
       checks: ['dependency-sources', 'tar-safety', 'file-allowlist', 'sensitive-content-patterns',
         'isolated-install', 'portable-main-runtime-no-code-generation', 'portable-main-types', 'compiler-integrity-and-learner-projection',
-        'schema-export', 'adaptation-recipe-contracts', 'generated-grading-projection', 'public-research-boundary', 'episode-requirements', 'bundled-license-notices', 'cli-validation-compilation-exclusive-output'],
+        'schema-export', 'adaptation-recipe-contracts', 'generated-grading-projection', 'public-research-boundary', 'episode-requirements', 'bundled-license-notices', 'cli-validation-compilation-exclusive-output',
+        'cli-init-test-lint-pack-verify-import'],
     };
     if (outputDir) {
       await mkdir(outputDir, { recursive: true });

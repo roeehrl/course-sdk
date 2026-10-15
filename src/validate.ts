@@ -2,11 +2,11 @@ import type { ValidateFunction } from 'ajv';
 import { jsonIssue } from './json.js';
 import { getEpisodeRequirement } from './episode.js';
 import { adaptationAuthoringIssues } from './adaptation-authoring.js';
+import { contractIssues, gateAssessmentIds, gateObjectiveIds, isVersionedGate } from './contracts-validate.js';
 import generatedValidator from './generated/course-validator.js';
 import type { CourseManifest, LearningPolicy, ValidationIssue, ValidationResult } from './types.js';
 
 const validateShape = generatedValidator as ValidateFunction<CourseManifest>;
-const pointer = (value: string) => value.replaceAll('~', '~0').replaceAll('/', '~1');
 
 export function validateCourse(input: unknown): ValidationResult {
   const issue = jsonIssue(input);
@@ -28,15 +28,7 @@ export function validateCourse(input: unknown): ValidationResult {
   function refs(ids: string[], target: Map<string, unknown>, path: string): void {
     for (const [i, id] of ids.entries()) if (!target.has(id)) report('MISSING_REFERENCE', `${path}/${i}`, `Unknown reference ${id}.`);
   }
-  function policy(p: LearningPolicy, path: string): void {
-    if (p.mode === 'bounded' && !p.hardDeadline && !p.window && !p.work) report('UNBOUNDED_POLICY', path, 'Bounded progression needs a deadline, duration or finite work envelope.');
-    if (p.window) {
-      try { new Intl.DateTimeFormat('en', { timeZone: p.window.timeZone }).format(0); }
-      catch { report('INVALID_TIME_ZONE', `${path}/window/timeZone`, 'Unknown IANA time zone.'); }
-    }
-    if (p.extensions?.enabled && (p.extensions.maxGrants < 1 || p.extensions.calendarDays < 1 || p.extensions.maxDaysPerGrant < 1)) report('EMPTY_EXTENSION_ALLOWANCE', `${path}/extensions`, 'Enabled extensions need a usable finite allowance.');
-    if (p.extensions && p.extensions.maxDaysPerGrant > p.extensions.calendarDays) report('EXTENSION_LIMIT', `${path}/extensions`, 'A single grant cannot exceed the total allowance.');
-  }
+  const policy = (p: LearningPolicy, path: string) => issues.push(...learningPolicyIssues(p, path));
   const objectives = index(course.objectives, '/objectives');
   index(course.chapters, '/chapters');
   const episodeList = course.chapters.flatMap((chapter) => chapter.episodes);
@@ -95,6 +87,8 @@ export function validateCourse(input: unknown): ValidationResult {
 
   function evaluator(id: string, path: string): void {
     const extension = extensions.get(id);
+    // 0.5 evaluator definitions are checked with the other contracts.
+    if (!extension && course.evaluators?.some((e) => e.id === id)) return;
     if (!extension) report('MISSING_REFERENCE', path, `Unknown evaluator ${id}.`);
     else if (extension.execution !== 'server' || !extension.capabilities.includes('assessment.evaluate')) report('INVALID_EVALUATOR', path, 'Evaluators need a declared server extension with assessment.evaluate capability.');
   }
@@ -108,6 +102,7 @@ export function validateCourse(input: unknown): ValidationResult {
     if (a.type === 'rubric') index(a.grading.rubric, `/assessments/${i}/grading/rubric`);
   }
   for (const [i, gate] of course.gates.entries()) {
+    if (isVersionedGate(gate)) continue; // checked by contractIssues
     refs(gate.objectiveIds, objectives, `/gates/${i}/objectiveIds`);
     refs(gate.assessmentIds, assessments, `/gates/${i}/assessmentIds`);
     const items = gate.assessmentIds.map((id) => assessments.get(id)).filter((item) => item !== undefined);
@@ -129,7 +124,7 @@ export function validateCourse(input: unknown): ValidationResult {
       if (episode.gateId) {
         const gate = gates.get(episode.gateId);
         if (!gate) report('MISSING_REFERENCE', `${path}/gateId`, 'Unknown gate.');
-        else if (episode.objectiveIds.some((id) => !gate.objectiveIds.includes(id))) report('GATE_SCOPE_MISMATCH', `${path}/gateId`, 'The gate must cover every declared episode objective.');
+        else if (episode.objectiveIds.some((id) => !gateObjectiveIds(gate).includes(id))) report('GATE_SCOPE_MISMATCH', `${path}/gateId`, 'The gate must cover every declared episode objective.');
       }
       for (const [bi, block] of episode.blocks.entries()) {
         const bp = `${path}/blocks/${bi}`;
@@ -140,7 +135,7 @@ export function validateCourse(input: unknown): ValidationResult {
           const visual = visuals.get(block.visualId);
           if (visual && course.platforms.some((platform) => !visual.platforms.includes(platform))) report('UNSUPPORTED_PLATFORM', bp, 'Required visual does not support every declared course platform.');
         }
-        if (block.type === 'activity') {
+        if (block.type === 'activity' && 'extensionId' in block) {
           refs([block.extensionId], extensions, `${bp}/extensionId`);
           const extension = extensions.get(block.extensionId);
           if (extension && course.platforms.some((platform) => !extension.platforms.includes(platform))) report('UNSUPPORTED_PLATFORM', bp, 'Activity extension does not support every declared course platform.');
@@ -191,15 +186,32 @@ export function validateCourse(input: unknown): ValidationResult {
     const r = course.retention;
     refs(r.objectiveIds, objectives, '/retention/objectiveIds');
     refs(r.assessmentIds, assessments, '/retention/assessmentIds');
-    if (r.intervalsDays.some((d, i) => !Number.isInteger(d) || d < 1 || d > 365 || (i > 0 && d <= r.intervalsDays[i - 1]!)))
+    const intervals = r.intervalsDays ?? [];
+    if (intervals.some((d, i) => !Number.isInteger(d) || d < 1 || d > 365 || (i > 0 && d <= intervals[i - 1]!)))
       report('INVALID_RETENTION_INTERVALS', '/retention/intervalsDays', 'Intervals must be strictly increasing whole days between 1 and 365.');
     // Held-out items must never be seen before the delayed check.
-    const exposed = new Set([...course.gates.flatMap((g) => g.assessmentIds), ...(course.placement?.assessmentIds ?? []),
+    const exposed = new Set([...course.gates.flatMap((g) => gateAssessmentIds(g)), ...(course.placement?.assessmentIds ?? []),
+      ...(course.probes ?? []).map((p) => p.assessmentId),
       ...course.chapters.flatMap((c) => c.episodes.flatMap((e) => e.blocks.flatMap((b) => (b.type === 'assessment' ? [b.assessmentId] : []))))]);
     for (const id of r.assessmentIds) if (exposed.has(id)) report('RETENTION_ITEM_NOT_HELD_OUT', '/retention/assessmentIds', `${id} is also used in a gate, placement or episode.`);
     for (const id of r.objectiveIds)
       if (!r.assessmentIds.some((item) => assessments.get(item)?.objectiveIds.includes(id))) report('UNCOVERED_RETENTION_OBJECTIVE', '/retention', `No retention item covers ${id}.`);
   }
   issues.push(...adaptationAuthoringIssues(course));
+  issues.push(...contractIssues(course));
   return issues.length ? { valid: false, issues } : { valid: true, course: structuredClone(course), issues: [] };
+}
+
+/** Semantic checks for one LearningPolicy at any scope. */
+export function learningPolicyIssues(p: LearningPolicy, path = ''): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const report = (code: string, at: string, message: string) => issues.push({ code, path: at, message });
+  if (p.mode === 'bounded' && !p.hardDeadline && !p.window && !p.work) report('UNBOUNDED_POLICY', path, 'Bounded progression needs a deadline, duration or finite work envelope.');
+  if (p.window) {
+    try { new Intl.DateTimeFormat('en', { timeZone: p.window.timeZone }).format(0); }
+    catch { report('INVALID_TIME_ZONE', `${path}/window/timeZone`, 'Unknown IANA time zone.'); }
+  }
+  if (p.extensions?.enabled && (p.extensions.maxGrants < 1 || p.extensions.calendarDays < 1 || p.extensions.maxDaysPerGrant < 1)) report('EMPTY_EXTENSION_ALLOWANCE', `${path}/extensions`, 'Enabled extensions need a usable finite allowance.');
+  if (p.extensions && p.extensions.maxDaysPerGrant > p.extensions.calendarDays) report('EXTENSION_LIMIT', `${path}/extensions`, 'A single grant cannot exceed the total allowance.');
+  return issues;
 }

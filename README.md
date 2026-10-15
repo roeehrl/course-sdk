@@ -2,7 +2,7 @@
 
 `@course-core/sdk` provides portable TypeScript contracts, course validation, and authoring helpers. The Node compiler and `course` CLI are separate from the portable main export.
 
-This checkout targets **0.2.0**, adding adaptation contracts while retaining schema-1 and compiled-format-1 course compatibility. It is a release candidate until the maintainer reviews and releases the verified artifact; local success does not imply publication. Existing consumers can remain pinned to 0.1.0.
+This checkout targets **0.5.0**, adding the versioned gate, assessment, activity, admin, research, teaching-hypothesis, agent and platform contracts of the approved design while retaining schema-1 and compiled-format-1 course compatibility: every 0.4.0 manifest validates and compiles to byte-identical output (see `fixtures/compat-0.4.0`). It is a release candidate until the maintainer reviews and releases the verified artifact; local success does not imply publication. See [CHANGELOG.md](CHANGELOG.md).
 
 Use Node.js 24 or newer for development, compilation, and the CLI. CI checks Node.js 24 and 26. Browser and native consumers should import the main entry point and supply their own runtime integration; this SDK is not a native UI runtime.
 
@@ -17,7 +17,7 @@ Use Node.js 24 or newer for development, compilation, and the CLI. CI checks Nod
 After the package has been published, install the explicit version:
 
 ```sh
-npm install @course-core/sdk@0.2.0
+npm install @course-core/sdk@0.5.0
 ```
 
 For a local release candidate, run the verification commands below and install the resulting `.tgz` into a separate project with `npm install /path/to/package.tgz`. Do not use a workspace link as evidence that the published package works.
@@ -78,11 +78,67 @@ The server projection retains the full course. The learner projection omits comp
 After installation, use the local CLI with a JSON course file:
 
 ```sh
+npx --no-install course init my-course            # scaffold a valid 0.5 course (refuses an existing directory)
 npx --no-install course validate course.json
+npx --no-install course lint course.json --strict  # warnings fail with --strict
+npx --no-install course test course.json           # offline conformance report
 npx --no-install course compile course.json compiled.json
+npx --no-install course inspect course.json
+npx --no-install course pack course.json bundle    # manifest, integrity map, licences, capabilities, conformance
+npx --no-install course verify bundle              # or a compiled.json
+npx --no-install course diff old.json new.json
+npx --no-install course migrate old.json new.json  # upgrade 0.4 gates; lists manual steps
+npx --no-install course import bundle course.json  # recover a verified manifest
 ```
 
-Compilation refuses to overwrite an existing output file. Using `--no-install` avoids silently downloading a different command if the package is missing.
+Every command is offline and deterministic, prints JSON, and exits 0 on success, 1 on a failed check and 2 on a usage error. Commands that write refuse to overwrite an existing file or directory. Using `--no-install` avoids silently downloading a different command if the package is missing. The design's `course dev` live preview is not part of the SDK, because preview needs a host renderer.
+
+A bundle's SHA-256 integrity map proves the files are intact. It does not prove who wrote them or that they can be trusted.
+
+## SDK 0.5 contracts
+
+All 0.5 sections are optional manifest fields, so 0.4 data is unchanged. Each new `define*`
+helper validates its contract on its own (schema plus context-free rules), throws
+`ContractValidationError` and returns a detached copy. `validateCourse` checks every
+cross-reference. `defineCourse`, `defineExtension` and `defineVisualExperience` keep their
+0.4 copy-only behavior; use `validateContract(kind, value)` for those.
+
+| Helper | Manifest field | Notes |
+| --- | --- | --- |
+| `defineProgressionGate` | `gates[]` | Versioned gate with the design's required fields: `id, version, scope, requiredObjectives, readinessCriteria, eligibleEvidenceKinds, minimumIndependentEvidence, assistancePolicy, nextActivityId, remediationPolicyRef, capPolicyRef, appealPolicy`. Readiness needs a `transfer_success` criterion and production transfer evidence; a recognition-only gate is rejected (`RECOGNITION_ONLY_GATE`, `MISSING_TRANSFER_ITEM`). Critical misconceptions need a `no_critical_misconception` criterion and an item that exposes them. Conversational evidence requires a rubric that demands cited learner evidence. |
+| `defineAssessment` | `assessments[]` | New types `prediction`, `trace`, `code_repair`, `counterexample`, `experiment_design`, `teach_back`. Optional `role`, `misconceptionIds`, `allowAbstain` ("I don't know") and `confidence`. Numeric items gain `relativeTolerance` and `unit`. Recognition items cannot be `transfer`. |
+| `defineActivity` | `activities[]`, block `{ type: 'activity', activityId }` | `supportedTargets, rendererRefs, executionAdapter, capabilityRequirements, equivalentFallbacks, offlineBehavior, resourceBudget, accessibleSemantics, stateMigration`, plus `layoutInputs` and compact/medium/expanded `layouts`. Every declared course target needs support or an objective-equivalent fallback. Native execution needs a declared native module. |
+| `defineAdminSection` | `adminSections[]` | Declared permissions, typed settings with checked defaults, audited mutations. Settings cannot target evidence, grading, caps or policy. |
+| `defineTeachingHypothesis`, `defineDiagnosticProbe`, `defineConcept` | `hypotheses[]`, `probes[]`, `concepts[]` | Competing hypotheses per objective, and the probes that distinguish them. Probes never count as gate evidence. |
+| `defineResearchTask` | `researchTasks[]` | Author bounds for dedicated research. `validateResearchRequest` and `validateResearchResult` check the request fields (`objective, episodeRevision, misconceptionHypothesis, knownPrerequisites, language, modality, remainingLearningTime, accessibilityNeeds, sourcePolicy, requiredOrOptional`) and the result fields (`sourceUrl` through `concerns`). Metadata-only results carry no claims or segments. |
+| `defineAgentStrategy`, `defineTool` | `agentStrategies[]`, `tools[]` | Roles, tool references, model requirements, autonomy limits, budgets, retry and cancellation. Evaluators and verifiers only propose. |
+| `defineRubric`, `defineEvaluator`, `defineAdaptationPolicy`, `defineLearningPolicy`, `definePlacementPolicy`, `defineLearningStep`, `defineEpisode`, `defineMediaResource`, `defineStoryboard`, `defineRenderer`, `defineRendererAdapter`, `definePlatformAdapter`, `defineDebugInspector`, `defineScene`, `defineTimeline`, `defineStage` | matching fields | See the TypeScript declarations and `course.schema.json`. |
+
+Runtime records (`Attempt`, `Evidence`, `GateDecision`, `TeachingHypothesis`, `ResearchRequest`,
+`ResearchResult`/`MediaCandidate`, `MediaJob`, `PlacementEvidence`, `PathExemption`, `ExtensionOffer`,
+`ExtensionGrant`, `ClosureOutcome`, `DebugTrace`, `DecisionRecord` and others) are checked with
+`validateRecord(kind, value)`. Agent-authored answers can only be synthetic evidence.
+Assisted or reattempted work cannot be independent. "I don't know" is recorded without a
+misconception signal or penalty.
+
+`decideGate(course, gateId, evidence, context)` is a transparent, deterministic reference
+evaluator. It returns a `GateDecision` with one of `ready`, `needs_evidence`, `needs_help`,
+`under_review` or `closed_with_gaps`, together with the criterion results, linked evidence and
+concrete `nextActions`. `checkGateDecision` rejects stale or unlinked decisions. Hosts must
+still authenticate evidence and recheck versions at commit time.
+
+Retention `intervalsDays` may now be omitted. `resolveRetentionIntervals` and the learner
+projection then use the product default `DEFAULT_REVIEW_INTERVALS_DAYS` (1, 3, 7, 21).
+`windowClass(width, fontScale)` returns `compact` (<600), `medium` (600–839) or `expanded` (≥840).
+
+Server-only sections never reach the learner projection: hypotheses, probes, rubrics,
+evaluators, tools, adaptation policies, admin sections, research tasks, storyboards, agent
+strategies and debug inspectors. Versioned gates project their readable requirements, but not
+their item, rubric or policy references.
+
+TypeScript note: `ProgressionGate` is now `LegacyProgressionGate | VersionedProgressionGate`,
+the activity block is a union, and `RetentionPolicy.intervalsDays` is optional. Narrow with
+`isVersionedGate` or `'extensionId' in block`. Data and compiled output are unaffected.
 
 ## Required episodes and optional branches
 
@@ -172,7 +228,7 @@ The portability smoke covers the exercised import and validation paths, includin
 To retain a verified candidate and its file inventory and hashes, choose an empty output directory outside this checkout:
 
 ```sh
-node scripts/check-packed.mjs --expect-version 0.2.0 --output-dir ../sdk-candidate-0.2.0
+node scripts/check-packed.mjs --expect-version 0.5.0 --output-dir ../sdk-candidate-0.5.0
 ```
 
 Missing compiler, validator, schema, declarations, or CLI output is a failure. No missing implementation is replaced by a stub or counted as a pass. The checker does not rebuild implicitly: run the build command first.

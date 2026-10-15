@@ -1,0 +1,407 @@
+{
+  "formatVersion": 1,
+  "digest": "439f717ef2bb096211e3bb2273b9ecbc1f9d615162d32213d88f45d646a5afe7",
+  "server": {
+    "schemaVersion": 1,
+    "id": "ordering",
+    "version": "1.0.0",
+    "title": "Ordering examples",
+    "summary": "Synthetic public authoring fixture; not a live learner record.",
+    "locale": "en",
+    "platforms": [
+      "web"
+    ],
+    "objectives": [
+      {
+        "id": "ordering-objective",
+        "description": "Explain and apply the declared example task.",
+        "prerequisites": []
+      }
+    ],
+    "chapters": [
+      {
+        "id": "ordering-chapter",
+        "title": "Practice",
+        "episodes": [
+          {
+            "id": "ordering-episode",
+            "title": "Try a fresh representation",
+            "objectiveIds": [
+              "ordering-objective"
+            ],
+            "blocks": [
+              {
+                "id": "ordering-text",
+                "type": "text",
+                "markdown": "Original explanation."
+              },
+              {
+                "id": "ordering-check",
+                "type": "assessment",
+                "assessmentId": "ordering-canonical"
+              }
+            ],
+            "gateId": "ordering-gate"
+          }
+        ]
+      }
+    ],
+    "assessments": [
+      {
+        "id": "ordering-canonical",
+        "type": "numeric",
+        "objectiveIds": [
+          "ordering-objective"
+        ],
+        "familyId": "ordering-family",
+        "prompt": "Calculate the declared quantity.",
+        "grading": {
+          "expected": 1,
+          "absoluteTolerance": 0,
+          "explanation": "Synthetic canonical scoring standard."
+        }
+      }
+    ],
+    "gates": [
+      {
+        "id": "ordering-gate",
+        "objectiveIds": [
+          "ordering-objective"
+        ],
+        "assessmentIds": [
+          "ordering-canonical"
+        ],
+        "minimumIndependentFamilies": 1,
+        "requireAllObjectives": true
+      }
+    ],
+    "sources": [
+      {
+        "id": "ordering-source",
+        "title": "Synthetic public teaching source",
+        "url": "urn:example:ordering",
+        "reviewedAt": "2026-10-12T00:00:00Z"
+      },
+      {
+        "id": "ordering-verifier-source",
+        "title": "Synthetic independent verifier specification",
+        "url": "urn:example:ordering:verifier",
+        "reviewedAt": "2026-10-12T00:00:00Z"
+      }
+    ],
+    "extensions": [
+      {
+        "id": "ordering-generator-extension",
+        "version": "1.0.0",
+        "platforms": [
+          "web"
+        ],
+        "execution": "server",
+        "capabilities": [
+          "teaching.generate"
+        ],
+        "entrypoint": "generators/exercises.js",
+        "integrity": "sha256-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "accessibility": {
+          "keyboard": true,
+          "reducedMotion": true,
+          "textAlternative": "Text exercise generation"
+        }
+      },
+      {
+        "id": "ordering-verifier-extension",
+        "version": "1.0.0",
+        "platforms": [
+          "web"
+        ],
+        "execution": "server",
+        "capabilities": [
+          "teaching.verify"
+        ],
+        "entrypoint": "verifiers/reference.js",
+        "integrity": "sha256-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "accessibility": {
+          "keyboard": true,
+          "reducedMotion": true,
+          "textAlternative": "Server reference checks"
+        }
+      },
+      {
+        "id": "ordering-renderer",
+        "version": "1.0.0",
+        "platforms": [
+          "web"
+        ],
+        "execution": "declarative",
+        "capabilities": [
+          "visual.render"
+        ],
+        "entrypoint": "renderers/order.js",
+        "integrity": "sha256-cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "accessibility": {
+          "keyboard": true,
+          "reducedMotion": true,
+          "textAlternative": "Two ordered values"
+        }
+      }
+    ],
+    "visuals": [],
+    "media": [],
+    "policy": {
+      "mode": "bounded",
+      "work": {
+        "additionalEpisodes": 5
+      },
+      "existingMaterialAccess": "read_only"
+    },
+    "adaptation": {
+      "schemaVersion": 1,
+      "targets": [
+        {
+          "episodeId": "ordering-episode",
+          "objectiveIds": [
+            "ordering-objective"
+          ],
+          "allowedOperations": [
+            "append_teaching",
+            "replace_teaching",
+            "attach_media",
+            "attach_visual",
+            "add_assessment_variant"
+          ],
+          "replaceableBlockIds": [
+            "ordering-text"
+          ]
+        }
+      ],
+      "families": [
+        {
+          "familyId": "ordering-family",
+          "canonicalAssessmentId": "ordering-canonical",
+          "generatorIds": [
+            "ordering-generator"
+          ],
+          "verifierIds": [
+            "ordering-verifier"
+          ],
+          "maxVariantsPerPlan": 3,
+          "numericalRecipeIds": [
+            "ordering-recipe"
+          ]
+        }
+      ],
+      "generators": [
+        {
+          "id": "ordering-generator",
+          "version": "1.0.0",
+          "extensionId": "ordering-generator-extension",
+          "sourceRefs": [
+            "ordering-source"
+          ],
+          "artifactKinds": [
+            "explanation",
+            "practice",
+            "assessment_variant",
+            "media",
+            "visual",
+            "profile_suggestion"
+          ]
+        }
+      ],
+      "verifiers": [
+        {
+          "id": "ordering-verifier",
+          "version": "1.0.0",
+          "extensionId": "ordering-verifier-extension",
+          "sourceRefs": [
+            "ordering-verifier-source"
+          ],
+          "artifactKinds": [
+            "explanation",
+            "practice",
+            "assessment_variant",
+            "media",
+            "visual",
+            "profile_suggestion"
+          ],
+          "requiredCheckIds": [
+            "reference",
+            "negative-control",
+            "source-review"
+          ]
+        }
+      ],
+      "sourceRefs": [
+        "ordering-source",
+        "ordering-verifier-source"
+      ],
+      "profileFieldIds": [
+        "preferred.presentation"
+      ],
+      "numericalRecipes": [
+        {
+          "id": "ordering-recipe",
+          "version": "1.0.0",
+          "promptTemplate": "Enter the smaller of {{a}} and {{b}}.",
+          "sourceRefs": [
+            "ordering-source"
+          ],
+          "variables": [
+            {
+              "name": "a",
+              "minimum": 0,
+              "maximum": 100,
+              "integer": true
+            },
+            {
+              "name": "b",
+              "minimum": 0,
+              "maximum": 100,
+              "integer": true
+            }
+          ],
+          "expression": {
+            "type": "binary",
+            "operator": "min",
+            "left": {
+              "type": "variable",
+              "name": "a"
+            },
+            "right": {
+              "type": "variable",
+              "name": "b"
+            }
+          },
+          "maxNodes": 16,
+          "maxDepth": 8,
+          "maxAbsoluteValue": 1000,
+          "referenceCheck": {
+            "verifierId": "ordering-verifier",
+            "verifierVersion": "1.0.0",
+            "checkId": "reference",
+            "absoluteTolerance": 0
+          }
+        }
+      ],
+      "limits": {
+        "maxOperations": 8,
+        "maxArtifacts": 8,
+        "maxArtifactBytes": 100000,
+        "maxPlannedMinutesPerAssignment": 15,
+        "maxAdditionalEpisodesPerAssignment": 1,
+        "allowedClassifications": [
+          "required",
+          "optional"
+        ]
+      }
+    }
+  },
+  "learner": {
+    "schemaVersion": 1,
+    "id": "ordering",
+    "version": "1.0.0",
+    "title": "Ordering examples",
+    "summary": "Synthetic public authoring fixture; not a live learner record.",
+    "locale": "en",
+    "platforms": [
+      "web"
+    ],
+    "objectives": [
+      {
+        "id": "ordering-objective",
+        "description": "Explain and apply the declared example task.",
+        "prerequisites": []
+      }
+    ],
+    "chapters": [
+      {
+        "id": "ordering-chapter",
+        "title": "Practice",
+        "episodes": [
+          {
+            "id": "ordering-episode",
+            "title": "Try a fresh representation",
+            "objectiveIds": [
+              "ordering-objective"
+            ],
+            "blocks": [
+              {
+                "id": "ordering-text",
+                "type": "text",
+                "markdown": "Original explanation."
+              },
+              {
+                "id": "ordering-check",
+                "type": "assessment",
+                "assessmentId": "ordering-canonical"
+              }
+            ],
+            "gateId": "ordering-gate"
+          }
+        ]
+      }
+    ],
+    "sources": [
+      {
+        "id": "ordering-source",
+        "title": "Synthetic public teaching source",
+        "url": "urn:example:ordering",
+        "reviewedAt": "2026-10-12T00:00:00Z"
+      },
+      {
+        "id": "ordering-verifier-source",
+        "title": "Synthetic independent verifier specification",
+        "url": "urn:example:ordering:verifier",
+        "reviewedAt": "2026-10-12T00:00:00Z"
+      }
+    ],
+    "visuals": [],
+    "media": [],
+    "policy": {
+      "mode": "bounded",
+      "work": {
+        "additionalEpisodes": 5
+      },
+      "existingMaterialAccess": "read_only"
+    },
+    "assessments": [
+      {
+        "id": "ordering-canonical",
+        "type": "numeric",
+        "objectiveIds": [
+          "ordering-objective"
+        ]
+      }
+    ],
+    "gates": [
+      {
+        "id": "ordering-gate",
+        "objectiveIds": [
+          "ordering-objective"
+        ],
+        "minimumIndependentFamilies": 1,
+        "requireAllObjectives": true
+      }
+    ],
+    "extensions": [
+      {
+        "id": "ordering-renderer",
+        "version": "1.0.0",
+        "platforms": [
+          "web"
+        ],
+        "execution": "declarative",
+        "capabilities": [
+          "visual.render"
+        ],
+        "entrypoint": "renderers/order.js",
+        "integrity": "sha256-cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "accessibility": {
+          "keyboard": true,
+          "reducedMotion": true,
+          "textAlternative": "Two ordered values"
+        }
+      }
+    ]
+  }
+}
