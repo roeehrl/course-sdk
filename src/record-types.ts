@@ -3,8 +3,8 @@
  * debug inspector. They are data shapes with integrity rules, not authority: a host
  * still authenticates issuers, authorizes commands and owns durable state.
  */
-import type { Json } from './types.js';
-import type { AccessibilityNeed, EvidenceMode, GateScope, LayoutClass, MediaJobKind, PlatformTarget, ResearchModality, StepStatus } from './contracts-types.js';
+import type { ContextCapsule, Json } from './types.js';
+import type { AccessibilityNeed, AdminPermission, EvidenceMode, GateScope, LayoutClass, MediaJobKind, PlatformTarget, ResearchModality, Rubric, StepStatus } from './contracts-types.js';
 
 export interface VersionRef { id: string; version: string }
 
@@ -290,7 +290,7 @@ export interface PlatformCapabilities {
 }
 export interface AdminCapability {
   sectionId: string;
-  permission: string;
+  permission: AdminPermission;
   scope: { kind: 'course' } | { kind: 'chapter'; chapterId: string } | { kind: 'enrollment'; enrollmentId: string };
   grantedTo: string;
   grantedBy: string;
@@ -414,5 +414,31 @@ export interface RecordKinds {
   decisionRecord: DecisionRecord;
   /** The design's name for a research result; validated identically. */
   mediaCandidate: MediaCandidate;
+  /** The design's name for a versioned rubric; validated with the rubric contract schema. */
+  rubricRevision: Rubric;
+  contextCapsule: ContextCapsule;
+  learningEventExport: LearningEventExport;
 }
 export type RecordKind = keyof RecordKinds;
+
+/** A portable learning-event export: one enrollment's events in a cursor range (K14). */
+export interface LearningEventExport {
+  exportFormat: 1;
+  course: { id: string; version: string; digest: string };
+  /** An opaque, host-chosen reference; never a name or email address. */
+  enrollmentRef: string;
+  exportedAt: string;
+  /** Events with `after < sequence <= through`, as decimal strings (64-bit safe). */
+  cursor: { after: string; through: string };
+  events: ExportedEvent[];
+}
+export interface ExportedEvent {
+  eventId: string;
+  sequence: string;
+  type: string;
+  actorKind: 'learner' | 'staff' | 'agent' | 'system';
+  occurredAt: string;
+  /** Event data. An erased payload is exported as the host's erasure marker object. */
+  payload: Record<string, Json>;
+  traceId: string | null;
+}

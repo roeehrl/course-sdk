@@ -35,7 +35,7 @@
     "test:watch": "vitest",
     "check": "npm run typecheck && npm test && npm run build",
     "prepack": "npm run build",
-    "generate": "node scripts/generate-validator.mjs",
+    "generate": "node scripts/generate-validator.mjs && node scripts/generate-types.mjs",
     "pretest": "npm run generate"
   },
   "dependencies": {

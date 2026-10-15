@@ -136,6 +136,18 @@ Runtime records (`Attempt`, `Evidence`, `GateDecision`, `TeachingHypothesis`, `R
 Assisted or reattempted work cannot be independent. "I don't know" is recorded without a
 misconception signal or penalty.
 
+0.6 adds the `contextCapsule` record (the companion's context capsule), `rubricRevision` (a versioned
+rubric) and the portable learning-event export `learningEventExport` (`$defs/learningEventExport` in
+`@course-core/sdk/schema`): one enrollment's events in a cursor range, with decimal-string sequences that
+stay exact beyond 2^53, strictly increasing and inside the range. The export carries an opaque
+`enrollmentRef`, never a name or email address; deciding who may export what stays with the host.
+
+TypeScript declarations are also generated from `course.schema.json` (`npm run generate` writes
+`src/generated/schema-types.d.ts`). `tests/generated-types.test.ts` proves that every public contract and
+record type, and `CourseManifest`, accepts exactly the same values as its generated counterpart, so schema
+and types cannot drift apart unnoticed. The hand-written types stay the public API because they carry the
+documentation.
+
 `decideGate(course, gateId, evidence, context)` is a transparent, deterministic reference
 evaluator. It returns a `GateDecision` with one of `ready`, `needs_evidence`, `needs_help`,
 `under_review` or `closed_with_gaps`, together with the criterion results, linked evidence and

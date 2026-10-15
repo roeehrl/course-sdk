@@ -2,13 +2,14 @@ import type { ValidateFunction } from 'ajv';
 import validators from './generated/records-validator.js';
 import { shapeIssues } from './adaptation-shape.js';
 import { FORBIDDEN_CAPABILITIES } from './contract-constants.js';
+import { standaloneChecks } from './contracts-validate.js';
 import type { ValidationIssue } from './types.js';
 import type { RecordKind, RecordKinds } from './record-types.js';
 
 export const RECORD_KINDS = Object.freeze(['attempt', 'evidence', 'gateDecision', 'teachingHypothesis', 'interventionPlan', 'learnerClaim',
   'researchRequest', 'researchResult', 'mediaReview', 'mediaJob', 'placementEvidence', 'pathExemption', 'resolvedConstraintSnapshot',
   'extensionAllowance', 'extensionOffer', 'extensionGrant', 'closureOutcome', 'platformCapabilities', 'adminCapability', 'toolCapability',
-  'artifactValidation', 'activityInstance', 'episodeRevision', 'conceptGraph', 'debugTrace', 'decisionRecord', 'mediaCandidate'] as const satisfies readonly RecordKind[]);
+  'artifactValidation', 'activityInstance', 'episodeRevision', 'conceptGraph', 'debugTrace', 'decisionRecord', 'mediaCandidate', 'rubricRevision', 'contextCapsule', 'learningEventExport'] as const satisfies readonly RecordKind[]);
 
 type Report = (code: string, path: string, message: string) => void;
 const GRANTING_OUTCOMES = new Set(['ready', 'demonstrated', 'exempted', 'granted', 'passed']);
@@ -114,6 +115,20 @@ const rules: { [K in RecordKind]?: (value: RecordKinds[K], report: Report) => vo
 
 // A MediaCandidate is the researcher's result; both names apply the same rules.
 rules.mediaCandidate = rules.researchResult!;
+rules.rubricRevision = (rubric, report) => standaloneChecks.rubric(rubric, '', report);
+rules.learningEventExport = (exported, report) => {
+  const after = BigInt(exported.cursor.after), through = BigInt(exported.cursor.through);
+  if (after > through) report('INVALID_CURSOR', '/cursor', 'The cursor range must not be reversed.');
+  let previous = after;
+  const ids = new Set<string>();
+  for (const [i, event] of exported.events.entries()) {
+    const sequence = BigInt(event.sequence);
+    if (sequence <= previous || sequence > through) report('INVALID_CURSOR', `/events/${i}/sequence`, 'Events are strictly increasing and inside the cursor range.');
+    previous = sequence > previous ? sequence : previous;
+    if (ids.has(event.eventId)) report('DUPLICATE_ID', `/events/${i}/eventId`, `Duplicate event ${event.eventId}.`);
+    ids.add(event.eventId);
+  }
+};
 
 /** Validate a runtime record: JSON data, schema shape and integrity rules. Not authentication. */
 export function validateRecord<K extends RecordKind>(kind: K, value: unknown): { valid: true; value: RecordKinds[K]; issues: [] } | { valid: false; issues: ValidationIssue[] } {

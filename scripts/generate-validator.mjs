@@ -4,6 +4,7 @@ import { Ajv2020, _ } from 'ajv/dist/2020.js';
 import { fullFormats } from 'ajv-formats/dist/formats.js';
 import standaloneCode from 'ajv/dist/standalone/index.js';
 import { build } from 'esbuild';
+import { CONTRACT_DEFINITIONS, RECORD_DEFINITIONS } from './contract-map.mjs';
 
 const root = new URL('../', import.meta.url);
 const course = JSON.parse(await readFile(new URL('src/course.schema.json', root), 'utf8'));
@@ -23,25 +24,10 @@ const targets = [
     ['recipe-instance', 'recipeInstance'], ['assignment-decisions', 'assignmentDecisions']]
     .map(([name, definition]) => [name, `${adaptation.$id}#/$defs/${definition}`]),
 ];
-// One module exports a static validator per public 0.5 contract and runtime record.
-const contractDefinitions = {
-  concept: 'concept', episode: 'episode', assessment: 'assessment', activity: 'activityDefinition', rubric: 'rubricDefinition',
-  tool: 'toolDefinition', adaptationPolicy: 'adaptationPolicy', learningPolicy: 'policy', adminSection: 'adminSection',
-  learningStep: 'learningStep', progressionGate: 'versionedGate', mediaResource: 'media', storyboard: 'storyboard',
-  researchTask: 'researchTask', placementPolicy: 'placement', extension: 'extension', renderer: 'rendererDefinition',
-  evaluator: 'evaluatorDefinition', agentStrategy: 'agentStrategy', platformAdapter: 'platformAdapter', debugInspector: 'debugInspector',
-  visualExperience: 'visual', scene: 'scene', timeline: 'timeline', rendererAdapter: 'rendererAdapter',
-  teachingHypothesis: 'hypothesisTemplate', diagnosticProbe: 'diagnosticProbe', stage: 'stage',
-};
-const recordDefinitions = ['attempt', 'evidence', 'gateDecision', 'teachingHypothesis', 'interventionPlan', 'learnerClaim',
-  'researchRequest', 'researchResult', 'mediaReview', 'mediaJob', 'placementEvidence', 'pathExemption', 'resolvedConstraintSnapshot',
-  'extensionAllowance', 'extensionOffer', 'extensionGrant', 'closureOutcome', 'platformCapabilities', 'adminCapability',
-  'toolCapability', 'artifactValidation', 'activityInstance', 'episodeRevision', 'conceptGraph', 'debugTrace', 'decisionRecord'];
+// One module exports a static validator per public contract and runtime record.
 const contractExports = {};
-for (const [name, definition] of Object.entries(contractDefinitions)) contractExports[`contract_${name}`] = definition;
-for (const name of recordDefinitions) contractExports[`record_${name}`] = name;
-// Design aliases: a MediaCandidate is a research result.
-contractExports.record_mediaCandidate = 'researchResult';
+for (const [name, definition] of Object.entries(CONTRACT_DEFINITIONS)) contractExports[`contract_${name}`] = definition;
+for (const [name, definition] of Object.entries(RECORD_DEFINITIONS)) contractExports[`record_${name}`] = definition;
 for (const [exportName, definition] of Object.entries(contractExports)) {
   ajv.addSchema({ $id: `urn:course-core:contract:${exportName}`, $ref: `${course.$id}#/$defs/${definition}` });
 }
