@@ -1,0 +1,49 @@
+{
+  "inventoryFormat": 1,
+  "sources": [
+    {
+      "id": "tables-primer",
+      "title": "Synthetic tide table primer",
+      "url": "https://reference.example/tides",
+      "license": "CC-BY-4.0",
+      "reviewedAt": "2026-10-01T00:00:00Z"
+    }
+  ],
+  "media": [
+    {
+      "id": "tide-clip",
+      "type": "video",
+      "url": "https://media.example/tide.mp4",
+      "sourceRef": "tables-primer",
+      "license": "CC-BY-4.0",
+      "generated": false,
+      "review": "reviewed"
+    }
+  ],
+  "extensions": [
+    {
+      "id": "curve-lab",
+      "version": "1.0.0",
+      "integrity": "sha256-cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "license": null
+    },
+    {
+      "id": "curve-renderer",
+      "version": "1.0.0",
+      "integrity": "sha256-cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "license": null
+    },
+    {
+      "id": "evaluator",
+      "version": "1.0.0",
+      "integrity": "sha256-cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "license": null
+    }
+  ],
+  "sceneAssets": [],
+  "undeclared": [
+    "extension:curve-lab",
+    "extension:curve-renderer",
+    "extension:evaluator"
+  ]
+}

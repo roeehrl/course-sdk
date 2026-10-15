@@ -1,0 +1,24 @@
+{
+  "bundleFormat": 1,
+  "sdk": {
+    "name": "@course-core/sdk",
+    "version": "0.5.0"
+  },
+  "course": {
+    "id": "example-course",
+    "version": "0.1.0",
+    "schemaVersion": 1,
+    "title": "Example course",
+    "locale": "en",
+    "platforms": [
+      "web"
+    ]
+  },
+  "compiledDigest": "0efb5c2c18b8982b1b920fa9cf909e74a58760d088e0ac659b2446f18b46378a",
+  "contents": [
+    "capabilities.json",
+    "conformance.json",
+    "course.compiled.json",
+    "licenses.json"
+  ]
+}

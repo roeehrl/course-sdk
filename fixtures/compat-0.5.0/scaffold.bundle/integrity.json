@@ -1,0 +1,10 @@
+{
+  "algorithm": "sha256",
+  "files": {
+    "capabilities.json": "afab02d289142810209ab134f30dce227b8adc40103a10b068e41fdf89310403",
+    "conformance.json": "17a2dfc420fddb94bc0eba6fdc2dead4e7cd3730780a09f26b638d27a4d78fe0",
+    "course.compiled.json": "dd6e70e0467da3f77f3a1fc6d5d911a0d350d91b6ff0df7ed70f5dc3257a1542",
+    "licenses.json": "dd355471265902b9726a7ab2088f32dda18b7c519fdc50f0c93ad02d7e42e3d2",
+    "manifest.json": "a2ddaed79c213658def91d5a8f1dbfba7e931fa1918f3287000b3f3d0b2a26d7"
+  }
+}

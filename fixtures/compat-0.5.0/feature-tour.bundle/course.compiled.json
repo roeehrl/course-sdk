@@ -1,0 +1,892 @@
+{
+  "formatVersion": 1,
+  "digest": "28f0e577d86d6b53eb111f6b32d4da45781e9f66f148ee3a8fd2b346c835ffde",
+  "server": {
+    "schemaVersion": 1,
+    "id": "tide-tables",
+    "version": "2.1.0",
+    "title": "Reading tide tables",
+    "summary": "Synthetic public compatibility fixture covering every 0.4.0 contract.",
+    "locale": "en",
+    "platforms": [
+      "web",
+      "ios"
+    ],
+    "objectives": [
+      {
+        "id": "read-table",
+        "description": "Read a tide table row.",
+        "prerequisites": [],
+        "placeable": true
+      },
+      {
+        "id": "interpolate",
+        "description": "Estimate a height between two rows.",
+        "prerequisites": [
+          "read-table"
+        ],
+        "critical": true
+      },
+      {
+        "id": "plan-walk",
+        "description": "Plan a safe shoreline walk window.",
+        "prerequisites": [
+          "interpolate"
+        ]
+      },
+      {
+        "id": "history",
+        "description": "Describe how tide tables were first computed.",
+        "prerequisites": []
+      }
+    ],
+    "chapters": [
+      {
+        "id": "reading",
+        "title": "Reading",
+        "summary": "Rows, units and times.",
+        "policy": {
+          "mode": "bounded",
+          "window": {
+            "calendarDays": 7,
+            "anchor": "scope_started",
+            "timeZone": "Europe/Lisbon",
+            "pauseRule": "approved_only"
+          },
+          "existingMaterialAccess": "read_only"
+        },
+        "episodes": [
+          {
+            "id": "rows",
+            "title": "Rows and units",
+            "objectiveIds": [
+              "read-table"
+            ],
+            "gateId": "read-gate",
+            "blocks": [
+              {
+                "id": "rows-text",
+                "type": "text",
+                "markdown": "Each row lists a time and a height in metres.",
+                "sourceRefs": [
+                  "tables-primer"
+                ]
+              },
+              {
+                "id": "rows-visual",
+                "type": "visual",
+                "visualId": "tide-curve"
+              },
+              {
+                "id": "rows-check",
+                "type": "assessment",
+                "assessmentId": "row-choice"
+              }
+            ]
+          },
+          {
+            "id": "between",
+            "title": "Between rows",
+            "objectiveIds": [
+              "interpolate"
+            ],
+            "gateId": "interp-gate",
+            "requirement": "required",
+            "blocks": [
+              {
+                "id": "between-text",
+                "type": "text",
+                "markdown": "Interpolate linearly between neighbouring rows."
+              },
+              {
+                "id": "between-lab",
+                "type": "activity",
+                "extensionId": "curve-lab",
+                "configuration": {
+                  "rows": 2,
+                  "seed": 7
+                }
+              },
+              {
+                "id": "between-media",
+                "type": "media",
+                "mediaId": "tide-clip",
+                "required": true
+              }
+            ]
+          },
+          {
+            "id": "history-detour",
+            "title": "Where tables came from",
+            "objectiveIds": [
+              "history"
+            ],
+            "requirement": "optional",
+            "blocks": [
+              {
+                "id": "history-text",
+                "type": "text",
+                "markdown": "Optional background on harmonic prediction."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "planning",
+        "title": "Planning",
+        "episodes": [
+          {
+            "id": "walk",
+            "title": "Plan a walk",
+            "objectiveIds": [
+              "plan-walk"
+            ],
+            "gateId": "walk-gate",
+            "policy": {
+              "mode": "bounded",
+              "work": {
+                "additionalEpisodes": 2,
+                "additionalMinutes": 40,
+                "remediationCyclesPerConcept": 2
+              },
+              "existingMaterialAccess": "closed"
+            },
+            "blocks": [
+              {
+                "id": "walk-text",
+                "type": "text",
+                "markdown": "Choose a window when the height stays below a threshold."
+              },
+              {
+                "id": "walk-check",
+                "type": "assessment",
+                "assessmentId": "walk-rubric"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "assessments": [
+      {
+        "id": "row-choice",
+        "type": "choice",
+        "objectiveIds": [
+          "read-table"
+        ],
+        "familyId": "row-lookup",
+        "prompt": "Which row shows the higher tide?",
+        "options": [
+          {
+            "id": "a",
+            "text": "Row A: 2.1 m"
+          },
+          {
+            "id": "b",
+            "text": "Row B: 1.4 m"
+          }
+        ],
+        "grading": {
+          "correctOptionId": "a",
+          "explanation": "2.1 m exceeds 1.4 m."
+        }
+      },
+      {
+        "id": "row-numeric",
+        "type": "numeric",
+        "objectiveIds": [
+          "read-table"
+        ],
+        "familyId": "row-height",
+        "prompt": "Enter the height at 06:00.",
+        "grading": {
+          "expected": 1.8,
+          "absoluteTolerance": 0.05,
+          "explanation": "Read the 06:00 row."
+        }
+      },
+      {
+        "id": "interp-numeric",
+        "type": "numeric",
+        "objectiveIds": [
+          "interpolate"
+        ],
+        "familyId": "interp-value",
+        "prompt": "Estimate the height halfway between 1.0 m and 2.0 m.",
+        "grading": {
+          "expected": 1.5,
+          "absoluteTolerance": 0.05,
+          "explanation": "Halfway is the mean."
+        }
+      },
+      {
+        "id": "interp-code",
+        "type": "code",
+        "objectiveIds": [
+          "interpolate"
+        ],
+        "familyId": "interp-code",
+        "language": "python",
+        "starterCode": "def interpolate(a, b, t):\n    pass\n",
+        "prompt": "Implement linear interpolation.",
+        "grading": {
+          "evaluatorId": "evaluator",
+          "fixtureRef": "fixtures/interp-v1"
+        }
+      },
+      {
+        "id": "walk-rubric",
+        "type": "rubric",
+        "objectiveIds": [
+          "plan-walk"
+        ],
+        "familyId": "walk-plan",
+        "prompt": "Explain your chosen walking window.",
+        "grading": {
+          "evaluatorId": "evaluator",
+          "rubric": [
+            {
+              "id": "threshold",
+              "description": "Uses the stated threshold.",
+              "required": true
+            },
+            {
+              "id": "margin",
+              "description": "Adds a safety margin.",
+              "required": false
+            }
+          ]
+        }
+      },
+      {
+        "id": "later-interp",
+        "type": "numeric",
+        "objectiveIds": [
+          "interpolate"
+        ],
+        "familyId": "interp-later",
+        "prompt": "Estimate a quarter of the way from 2.0 m to 3.0 m.",
+        "grading": {
+          "expected": 2.25,
+          "absoluteTolerance": 0.05,
+          "explanation": "Add a quarter of the difference."
+        }
+      }
+    ],
+    "gates": [
+      {
+        "id": "read-gate",
+        "objectiveIds": [
+          "read-table"
+        ],
+        "assessmentIds": [
+          "row-choice",
+          "row-numeric"
+        ],
+        "minimumIndependentFamilies": 2,
+        "requireAllObjectives": true
+      },
+      {
+        "id": "interp-gate",
+        "objectiveIds": [
+          "interpolate"
+        ],
+        "assessmentIds": [
+          "interp-numeric",
+          "interp-code"
+        ],
+        "minimumIndependentFamilies": 2,
+        "requireAllObjectives": true
+      },
+      {
+        "id": "walk-gate",
+        "objectiveIds": [
+          "plan-walk"
+        ],
+        "assessmentIds": [
+          "walk-rubric"
+        ],
+        "minimumIndependentFamilies": 1,
+        "conversationalEvaluatorId": "evaluator",
+        "requireAllObjectives": true
+      }
+    ],
+    "extensions": [
+      {
+        "id": "curve-lab",
+        "version": "1.0.0",
+        "platforms": [
+          "web",
+          "ios"
+        ],
+        "execution": "sandboxed_web",
+        "capabilities": [
+          "state.read",
+          "observation.emit"
+        ],
+        "entrypoint": "plugins/curve-lab.js",
+        "integrity": "sha256-cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "accessibility": {
+          "keyboard": true,
+          "reducedMotion": true,
+          "textAlternative": "Equivalent text steps."
+        }
+      },
+      {
+        "id": "curve-renderer",
+        "version": "1.0.0",
+        "platforms": [
+          "web",
+          "ios"
+        ],
+        "execution": "declarative",
+        "capabilities": [
+          "state.read"
+        ],
+        "entrypoint": "plugins/curve-renderer.js",
+        "integrity": "sha256-cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "accessibility": {
+          "keyboard": true,
+          "reducedMotion": true,
+          "textAlternative": "Equivalent text steps."
+        }
+      },
+      {
+        "id": "evaluator",
+        "version": "1.0.0",
+        "platforms": [
+          "web",
+          "ios"
+        ],
+        "execution": "server",
+        "capabilities": [
+          "assessment.evaluate"
+        ],
+        "entrypoint": "plugins/evaluator.js",
+        "integrity": "sha256-cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "accessibility": {
+          "keyboard": true,
+          "reducedMotion": true,
+          "textAlternative": "Equivalent text steps."
+        }
+      }
+    ],
+    "visuals": [
+      {
+        "id": "tide-curve",
+        "rendererId": "curve-renderer",
+        "platforms": [
+          "web",
+          "ios"
+        ],
+        "state": {
+          "hours": 12
+        },
+        "scene": {
+          "layers": [
+            "axis",
+            "curve"
+          ]
+        },
+        "layouts": {
+          "compact": {
+            "stack": true
+          },
+          "expanded": {
+            "columns": 2
+          }
+        },
+        "timeline": {
+          "durationMs": 4000,
+          "seekable": true,
+          "cues": [
+            {
+              "atMs": 0,
+              "event": "start"
+            },
+            {
+              "atMs": 2000,
+              "event": "peak"
+            }
+          ]
+        },
+        "accessibility": {
+          "description": "A sine-like curve of tide height over twelve hours.",
+          "reducedMotion": {
+            "static": true
+          }
+        },
+        "referenceChecks": [
+          "curve-matches-rows"
+        ]
+      }
+    ],
+    "media": [
+      {
+        "id": "tide-clip",
+        "type": "video",
+        "sourceRef": "tables-primer",
+        "url": "https://media.example/tide.mp4",
+        "review": "reviewed",
+        "alternativeMarkdown": "A transcript describing rising and falling water.",
+        "generated": false
+      }
+    ],
+    "sources": [
+      {
+        "id": "tables-primer",
+        "title": "Synthetic tide table primer",
+        "url": "https://reference.example/tides",
+        "reviewedAt": "2026-10-01T00:00:00Z",
+        "license": "CC-BY-4.0"
+      }
+    ],
+    "policy": {
+      "mode": "bounded",
+      "hardDeadline": "2027-01-31T23:59:59Z",
+      "window": {
+        "calendarDays": 30,
+        "anchor": "enrollment_started",
+        "timeZone": "UTC",
+        "pauseRule": "approved_only"
+      },
+      "work": {
+        "additionalEpisodes": 4
+      },
+      "extensions": {
+        "enabled": true,
+        "calendarDays": 5,
+        "maxGrants": 2,
+        "maxDaysPerGrant": 3,
+        "learnerAcceptanceRequired": true
+      },
+      "existingMaterialAccess": "read_only"
+    },
+    "placement": {
+      "enabled": true,
+      "learnerMayDecline": true,
+      "objectiveIds": [
+        "read-table"
+      ],
+      "assessmentIds": [
+        "row-choice",
+        "row-numeric"
+      ],
+      "protectedEpisodeIds": [
+        "between"
+      ],
+      "maxItems": 2
+    },
+    "retention": {
+      "intervalsDays": [
+        1,
+        3,
+        7,
+        21
+      ],
+      "objectiveIds": [
+        "interpolate"
+      ],
+      "assessmentIds": [
+        "later-interp"
+      ]
+    },
+    "research": {
+      "publicTopics": [
+        {
+          "id": "tide-basics",
+          "objectiveIds": [
+            "interpolate"
+          ],
+          "queryText": "Linear interpolation in tide tables",
+          "allowedDomains": [
+            "reference.example"
+          ]
+        }
+      ]
+    }
+  },
+  "learner": {
+    "schemaVersion": 1,
+    "id": "tide-tables",
+    "version": "2.1.0",
+    "title": "Reading tide tables",
+    "summary": "Synthetic public compatibility fixture covering every 0.4.0 contract.",
+    "locale": "en",
+    "platforms": [
+      "web",
+      "ios"
+    ],
+    "objectives": [
+      {
+        "id": "read-table",
+        "description": "Read a tide table row.",
+        "prerequisites": [],
+        "placeable": true
+      },
+      {
+        "id": "interpolate",
+        "description": "Estimate a height between two rows.",
+        "prerequisites": [
+          "read-table"
+        ],
+        "critical": true
+      },
+      {
+        "id": "plan-walk",
+        "description": "Plan a safe shoreline walk window.",
+        "prerequisites": [
+          "interpolate"
+        ]
+      },
+      {
+        "id": "history",
+        "description": "Describe how tide tables were first computed.",
+        "prerequisites": []
+      }
+    ],
+    "chapters": [
+      {
+        "id": "reading",
+        "title": "Reading",
+        "summary": "Rows, units and times.",
+        "policy": {
+          "mode": "bounded",
+          "window": {
+            "calendarDays": 7,
+            "anchor": "scope_started",
+            "timeZone": "Europe/Lisbon",
+            "pauseRule": "approved_only"
+          },
+          "existingMaterialAccess": "read_only"
+        },
+        "episodes": [
+          {
+            "id": "rows",
+            "title": "Rows and units",
+            "objectiveIds": [
+              "read-table"
+            ],
+            "gateId": "read-gate",
+            "blocks": [
+              {
+                "id": "rows-text",
+                "type": "text",
+                "markdown": "Each row lists a time and a height in metres.",
+                "sourceRefs": [
+                  "tables-primer"
+                ]
+              },
+              {
+                "id": "rows-visual",
+                "type": "visual",
+                "visualId": "tide-curve"
+              },
+              {
+                "id": "rows-check",
+                "type": "assessment",
+                "assessmentId": "row-choice"
+              }
+            ]
+          },
+          {
+            "id": "between",
+            "title": "Between rows",
+            "objectiveIds": [
+              "interpolate"
+            ],
+            "gateId": "interp-gate",
+            "requirement": "required",
+            "blocks": [
+              {
+                "id": "between-text",
+                "type": "text",
+                "markdown": "Interpolate linearly between neighbouring rows."
+              },
+              {
+                "id": "between-lab",
+                "type": "activity",
+                "extensionId": "curve-lab",
+                "configuration": {
+                  "rows": 2,
+                  "seed": 7
+                }
+              },
+              {
+                "id": "between-media",
+                "type": "media",
+                "mediaId": "tide-clip",
+                "required": true
+              }
+            ]
+          },
+          {
+            "id": "history-detour",
+            "title": "Where tables came from",
+            "objectiveIds": [
+              "history"
+            ],
+            "requirement": "optional",
+            "blocks": [
+              {
+                "id": "history-text",
+                "type": "text",
+                "markdown": "Optional background on harmonic prediction."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "planning",
+        "title": "Planning",
+        "episodes": [
+          {
+            "id": "walk",
+            "title": "Plan a walk",
+            "objectiveIds": [
+              "plan-walk"
+            ],
+            "gateId": "walk-gate",
+            "policy": {
+              "mode": "bounded",
+              "work": {
+                "additionalEpisodes": 2,
+                "additionalMinutes": 40,
+                "remediationCyclesPerConcept": 2
+              },
+              "existingMaterialAccess": "closed"
+            },
+            "blocks": [
+              {
+                "id": "walk-text",
+                "type": "text",
+                "markdown": "Choose a window when the height stays below a threshold."
+              },
+              {
+                "id": "walk-check",
+                "type": "assessment",
+                "assessmentId": "walk-rubric"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "visuals": [
+      {
+        "id": "tide-curve",
+        "rendererId": "curve-renderer",
+        "platforms": [
+          "web",
+          "ios"
+        ],
+        "state": {
+          "hours": 12
+        },
+        "scene": {
+          "layers": [
+            "axis",
+            "curve"
+          ]
+        },
+        "layouts": {
+          "compact": {
+            "stack": true
+          },
+          "expanded": {
+            "columns": 2
+          }
+        },
+        "timeline": {
+          "durationMs": 4000,
+          "seekable": true,
+          "cues": [
+            {
+              "atMs": 0,
+              "event": "start"
+            },
+            {
+              "atMs": 2000,
+              "event": "peak"
+            }
+          ]
+        },
+        "accessibility": {
+          "description": "A sine-like curve of tide height over twelve hours.",
+          "reducedMotion": {
+            "static": true
+          }
+        },
+        "referenceChecks": [
+          "curve-matches-rows"
+        ]
+      }
+    ],
+    "media": [
+      {
+        "id": "tide-clip",
+        "type": "video",
+        "sourceRef": "tables-primer",
+        "url": "https://media.example/tide.mp4",
+        "review": "reviewed",
+        "alternativeMarkdown": "A transcript describing rising and falling water.",
+        "generated": false
+      }
+    ],
+    "sources": [
+      {
+        "id": "tables-primer",
+        "title": "Synthetic tide table primer",
+        "url": "https://reference.example/tides",
+        "reviewedAt": "2026-10-01T00:00:00Z",
+        "license": "CC-BY-4.0"
+      }
+    ],
+    "policy": {
+      "mode": "bounded",
+      "hardDeadline": "2027-01-31T23:59:59Z",
+      "window": {
+        "calendarDays": 30,
+        "anchor": "enrollment_started",
+        "timeZone": "UTC",
+        "pauseRule": "approved_only"
+      },
+      "work": {
+        "additionalEpisodes": 4
+      },
+      "extensions": {
+        "enabled": true,
+        "calendarDays": 5,
+        "maxGrants": 2,
+        "maxDaysPerGrant": 3,
+        "learnerAcceptanceRequired": true
+      },
+      "existingMaterialAccess": "read_only"
+    },
+    "assessments": [
+      {
+        "id": "row-choice",
+        "type": "choice",
+        "objectiveIds": [
+          "read-table"
+        ]
+      },
+      {
+        "id": "row-numeric",
+        "type": "numeric",
+        "objectiveIds": [
+          "read-table"
+        ]
+      },
+      {
+        "id": "interp-numeric",
+        "type": "numeric",
+        "objectiveIds": [
+          "interpolate"
+        ]
+      },
+      {
+        "id": "interp-code",
+        "type": "code",
+        "objectiveIds": [
+          "interpolate"
+        ]
+      },
+      {
+        "id": "walk-rubric",
+        "type": "rubric",
+        "objectiveIds": [
+          "plan-walk"
+        ]
+      }
+    ],
+    "gates": [
+      {
+        "id": "read-gate",
+        "objectiveIds": [
+          "read-table"
+        ],
+        "minimumIndependentFamilies": 2,
+        "requireAllObjectives": true
+      },
+      {
+        "id": "interp-gate",
+        "objectiveIds": [
+          "interpolate"
+        ],
+        "minimumIndependentFamilies": 2,
+        "requireAllObjectives": true
+      },
+      {
+        "id": "walk-gate",
+        "objectiveIds": [
+          "plan-walk"
+        ],
+        "minimumIndependentFamilies": 1,
+        "requireAllObjectives": true
+      }
+    ],
+    "extensions": [
+      {
+        "id": "curve-lab",
+        "version": "1.0.0",
+        "platforms": [
+          "web",
+          "ios"
+        ],
+        "execution": "sandboxed_web",
+        "capabilities": [
+          "state.read",
+          "observation.emit"
+        ],
+        "entrypoint": "plugins/curve-lab.js",
+        "integrity": "sha256-cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "accessibility": {
+          "keyboard": true,
+          "reducedMotion": true,
+          "textAlternative": "Equivalent text steps."
+        }
+      },
+      {
+        "id": "curve-renderer",
+        "version": "1.0.0",
+        "platforms": [
+          "web",
+          "ios"
+        ],
+        "execution": "declarative",
+        "capabilities": [
+          "state.read"
+        ],
+        "entrypoint": "plugins/curve-renderer.js",
+        "integrity": "sha256-cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "accessibility": {
+          "keyboard": true,
+          "reducedMotion": true,
+          "textAlternative": "Equivalent text steps."
+        }
+      }
+    ],
+    "retention": {
+      "intervalsDays": [
+        1,
+        3,
+        7,
+        21
+      ],
+      "objectiveIds": [
+        "interpolate"
+      ]
+    },
+    "placement": {
+      "enabled": true,
+      "learnerMayDecline": true,
+      "objectiveIds": [
+        "read-table"
+      ],
+      "maxItems": 2
+    }
+  }
+}

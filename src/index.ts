@@ -24,6 +24,7 @@ export { RECORD_KINDS, validateRecord } from './records.js';
 export { decideGate, checkGateDecision } from './gate-decision.js';
 export type { GateDecisionContext, GateDecisionResult } from './gate-decision.js';
 export { lintCourse } from './lint.js';
+export { publicationIssues } from './publication.js';
 export type { LintFinding } from './lint.js';
 export { isVersionedGate, gateObjectiveIds, gateAssessmentIds } from './contracts-validate.js';
 export { buildConceptGraph, resolveRetentionIntervals } from './concepts.js';

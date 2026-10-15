@@ -1,0 +1,246 @@
+{
+  "schemaVersion": 1,
+  "id": "example-course",
+  "version": "0.1.0",
+  "title": "Example course",
+  "summary": "A starter course created by course init.",
+  "locale": "en",
+  "platforms": [
+    "web"
+  ],
+  "objectives": [
+    {
+      "id": "estimate-mean",
+      "description": "Estimate the mean of a short list of numbers.",
+      "prerequisites": []
+    }
+  ],
+  "chapters": [
+    {
+      "id": "basics",
+      "title": "Basics",
+      "episodes": [
+        {
+          "id": "mean",
+          "title": "The mean",
+          "objectiveIds": [
+            "estimate-mean"
+          ],
+          "gateId": "mean-ready",
+          "blocks": [
+            {
+              "id": "explain",
+              "type": "text",
+              "markdown": "The mean adds the values and divides by how many there are."
+            },
+            {
+              "id": "check-sum",
+              "type": "assessment",
+              "assessmentId": "mean-choice"
+            },
+            {
+              "id": "check-transfer",
+              "type": "assessment",
+              "assessmentId": "mean-transfer"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "assessments": [
+    {
+      "id": "mean-choice",
+      "type": "choice",
+      "objectiveIds": [
+        "estimate-mean"
+      ],
+      "familyId": "mean-recognize",
+      "role": "recognition",
+      "prompt": "What is the mean of 2, 4 and 6?",
+      "options": [
+        {
+          "id": "four",
+          "text": "4"
+        },
+        {
+          "id": "twelve",
+          "text": "12",
+          "misconceptionId": "mean-is-sum"
+        }
+      ],
+      "grading": {
+        "correctOptionId": "four",
+        "explanation": "12 divided by 3 is 4."
+      }
+    },
+    {
+      "id": "mean-transfer",
+      "type": "numeric",
+      "objectiveIds": [
+        "estimate-mean"
+      ],
+      "familyId": "mean-apply",
+      "role": "transfer",
+      "misconceptionIds": [
+        "mean-is-sum"
+      ],
+      "prompt": "Three readings are 10, 20 and 60. What reading would make the mean of four readings equal 30?",
+      "grading": {
+        "expected": 30,
+        "absoluteTolerance": 0,
+        "explanation": "Four readings totalling 120 need 30 more."
+      }
+    },
+    {
+      "id": "mean-probe",
+      "type": "choice",
+      "objectiveIds": [
+        "estimate-mean"
+      ],
+      "familyId": "mean-probe",
+      "role": "diagnostic_probe",
+      "prompt": "Is the mean of 5 and 5 equal to 10?",
+      "options": [
+        {
+          "id": "yes",
+          "text": "Yes"
+        },
+        {
+          "id": "no",
+          "text": "No"
+        }
+      ],
+      "grading": {
+        "correctOptionId": "no",
+        "explanation": "The mean of 5 and 5 is 5."
+      }
+    }
+  ],
+  "gates": [
+    {
+      "id": "mean-ready",
+      "version": "1.0.0",
+      "scope": {
+        "kind": "episode",
+        "episodeId": "mean"
+      },
+      "requiredObjectives": [
+        "estimate-mean"
+      ],
+      "readinessCriteria": [
+        {
+          "id": "independent",
+          "kind": "independent_success",
+          "description": "Two independent item families.",
+          "objectiveIds": []
+        },
+        {
+          "id": "transfer",
+          "kind": "transfer_success",
+          "description": "Solve a new transfer task.",
+          "objectiveIds": []
+        },
+        {
+          "id": "misconceptions",
+          "kind": "no_critical_misconception",
+          "description": "The mean is not confused with the sum.",
+          "objectiveIds": []
+        }
+      ],
+      "eligibleEvidenceKinds": [
+        "deterministic_interactive_check"
+      ],
+      "minimumIndependentEvidence": {
+        "families": 2,
+        "transferItems": 1
+      },
+      "interactiveCheckRefs": [
+        "mean-choice",
+        "mean-transfer"
+      ],
+      "assistancePolicy": {
+        "assistedEvidence": "recorded_not_counted",
+        "revealRequiresFreshEvidence": true,
+        "agentAuthoredAnswers": "rejected",
+        "reattemptsOfSameItem": "not_independent"
+      },
+      "nextActivityId": null,
+      "remediationPolicyRef": "remediation",
+      "capPolicyRef": "course",
+      "appealPolicy": {
+        "allowed": true,
+        "windowDays": 14,
+        "reviewer": "staff"
+      }
+    }
+  ],
+  "hypotheses": [
+    {
+      "id": "mean-is-sum",
+      "kind": "misconception",
+      "statement": "The mean is the total rather than the total divided by the count.",
+      "objectiveIds": [
+        "estimate-mean"
+      ],
+      "critical": true
+    },
+    {
+      "id": "arithmetic-slip",
+      "kind": "slip",
+      "statement": "A one-off arithmetic slip.",
+      "objectiveIds": [
+        "estimate-mean"
+      ]
+    }
+  ],
+  "probes": [
+    {
+      "id": "sum-or-slip",
+      "objectiveId": "estimate-mean",
+      "assessmentId": "mean-probe",
+      "distinguishes": [
+        "mean-is-sum",
+        "arithmetic-slip"
+      ],
+      "signals": [
+        {
+          "hypothesisId": "mean-is-sum",
+          "optionIds": [
+            "yes"
+          ]
+        },
+        {
+          "hypothesisId": "arithmetic-slip",
+          "outcome": "correct"
+        }
+      ]
+    }
+  ],
+  "adaptationPolicies": [
+    {
+      "id": "remediation",
+      "version": "1.0.0",
+      "maxCyclesPerConcept": 2,
+      "strategies": [
+        "contrast_case",
+        "worked_example"
+      ],
+      "onExhausted": "close_with_gaps",
+      "autoApply": "verified_only",
+      "learnerUndo": true
+    }
+  ],
+  "extensions": [],
+  "visuals": [],
+  "media": [],
+  "sources": [],
+  "policy": {
+    "mode": "bounded",
+    "work": {
+      "additionalEpisodes": 3,
+      "remediationCyclesPerConcept": 2
+    },
+    "existingMaterialAccess": "read_only"
+  }
+}

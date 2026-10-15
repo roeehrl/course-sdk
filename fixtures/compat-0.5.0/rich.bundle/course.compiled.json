@@ -1,0 +1,1744 @@
+{
+  "formatVersion": 1,
+  "digest": "83eb7eb17d32834fe589b21467a600bf511e7433960d862fe452170423a142c6",
+  "server": {
+    "schemaVersion": 1,
+    "id": "pendulum-lab",
+    "version": "1.0.0",
+    "title": "Pendulum timing",
+    "summary": "Synthetic public 0.5 contract fixture.",
+    "locale": "en",
+    "platforms": [
+      "web",
+      "ios"
+    ],
+    "chapterLabel": "Unit",
+    "stages": [
+      {
+        "id": "foundations",
+        "title": "Foundations"
+      }
+    ],
+    "objectives": [
+      {
+        "id": "measure-period",
+        "description": "Measure a period from timings.",
+        "prerequisites": []
+      },
+      {
+        "id": "predict-period",
+        "description": "Predict how length changes the period.",
+        "prerequisites": [
+          "measure-period"
+        ],
+        "critical": true
+      }
+    ],
+    "concepts": [
+      {
+        "id": "period",
+        "title": "Period",
+        "objectiveIds": [
+          "measure-period"
+        ],
+        "prerequisiteConceptIds": []
+      },
+      {
+        "id": "length-dependence",
+        "title": "Length dependence",
+        "objectiveIds": [
+          "predict-period"
+        ],
+        "prerequisiteConceptIds": [
+          "period"
+        ]
+      }
+    ],
+    "chapters": [
+      {
+        "id": "swing",
+        "title": "Swing",
+        "stageId": "foundations",
+        "subtitle": "Timing a swing",
+        "iconAsset": "asset:icons/swing.svg",
+        "policy": {
+          "mode": "bounded",
+          "work": {
+            "additionalEpisodes": 2
+          },
+          "existingMaterialAccess": "read_only"
+        },
+        "episodes": [
+          {
+            "id": "timing",
+            "title": "Timing swings",
+            "objectiveIds": [
+              "measure-period"
+            ],
+            "blocks": [
+              {
+                "id": "timing-text",
+                "type": "text",
+                "markdown": "Time ten swings and divide by ten.",
+                "sourceRefs": [
+                  "physics-notes"
+                ]
+              },
+              {
+                "id": "timing-check",
+                "type": "assessment",
+                "assessmentId": "period-numeric"
+              }
+            ]
+          },
+          {
+            "id": "length",
+            "title": "Changing length",
+            "objectiveIds": [
+              "predict-period"
+            ],
+            "gateId": "length-ready",
+            "blocks": [
+              {
+                "id": "length-text",
+                "type": "text",
+                "markdown": "A longer pendulum swings more slowly."
+              },
+              {
+                "id": "length-lab",
+                "type": "activity",
+                "activityId": "pendulum-sim",
+                "configuration": {
+                  "lengths": [
+                    1,
+                    4
+                  ]
+                }
+              },
+              {
+                "id": "length-predict",
+                "type": "assessment",
+                "assessmentId": "length-prediction"
+              },
+              {
+                "id": "length-alt",
+                "type": "text",
+                "markdown": "Table of lengths and periods as an equivalent route."
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "assessments": [
+      {
+        "id": "period-numeric",
+        "type": "numeric",
+        "objectiveIds": [
+          "measure-period"
+        ],
+        "familyId": "period-measure",
+        "role": "application",
+        "prompt": "Ten swings took 20 s. What is the period?",
+        "grading": {
+          "expected": 2,
+          "absoluteTolerance": 0.05,
+          "relativeTolerance": 0.01,
+          "unit": "s",
+          "explanation": "20 / 10 = 2."
+        }
+      },
+      {
+        "id": "length-choice",
+        "type": "choice",
+        "objectiveIds": [
+          "predict-period"
+        ],
+        "familyId": "length-recognize",
+        "role": "recognition",
+        "allowAbstain": true,
+        "confidence": {
+          "capture": "optional",
+          "scale": {
+            "minimum": 1,
+            "maximum": 5
+          }
+        },
+        "prompt": "Which pendulum swings more slowly?",
+        "options": [
+          {
+            "id": "long",
+            "text": "The longer one"
+          },
+          {
+            "id": "heavy",
+            "text": "The heavier one",
+            "misconceptionId": "mass-matters"
+          }
+        ],
+        "grading": {
+          "correctOptionId": "long",
+          "explanation": "Length sets the period."
+        }
+      },
+      {
+        "id": "length-prediction",
+        "type": "prediction",
+        "objectiveIds": [
+          "predict-period"
+        ],
+        "familyId": "length-predict",
+        "role": "transfer",
+        "misconceptionIds": [
+          "mass-matters"
+        ],
+        "observationRef": "pendulum-sim",
+        "prompt": "A 1 m pendulum has period 2 s. Predict the period at 4 m.",
+        "grading": {
+          "expected": 4,
+          "absoluteTolerance": 0.1,
+          "unit": "s",
+          "explanation": "Period scales with the square root of length."
+        }
+      },
+      {
+        "id": "length-trace",
+        "type": "trace",
+        "objectiveIds": [
+          "predict-period"
+        ],
+        "familyId": "length-trace",
+        "role": "application",
+        "prompt": "Trace the period for each length.",
+        "steps": [
+          {
+            "id": "one",
+            "prompt": "1 m"
+          },
+          {
+            "id": "four",
+            "prompt": "4 m"
+          }
+        ],
+        "grading": {
+          "expected": [
+            {
+              "stepId": "one",
+              "answer": "2 s"
+            },
+            {
+              "stepId": "four",
+              "answer": "4 s"
+            }
+          ],
+          "match": "normalized_whitespace",
+          "explanation": "Square-root scaling."
+        }
+      },
+      {
+        "id": "length-teach",
+        "type": "teach_back",
+        "objectiveIds": [
+          "predict-period"
+        ],
+        "familyId": "length-explain",
+        "role": "transfer",
+        "prompt": "Explain to a friend why mass does not matter.",
+        "grading": {
+          "evaluatorId": "explain-evaluator",
+          "rubricId": "explain-rubric"
+        }
+      },
+      {
+        "id": "mass-probe",
+        "type": "choice",
+        "objectiveIds": [
+          "predict-period"
+        ],
+        "familyId": "mass-probe",
+        "role": "diagnostic_probe",
+        "prompt": "Two equal-length pendulums differ in mass. Which is slower?",
+        "options": [
+          {
+            "id": "same",
+            "text": "Same period"
+          },
+          {
+            "id": "heavier",
+            "text": "The heavier one"
+          }
+        ],
+        "grading": {
+          "correctOptionId": "same",
+          "explanation": "Mass does not change the period."
+        }
+      },
+      {
+        "id": "later-prediction",
+        "type": "prediction",
+        "objectiveIds": [
+          "predict-period"
+        ],
+        "familyId": "later",
+        "role": "transfer",
+        "prompt": "Predict the period at 9 m.",
+        "grading": {
+          "expected": 6,
+          "absoluteTolerance": 0.1,
+          "explanation": "Three times the 1 m period."
+        }
+      }
+    ],
+    "gates": [
+      {
+        "id": "length-ready",
+        "version": "1.0.0",
+        "scope": {
+          "kind": "episode",
+          "episodeId": "length"
+        },
+        "requiredObjectives": [
+          "predict-period"
+        ],
+        "readinessCriteria": [
+          {
+            "id": "independent",
+            "kind": "independent_success",
+            "description": "Two independent item families.",
+            "objectiveIds": []
+          },
+          {
+            "id": "transfer",
+            "kind": "transfer_success",
+            "description": "Predict a new case.",
+            "objectiveIds": [
+              "predict-period"
+            ]
+          },
+          {
+            "id": "misconceptions",
+            "kind": "no_critical_misconception",
+            "description": "Mass is not the cause.",
+            "objectiveIds": []
+          }
+        ],
+        "eligibleEvidenceKinds": [
+          "deterministic_interactive_check",
+          "rubric_backed_conversation",
+          "configured_combination"
+        ],
+        "minimumIndependentEvidence": {
+          "families": 2,
+          "transferItems": 1
+        },
+        "interactiveCheckRefs": [
+          "length-choice",
+          "length-prediction",
+          "length-trace"
+        ],
+        "conversationalRubricRef": "explain-rubric",
+        "assistancePolicy": {
+          "assistedEvidence": "recorded_not_counted",
+          "revealRequiresFreshEvidence": true,
+          "agentAuthoredAnswers": "rejected",
+          "reattemptsOfSameItem": "not_independent"
+        },
+        "nextActivityId": null,
+        "remediationPolicyRef": "remediate",
+        "capPolicyRef": "chapter:swing",
+        "appealPolicy": {
+          "allowed": true,
+          "windowDays": 7,
+          "reviewer": "staff"
+        },
+        "previewAccess": "read_only"
+      }
+    ],
+    "hypotheses": [
+      {
+        "id": "mass-matters",
+        "kind": "misconception",
+        "statement": "Heavier bobs swing more slowly.",
+        "objectiveIds": [
+          "predict-period"
+        ],
+        "critical": true
+      },
+      {
+        "id": "timing-unfamiliar",
+        "kind": "missing_prerequisite",
+        "statement": "Unsure how to measure a period.",
+        "objectiveIds": [
+          "predict-period"
+        ],
+        "prerequisiteObjectiveId": "measure-period"
+      },
+      {
+        "id": "spring-analogy",
+        "kind": "useful_analogy",
+        "statement": "Compare with a swing at a playground.",
+        "objectiveIds": [
+          "predict-period"
+        ]
+      }
+    ],
+    "probes": [
+      {
+        "id": "mass-or-timing",
+        "objectiveId": "predict-period",
+        "assessmentId": "mass-probe",
+        "distinguishes": [
+          "mass-matters",
+          "timing-unfamiliar"
+        ],
+        "signals": [
+          {
+            "hypothesisId": "mass-matters",
+            "optionIds": [
+              "heavier"
+            ]
+          },
+          {
+            "hypothesisId": "timing-unfamiliar",
+            "outcome": "abstained"
+          }
+        ]
+      }
+    ],
+    "rubrics": [
+      {
+        "id": "explain-rubric",
+        "version": "1.0.0",
+        "title": "Explains length dependence",
+        "requiresCitedEvidence": true,
+        "uncertain": "clarifying_probe",
+        "criteria": [
+          {
+            "id": "length",
+            "description": "Names length as the cause.",
+            "required": true,
+            "evidence": "cited_learner_span"
+          },
+          {
+            "id": "mass",
+            "description": "Rules out mass.",
+            "required": true,
+            "evidence": "cited_learner_span"
+          }
+        ]
+      }
+    ],
+    "evaluators": [
+      {
+        "id": "explain-evaluator",
+        "version": "1.0.0",
+        "extensionId": "grader",
+        "method": "rubric_model_assisted",
+        "itemTypes": [
+          "teach_back",
+          "rubric"
+        ],
+        "rubricIds": [
+          "explain-rubric"
+        ],
+        "humanConfirmation": "on_uncertain",
+        "outputs": {
+          "uncertainty": true,
+          "provenance": true
+        },
+        "tests": {
+          "fixtureRef": "fixtures/explain-v1",
+          "acceptsValidVariants": true,
+          "rejectsMisconceptions": true
+        }
+      }
+    ],
+    "tools": [
+      {
+        "id": "search-notes",
+        "version": "1.0.0",
+        "description": "Search reviewed course notes.",
+        "execution": "server",
+        "extensionId": "grader",
+        "inputSchema": {
+          "type": "object"
+        },
+        "outputSchema": {
+          "type": "object"
+        },
+        "capabilities": [
+          "research.search"
+        ],
+        "sideEffects": "none",
+        "idempotency": "idempotent",
+        "timeoutMs": 5000,
+        "maxOutputBytes": 65536
+      }
+    ],
+    "adaptationPolicies": [
+      {
+        "id": "remediate",
+        "version": "1.0.0",
+        "maxCyclesPerConcept": 2,
+        "strategies": [
+          "contrast_case",
+          "diagnostic_probe"
+        ],
+        "onExhausted": "close_with_gaps",
+        "autoApply": "verified_only",
+        "learnerUndo": true
+      }
+    ],
+    "activities": [
+      {
+        "id": "pendulum-sim",
+        "version": "1.0.0",
+        "title": "Pendulum simulator",
+        "objectiveIds": [
+          "predict-period"
+        ],
+        "supportedTargets": [
+          "web_desktop",
+          "web_mobile",
+          "ipados_tablet"
+        ],
+        "rendererRefs": [
+          {
+            "target": "web_desktop",
+            "rendererId": "sim-renderer"
+          },
+          {
+            "target": "web_mobile",
+            "rendererId": "sim-renderer"
+          },
+          {
+            "target": "ipados_tablet",
+            "rendererId": "sim-renderer"
+          }
+        ],
+        "executionAdapter": "sandboxed_web",
+        "capabilityRequirements": [
+          {
+            "capability": "state.patch",
+            "required": true
+          },
+          {
+            "capability": "observation.emit",
+            "required": true
+          }
+        ],
+        "equivalentFallbacks": [
+          {
+            "target": "ios_phone",
+            "kind": "text_block",
+            "ref": "length-alt",
+            "objectiveIds": [
+              "predict-period"
+            ]
+          }
+        ],
+        "offlineBehavior": "queue_observations",
+        "resourceBudget": {
+          "timeoutMs": 2000,
+          "maxMemoryMb": 64,
+          "maxStateBytes": 8192,
+          "maxEventBytes": 2048,
+          "maxEventsPerMinute": 120
+        },
+        "accessibleSemantics": {
+          "keyboard": true,
+          "screenReader": true,
+          "reducedMotion": true,
+          "nonPointerPath": true,
+          "textAlternative": "A table of lengths and measured periods."
+        },
+        "stateMigration": {
+          "stateVersion": 2,
+          "strategy": "migrate",
+          "migratesFrom": [
+            1
+          ]
+        },
+        "layoutInputs": [
+          "effective_window_bounds",
+          "font_scale",
+          "split_view"
+        ],
+        "layouts": {
+          "compact": {
+            "stack": true
+          },
+          "expanded": {
+            "columns": 2
+          }
+        },
+        "stateSchema": {
+          "type": "object"
+        },
+        "observationSchema": {
+          "type": "object"
+        },
+        "evaluatorRef": "explain-evaluator"
+      }
+    ],
+    "adminSections": [
+      {
+        "id": "lab-settings",
+        "version": "1.0.0",
+        "title": "Lab settings",
+        "requiredPermissions": [
+          "course.read",
+          "course.settings.write"
+        ],
+        "learnerDataAccess": "none",
+        "audit": "all_mutations",
+        "rendererRef": "admin-panel",
+        "settings": [
+          {
+            "id": "max-length",
+            "label": "Longest pendulum (m)",
+            "scope": "course",
+            "mutationPermission": "course.settings.write",
+            "type": "number",
+            "default": 4,
+            "minimum": 1,
+            "maximum": 10
+          },
+          {
+            "id": "units",
+            "label": "Units",
+            "scope": "course",
+            "mutationPermission": "course.settings.write",
+            "type": "enum",
+            "default": "metric",
+            "options": [
+              "metric",
+              "imperial"
+            ]
+          }
+        ]
+      }
+    ],
+    "learningSteps": [
+      {
+        "id": "step-explain",
+        "episodeId": "length",
+        "kind": "explain",
+        "requirement": "required",
+        "blockIds": [
+          "length-text"
+        ],
+        "primaryAction": {
+          "label": "Read",
+          "blockId": "length-text"
+        },
+        "nextStepId": "step-lab"
+      },
+      {
+        "id": "step-lab",
+        "episodeId": "length",
+        "kind": "manipulate",
+        "requirement": "required",
+        "blockIds": [
+          "length-lab"
+        ],
+        "primaryAction": {
+          "label": "Try it",
+          "blockId": "length-lab"
+        },
+        "nextStepId": "step-gate"
+      },
+      {
+        "id": "step-gate",
+        "episodeId": "length",
+        "kind": "gate",
+        "requirement": "required",
+        "blockIds": [
+          "length-predict"
+        ],
+        "primaryAction": {
+          "label": "Predict",
+          "blockId": "length-predict"
+        },
+        "nextStepId": null,
+        "gateId": "length-ready"
+      }
+    ],
+    "research": {
+      "publicTopics": [
+        {
+          "id": "pendulum-topic",
+          "objectiveIds": [
+            "predict-period"
+          ],
+          "queryText": "Simple pendulum period and length",
+          "allowedDomains": [
+            "reference.example"
+          ]
+        }
+      ]
+    },
+    "researchTasks": [
+      {
+        "id": "find-explainer",
+        "objectiveIds": [
+          "predict-period"
+        ],
+        "publicTopicIds": [
+          "pendulum-topic"
+        ],
+        "modalities": [
+          "video",
+          "article"
+        ],
+        "languages": [
+          "en"
+        ],
+        "requiredOrOptional": "optional",
+        "sourcePolicy": {
+          "allowedDomains": [
+            "reference.example"
+          ],
+          "requireReviewedContent": true,
+          "maxCandidates": 3,
+          "maxToolCalls": 10,
+          "deadlineSeconds": 120
+        }
+      }
+    ],
+    "storyboards": [
+      {
+        "id": "swing-clip",
+        "version": "1.0.0",
+        "kind": "verified_vector_animation",
+        "objectiveIds": [
+          "predict-period"
+        ],
+        "durationMs": 6000,
+        "referenceVisualId": "swing-visual",
+        "script": [
+          {
+            "id": "line-1",
+            "atMs": 0,
+            "text": "Watch the long pendulum."
+          }
+        ],
+        "frames": [
+          {
+            "id": "frame-1",
+            "atMs": 0,
+            "description": "Two pendulums side by side.",
+            "referenceCheckIds": [
+              "period-ratio"
+            ]
+          }
+        ],
+        "captionsRequired": true,
+        "accessibleEquivalent": {
+          "kind": "text_block",
+          "ref": "length-alt"
+        },
+        "sourceRefs": [
+          "physics-notes"
+        ]
+      }
+    ],
+    "agentStrategies": [
+      {
+        "id": "tutor",
+        "version": "1.0.0",
+        "roles": [
+          "companion_tutor",
+          "supervisor"
+        ],
+        "description": "Socratic tutor that probes before explaining.",
+        "inputSchema": {
+          "type": "object"
+        },
+        "outputContract": {
+          "schema": {
+            "type": "object"
+          },
+          "proposalKinds": [
+            "explanation"
+          ]
+        },
+        "toolRefs": [
+          "search-notes"
+        ],
+        "modelRequirements": {
+          "capabilities": [
+            "tool_calling",
+            "structured_output"
+          ]
+        },
+        "autonomy": {
+          "level": "apply_verified_personal",
+          "mayApply": [
+            "append_teaching"
+          ],
+          "requiresLearnerOptIn": true,
+          "maxAppliedChangesPerDay": 5
+        },
+        "budget": {
+          "maxToolCalls": 20,
+          "maxWallSeconds": 120,
+          "maxOutputTokens": 4000
+        },
+        "retry": {
+          "maxAttempts": 2,
+          "reconcileUnknownOutcome": true
+        },
+        "cancellation": "cooperative"
+      }
+    ],
+    "platformAdapters": [
+      {
+        "id": "ios-haptics",
+        "version": "1.0.0",
+        "target": "ios_phone",
+        "kind": "native_module",
+        "providesCapabilities": [
+          "sensor.motion"
+        ],
+        "requiresAppBuild": true,
+        "layoutInputs": [
+          "safe_areas"
+        ]
+      }
+    ],
+    "debugInspectors": [
+      {
+        "id": "sim-inspector",
+        "version": "1.0.0",
+        "title": "Simulator state",
+        "subjects": [
+          {
+            "kind": "activity",
+            "ref": "pendulum-sim"
+          },
+          {
+            "kind": "gate",
+            "ref": "length-ready"
+          }
+        ],
+        "views": [
+          "context",
+          "gate_placement_decision",
+          "safe_replay"
+        ],
+        "payloadAccess": "redacted",
+        "requiredPermissions": [
+          "debug.read"
+        ],
+        "replay": {
+          "allowed": true,
+          "sideEffects": "stubbed",
+          "progressWrites": "denied"
+        }
+      }
+    ],
+    "renderers": [
+      {
+        "id": "sim-renderer",
+        "version": "1.0.0",
+        "surface": "learner_activity",
+        "extensionId": "sim-plugin",
+        "targets": [
+          "web_desktop",
+          "web_mobile",
+          "ipados_tablet"
+        ],
+        "features": [
+          "path_draw",
+          "mask"
+        ]
+      },
+      {
+        "id": "admin-panel",
+        "version": "1.0.0",
+        "surface": "admin",
+        "extensionId": "sim-plugin",
+        "targets": [
+          "web_desktop"
+        ],
+        "features": []
+      }
+    ],
+    "rendererAdapters": [
+      {
+        "id": "sim-svg",
+        "version": "1.0.0",
+        "rendererId": "sim-renderer",
+        "target": "web_desktop",
+        "engine": "svg",
+        "supportedFeatures": [
+          "path_draw"
+        ],
+        "fallbacks": [
+          {
+            "feature": "mask",
+            "fallback": "equivalent_static"
+          }
+        ]
+      }
+    ],
+    "scenes": [
+      {
+        "id": "swing-scene",
+        "version": "1.0.0",
+        "semanticNodes": [
+          {
+            "id": "bob",
+            "label": "Pendulum bob",
+            "role": "object"
+          }
+        ],
+        "layers": [
+          {
+            "id": "bob-layer",
+            "kind": "vector",
+            "semanticNodeIds": [
+              "bob"
+            ],
+            "decorative": false
+          },
+          {
+            "id": "sky",
+            "kind": "image",
+            "semanticNodeIds": [],
+            "assetRef": "sky-image",
+            "decorative": true
+          }
+        ],
+        "assets": [
+          {
+            "id": "sky-image",
+            "url": "asset:images/sky.png",
+            "license": "CC0-1.0"
+          }
+        ]
+      }
+    ],
+    "timelines": [
+      {
+        "id": "swing-motion",
+        "version": "1.0.0",
+        "sceneId": "swing-scene",
+        "durationMs": 4000,
+        "seekable": true,
+        "reducedMotion": "static_frames",
+        "tracks": [
+          {
+            "id": "angle",
+            "layerId": "bob-layer",
+            "property": "rotation",
+            "easing": "ease_in_out",
+            "keyframes": [
+              {
+                "atMs": 0,
+                "value": -20
+              },
+              {
+                "atMs": 2000,
+                "value": 20
+              }
+            ]
+          }
+        ],
+        "cues": [
+          {
+            "atMs": 2000,
+            "event": "turn"
+          }
+        ]
+      }
+    ],
+    "extensions": [
+      {
+        "id": "sim-plugin",
+        "version": "1.0.0",
+        "platforms": [
+          "web",
+          "ios"
+        ],
+        "execution": "sandboxed_web",
+        "capabilities": [
+          "state.patch",
+          "observation.emit"
+        ],
+        "entrypoint": "plugins/sim.js",
+        "integrity": "sha256-dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "accessibility": {
+          "keyboard": true,
+          "reducedMotion": true,
+          "textAlternative": "Text steps."
+        },
+        "license": "Apache-2.0"
+      },
+      {
+        "id": "writer-ext",
+        "version": "1.0.0",
+        "platforms": [
+          "web"
+        ],
+        "execution": "server",
+        "capabilities": [
+          "teaching.generate"
+        ],
+        "entrypoint": "gen/writer.js",
+        "integrity": "sha256-dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "accessibility": {
+          "keyboard": true,
+          "reducedMotion": true,
+          "textAlternative": "Text steps."
+        },
+        "license": "MIT"
+      },
+      {
+        "id": "checker-ext",
+        "version": "1.0.0",
+        "platforms": [
+          "web"
+        ],
+        "execution": "server",
+        "capabilities": [
+          "teaching.verify"
+        ],
+        "entrypoint": "gen/checker.js",
+        "integrity": "sha256-dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "accessibility": {
+          "keyboard": true,
+          "reducedMotion": true,
+          "textAlternative": "Text steps."
+        },
+        "license": "MIT"
+      },
+      {
+        "id": "grader",
+        "version": "1.0.0",
+        "platforms": [
+          "web"
+        ],
+        "execution": "server",
+        "capabilities": [
+          "assessment.evaluate"
+        ],
+        "entrypoint": "evaluators/grader.js",
+        "integrity": "sha256-dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "accessibility": {
+          "keyboard": true,
+          "reducedMotion": true,
+          "textAlternative": "Text steps."
+        },
+        "license": "MIT"
+      }
+    ],
+    "visuals": [
+      {
+        "id": "swing-visual",
+        "rendererId": "sim-plugin",
+        "platforms": [
+          "web",
+          "ios"
+        ],
+        "state": {},
+        "scene": {},
+        "layouts": {
+          "compact": {},
+          "expanded": {}
+        },
+        "timeline": {
+          "durationMs": 1000,
+          "seekable": true,
+          "cues": []
+        },
+        "accessibility": {
+          "description": "Two pendulums.",
+          "reducedMotion": {}
+        },
+        "referenceChecks": [
+          "period-ratio"
+        ]
+      }
+    ],
+    "media": [
+      {
+        "id": "swing-video",
+        "type": "video",
+        "sourceRef": "physics-notes",
+        "url": "https://media.example/swing.mp4",
+        "review": "reviewed",
+        "alternativeMarkdown": "Transcript.",
+        "generated": false,
+        "segment": {
+          "startSeconds": 10,
+          "endSeconds": 40
+        },
+        "captions": "creator_captions"
+      }
+    ],
+    "sources": [
+      {
+        "id": "physics-notes",
+        "title": "Synthetic physics notes",
+        "url": "https://reference.example/pendulum",
+        "reviewedAt": "2026-10-01T00:00:00Z",
+        "license": "CC-BY-4.0"
+      }
+    ],
+    "policy": {
+      "mode": "bounded",
+      "work": {
+        "additionalEpisodes": 4,
+        "remediationCyclesPerConcept": 3
+      },
+      "existingMaterialAccess": "read_only"
+    },
+    "retention": {
+      "objectiveIds": [
+        "predict-period"
+      ],
+      "assessmentIds": [
+        "later-prediction"
+      ]
+    },
+    "adaptation": {
+      "schemaVersion": 1,
+      "targets": [
+        {
+          "episodeId": "length",
+          "objectiveIds": [
+            "predict-period"
+          ],
+          "allowedOperations": [
+            "append_teaching"
+          ],
+          "replaceableBlockIds": []
+        }
+      ],
+      "families": [],
+      "profileFieldIds": [],
+      "numericalRecipes": [],
+      "sourceRefs": [
+        "physics-notes"
+      ],
+      "generators": [
+        {
+          "id": "writer",
+          "version": "1.0.0",
+          "extensionId": "writer-ext",
+          "sourceRefs": [
+            "physics-notes"
+          ],
+          "artifactKinds": [
+            "explanation"
+          ]
+        }
+      ],
+      "verifiers": [
+        {
+          "id": "checker",
+          "version": "1.0.0",
+          "extensionId": "checker-ext",
+          "sourceRefs": [
+            "physics-notes"
+          ],
+          "artifactKinds": [
+            "explanation"
+          ],
+          "requiredCheckIds": [
+            "reference"
+          ]
+        }
+      ],
+      "limits": {
+        "maxOperations": 2,
+        "maxArtifacts": 2,
+        "maxArtifactBytes": 10000,
+        "maxPlannedMinutesPerAssignment": 10,
+        "maxAdditionalEpisodesPerAssignment": 1,
+        "allowedClassifications": [
+          "optional"
+        ]
+      }
+    }
+  },
+  "learner": {
+    "schemaVersion": 1,
+    "id": "pendulum-lab",
+    "version": "1.0.0",
+    "title": "Pendulum timing",
+    "summary": "Synthetic public 0.5 contract fixture.",
+    "locale": "en",
+    "platforms": [
+      "web",
+      "ios"
+    ],
+    "chapterLabel": "Unit",
+    "stages": [
+      {
+        "id": "foundations",
+        "title": "Foundations"
+      }
+    ],
+    "objectives": [
+      {
+        "id": "measure-period",
+        "description": "Measure a period from timings.",
+        "prerequisites": []
+      },
+      {
+        "id": "predict-period",
+        "description": "Predict how length changes the period.",
+        "prerequisites": [
+          "measure-period"
+        ],
+        "critical": true
+      }
+    ],
+    "concepts": [
+      {
+        "id": "period",
+        "title": "Period",
+        "objectiveIds": [
+          "measure-period"
+        ],
+        "prerequisiteConceptIds": []
+      },
+      {
+        "id": "length-dependence",
+        "title": "Length dependence",
+        "objectiveIds": [
+          "predict-period"
+        ],
+        "prerequisiteConceptIds": [
+          "period"
+        ]
+      }
+    ],
+    "chapters": [
+      {
+        "id": "swing",
+        "title": "Swing",
+        "stageId": "foundations",
+        "subtitle": "Timing a swing",
+        "iconAsset": "asset:icons/swing.svg",
+        "policy": {
+          "mode": "bounded",
+          "work": {
+            "additionalEpisodes": 2
+          },
+          "existingMaterialAccess": "read_only"
+        },
+        "episodes": [
+          {
+            "id": "timing",
+            "title": "Timing swings",
+            "objectiveIds": [
+              "measure-period"
+            ],
+            "blocks": [
+              {
+                "id": "timing-text",
+                "type": "text",
+                "markdown": "Time ten swings and divide by ten.",
+                "sourceRefs": [
+                  "physics-notes"
+                ]
+              },
+              {
+                "id": "timing-check",
+                "type": "assessment",
+                "assessmentId": "period-numeric"
+              }
+            ]
+          },
+          {
+            "id": "length",
+            "title": "Changing length",
+            "objectiveIds": [
+              "predict-period"
+            ],
+            "gateId": "length-ready",
+            "blocks": [
+              {
+                "id": "length-text",
+                "type": "text",
+                "markdown": "A longer pendulum swings more slowly."
+              },
+              {
+                "id": "length-lab",
+                "type": "activity",
+                "activityId": "pendulum-sim",
+                "configuration": {
+                  "lengths": [
+                    1,
+                    4
+                  ]
+                }
+              },
+              {
+                "id": "length-predict",
+                "type": "assessment",
+                "assessmentId": "length-prediction"
+              },
+              {
+                "id": "length-alt",
+                "type": "text",
+                "markdown": "Table of lengths and periods as an equivalent route."
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "learningSteps": [
+      {
+        "id": "step-explain",
+        "episodeId": "length",
+        "kind": "explain",
+        "requirement": "required",
+        "blockIds": [
+          "length-text"
+        ],
+        "primaryAction": {
+          "label": "Read",
+          "blockId": "length-text"
+        },
+        "nextStepId": "step-lab"
+      },
+      {
+        "id": "step-lab",
+        "episodeId": "length",
+        "kind": "manipulate",
+        "requirement": "required",
+        "blockIds": [
+          "length-lab"
+        ],
+        "primaryAction": {
+          "label": "Try it",
+          "blockId": "length-lab"
+        },
+        "nextStepId": "step-gate"
+      },
+      {
+        "id": "step-gate",
+        "episodeId": "length",
+        "kind": "gate",
+        "requirement": "required",
+        "blockIds": [
+          "length-predict"
+        ],
+        "primaryAction": {
+          "label": "Predict",
+          "blockId": "length-predict"
+        },
+        "nextStepId": null,
+        "gateId": "length-ready"
+      }
+    ],
+    "rendererAdapters": [
+      {
+        "id": "sim-svg",
+        "version": "1.0.0",
+        "rendererId": "sim-renderer",
+        "target": "web_desktop",
+        "engine": "svg",
+        "supportedFeatures": [
+          "path_draw"
+        ],
+        "fallbacks": [
+          {
+            "feature": "mask",
+            "fallback": "equivalent_static"
+          }
+        ]
+      }
+    ],
+    "scenes": [
+      {
+        "id": "swing-scene",
+        "version": "1.0.0",
+        "semanticNodes": [
+          {
+            "id": "bob",
+            "label": "Pendulum bob",
+            "role": "object"
+          }
+        ],
+        "layers": [
+          {
+            "id": "bob-layer",
+            "kind": "vector",
+            "semanticNodeIds": [
+              "bob"
+            ],
+            "decorative": false
+          },
+          {
+            "id": "sky",
+            "kind": "image",
+            "semanticNodeIds": [],
+            "assetRef": "sky-image",
+            "decorative": true
+          }
+        ],
+        "assets": [
+          {
+            "id": "sky-image",
+            "url": "asset:images/sky.png",
+            "license": "CC0-1.0"
+          }
+        ]
+      }
+    ],
+    "timelines": [
+      {
+        "id": "swing-motion",
+        "version": "1.0.0",
+        "sceneId": "swing-scene",
+        "durationMs": 4000,
+        "seekable": true,
+        "reducedMotion": "static_frames",
+        "tracks": [
+          {
+            "id": "angle",
+            "layerId": "bob-layer",
+            "property": "rotation",
+            "easing": "ease_in_out",
+            "keyframes": [
+              {
+                "atMs": 0,
+                "value": -20
+              },
+              {
+                "atMs": 2000,
+                "value": 20
+              }
+            ]
+          }
+        ],
+        "cues": [
+          {
+            "atMs": 2000,
+            "event": "turn"
+          }
+        ]
+      }
+    ],
+    "visuals": [
+      {
+        "id": "swing-visual",
+        "rendererId": "sim-plugin",
+        "platforms": [
+          "web",
+          "ios"
+        ],
+        "state": {},
+        "scene": {},
+        "layouts": {
+          "compact": {},
+          "expanded": {}
+        },
+        "timeline": {
+          "durationMs": 1000,
+          "seekable": true,
+          "cues": []
+        },
+        "accessibility": {
+          "description": "Two pendulums.",
+          "reducedMotion": {}
+        },
+        "referenceChecks": [
+          "period-ratio"
+        ]
+      }
+    ],
+    "media": [
+      {
+        "id": "swing-video",
+        "type": "video",
+        "sourceRef": "physics-notes",
+        "url": "https://media.example/swing.mp4",
+        "review": "reviewed",
+        "alternativeMarkdown": "Transcript.",
+        "generated": false,
+        "segment": {
+          "startSeconds": 10,
+          "endSeconds": 40
+        },
+        "captions": "creator_captions"
+      }
+    ],
+    "sources": [
+      {
+        "id": "physics-notes",
+        "title": "Synthetic physics notes",
+        "url": "https://reference.example/pendulum",
+        "reviewedAt": "2026-10-01T00:00:00Z",
+        "license": "CC-BY-4.0"
+      }
+    ],
+    "policy": {
+      "mode": "bounded",
+      "work": {
+        "additionalEpisodes": 4,
+        "remediationCyclesPerConcept": 3
+      },
+      "existingMaterialAccess": "read_only"
+    },
+    "assessments": [
+      {
+        "id": "period-numeric",
+        "type": "numeric",
+        "objectiveIds": [
+          "measure-period"
+        ]
+      },
+      {
+        "id": "length-choice",
+        "type": "choice",
+        "objectiveIds": [
+          "predict-period"
+        ]
+      },
+      {
+        "id": "length-prediction",
+        "type": "prediction",
+        "objectiveIds": [
+          "predict-period"
+        ]
+      },
+      {
+        "id": "length-trace",
+        "type": "trace",
+        "objectiveIds": [
+          "predict-period"
+        ]
+      },
+      {
+        "id": "length-teach",
+        "type": "teach_back",
+        "objectiveIds": [
+          "predict-period"
+        ]
+      },
+      {
+        "id": "mass-probe",
+        "type": "choice",
+        "objectiveIds": [
+          "predict-period"
+        ]
+      }
+    ],
+    "gates": [
+      {
+        "id": "length-ready",
+        "version": "1.0.0",
+        "scope": {
+          "kind": "episode",
+          "episodeId": "length"
+        },
+        "requiredObjectives": [
+          "predict-period"
+        ],
+        "readinessCriteria": [
+          {
+            "id": "independent",
+            "kind": "independent_success",
+            "description": "Two independent item families.",
+            "objectiveIds": []
+          },
+          {
+            "id": "transfer",
+            "kind": "transfer_success",
+            "description": "Predict a new case.",
+            "objectiveIds": [
+              "predict-period"
+            ]
+          },
+          {
+            "id": "misconceptions",
+            "kind": "no_critical_misconception",
+            "description": "Mass is not the cause.",
+            "objectiveIds": []
+          }
+        ],
+        "eligibleEvidenceKinds": [
+          "deterministic_interactive_check",
+          "rubric_backed_conversation",
+          "configured_combination"
+        ],
+        "minimumIndependentEvidence": {
+          "families": 2,
+          "transferItems": 1
+        },
+        "nextActivityId": null,
+        "appealPolicy": {
+          "allowed": true,
+          "windowDays": 7,
+          "reviewer": "staff"
+        },
+        "previewAccess": "read_only"
+      }
+    ],
+    "extensions": [
+      {
+        "id": "sim-plugin",
+        "version": "1.0.0",
+        "platforms": [
+          "web",
+          "ios"
+        ],
+        "execution": "sandboxed_web",
+        "capabilities": [
+          "state.patch",
+          "observation.emit"
+        ],
+        "entrypoint": "plugins/sim.js",
+        "integrity": "sha256-dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "accessibility": {
+          "keyboard": true,
+          "reducedMotion": true,
+          "textAlternative": "Text steps."
+        },
+        "license": "Apache-2.0"
+      }
+    ],
+    "activities": [
+      {
+        "id": "pendulum-sim",
+        "version": "1.0.0",
+        "title": "Pendulum simulator",
+        "objectiveIds": [
+          "predict-period"
+        ],
+        "supportedTargets": [
+          "web_desktop",
+          "web_mobile",
+          "ipados_tablet"
+        ],
+        "rendererRefs": [
+          {
+            "target": "web_desktop",
+            "rendererId": "sim-renderer"
+          },
+          {
+            "target": "web_mobile",
+            "rendererId": "sim-renderer"
+          },
+          {
+            "target": "ipados_tablet",
+            "rendererId": "sim-renderer"
+          }
+        ],
+        "executionAdapter": "sandboxed_web",
+        "capabilityRequirements": [
+          {
+            "capability": "state.patch",
+            "required": true
+          },
+          {
+            "capability": "observation.emit",
+            "required": true
+          }
+        ],
+        "equivalentFallbacks": [
+          {
+            "target": "ios_phone",
+            "kind": "text_block",
+            "ref": "length-alt",
+            "objectiveIds": [
+              "predict-period"
+            ]
+          }
+        ],
+        "offlineBehavior": "queue_observations",
+        "resourceBudget": {
+          "timeoutMs": 2000,
+          "maxMemoryMb": 64,
+          "maxStateBytes": 8192,
+          "maxEventBytes": 2048,
+          "maxEventsPerMinute": 120
+        },
+        "accessibleSemantics": {
+          "keyboard": true,
+          "screenReader": true,
+          "reducedMotion": true,
+          "nonPointerPath": true,
+          "textAlternative": "A table of lengths and measured periods."
+        },
+        "stateMigration": {
+          "stateVersion": 2,
+          "strategy": "migrate",
+          "migratesFrom": [
+            1
+          ]
+        },
+        "layoutInputs": [
+          "effective_window_bounds",
+          "font_scale",
+          "split_view"
+        ],
+        "layouts": {
+          "compact": {
+            "stack": true
+          },
+          "expanded": {
+            "columns": 2
+          }
+        },
+        "stateSchema": {
+          "type": "object"
+        },
+        "observationSchema": {
+          "type": "object"
+        }
+      }
+    ],
+    "renderers": [
+      {
+        "id": "sim-renderer",
+        "version": "1.0.0",
+        "surface": "learner_activity",
+        "extensionId": "sim-plugin",
+        "targets": [
+          "web_desktop",
+          "web_mobile",
+          "ipados_tablet"
+        ],
+        "features": [
+          "path_draw",
+          "mask"
+        ]
+      }
+    ],
+    "platformAdapters": [
+      {
+        "id": "ios-haptics",
+        "version": "1.0.0",
+        "target": "ios_phone",
+        "kind": "native_module",
+        "providesCapabilities": [
+          "sensor.motion"
+        ],
+        "requiresAppBuild": true,
+        "layoutInputs": [
+          "safe_areas"
+        ]
+      }
+    ],
+    "retention": {
+      "intervalsDays": [
+        1,
+        3,
+        7,
+        21
+      ],
+      "objectiveIds": [
+        "predict-period"
+      ]
+    }
+  }
+}

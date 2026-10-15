@@ -1,0 +1,25 @@
+{
+  "bundleFormat": 1,
+  "sdk": {
+    "name": "@course-core/sdk",
+    "version": "0.5.0"
+  },
+  "course": {
+    "id": "pendulum-lab",
+    "version": "1.0.0",
+    "schemaVersion": 1,
+    "title": "Pendulum timing",
+    "locale": "en",
+    "platforms": [
+      "web",
+      "ios"
+    ]
+  },
+  "compiledDigest": "83eb7eb17d32834fe589b21467a600bf511e7433960d862fe452170423a142c6",
+  "contents": [
+    "capabilities.json",
+    "conformance.json",
+    "course.compiled.json",
+    "licenses.json"
+  ]
+}
