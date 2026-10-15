@@ -4537,10 +4537,10 @@
       ],
       "properties": {
         "attemptId": {
-          "$ref": "#/$defs/id"
+          "$ref": "#/$defs/opaqueId"
         },
         "enrollmentId": {
-          "$ref": "#/$defs/id"
+          "$ref": "#/$defs/opaqueId"
         },
         "assessmentId": {
           "$ref": "#/$defs/id"
@@ -4604,7 +4604,7 @@
         "reattemptOf": {
           "oneOf": [
             {
-              "$ref": "#/$defs/id"
+              "$ref": "#/$defs/opaqueId"
             },
             {
               "type": "null"
@@ -4644,13 +4644,13 @@
       ],
       "properties": {
         "id": {
-          "$ref": "#/$defs/id"
+          "$ref": "#/$defs/opaqueId"
         },
         "attemptId": {
-          "$ref": "#/$defs/id"
+          "$ref": "#/$defs/opaqueId"
         },
         "enrollmentId": {
-          "$ref": "#/$defs/id"
+          "$ref": "#/$defs/opaqueId"
         },
         "courseDigest": {
           "$ref": "#/$defs/digest"
@@ -4706,7 +4706,7 @@
         "reattemptOf": {
           "oneOf": [
             {
-              "$ref": "#/$defs/id"
+              "$ref": "#/$defs/opaqueId"
             },
             {
               "type": "null"
@@ -4772,7 +4772,7 @@
             ],
             "properties": {
               "turnId": {
-                "$ref": "#/$defs/id"
+                "$ref": "#/$defs/opaqueId"
               },
               "quote": {
                 "$ref": "#/$defs/text"
@@ -4810,10 +4810,10 @@
       ],
       "properties": {
         "decisionId": {
-          "$ref": "#/$defs/id"
+          "$ref": "#/$defs/opaqueId"
         },
         "enrollmentId": {
-          "$ref": "#/$defs/id"
+          "$ref": "#/$defs/opaqueId"
         },
         "gateId": {
           "$ref": "#/$defs/id"
@@ -4863,7 +4863,7 @@
                 ]
               },
               "evidenceRefs": {
-                "$ref": "#/$defs/ids"
+                "$ref": "#/$defs/opaqueIds"
               },
               "reason": {
                 "$ref": "#/$defs/text"
@@ -4878,7 +4878,7 @@
           "$ref": "#/$defs/ids"
         },
         "evidenceRefs": {
-          "$ref": "#/$defs/ids"
+          "$ref": "#/$defs/opaqueIds"
         },
         "evaluator": {
           "type": "object",
@@ -4957,7 +4957,7 @@
         "supersedes": {
           "oneOf": [
             {
-              "$ref": "#/$defs/id"
+              "$ref": "#/$defs/opaqueId"
             },
             {
               "type": "null"
@@ -4985,10 +4985,10 @@
       ],
       "properties": {
         "id": {
-          "$ref": "#/$defs/id"
+          "$ref": "#/$defs/opaqueId"
         },
         "enrollmentId": {
-          "$ref": "#/$defs/id"
+          "$ref": "#/$defs/opaqueId"
         },
         "templateId": {
           "oneOf": [
@@ -5018,7 +5018,7 @@
           "minItems": 1
         },
         "evidenceRefs": {
-          "$ref": "#/$defs/ids"
+          "$ref": "#/$defs/opaqueIds"
         },
         "uncertainty": {
           "enum": [
@@ -5076,10 +5076,10 @@
       ],
       "properties": {
         "id": {
-          "$ref": "#/$defs/id"
+          "$ref": "#/$defs/opaqueId"
         },
         "enrollmentId": {
-          "$ref": "#/$defs/id"
+          "$ref": "#/$defs/opaqueId"
         },
         "revision": {
           "type": "integer",
@@ -5087,7 +5087,7 @@
           "maximum": 9007199254740991
         },
         "hypothesisIds": {
-          "$ref": "#/$defs/ids"
+          "$ref": "#/$defs/opaqueIds"
         },
         "probeIds": {
           "$ref": "#/$defs/ids"
@@ -5129,7 +5129,7 @@
           "$ref": "#/$defs/text"
         },
         "evidenceRefs": {
-          "$ref": "#/$defs/ids"
+          "$ref": "#/$defs/opaqueIds"
         }
       }
     },
@@ -5151,10 +5151,10 @@
       ],
       "properties": {
         "id": {
-          "$ref": "#/$defs/id"
+          "$ref": "#/$defs/opaqueId"
         },
         "enrollmentId": {
-          "$ref": "#/$defs/id"
+          "$ref": "#/$defs/opaqueId"
         },
         "class": {
           "enum": [
@@ -5171,7 +5171,7 @@
           "$ref": "#/$defs/ids"
         },
         "evidenceRefs": {
-          "$ref": "#/$defs/ids"
+          "$ref": "#/$defs/opaqueIds"
         },
         "author": {
           "enum": [
@@ -5239,7 +5239,7 @@
       ],
       "properties": {
         "requestId": {
-          "$ref": "#/$defs/id"
+          "$ref": "#/$defs/opaqueId"
         },
         "taskId": {
           "$ref": "#/$defs/id"
@@ -5391,7 +5391,7 @@
       ],
       "properties": {
         "requestId": {
-          "$ref": "#/$defs/id"
+          "$ref": "#/$defs/opaqueId"
         },
         "sourceUrl": {
           "type": "string",
@@ -5569,7 +5569,7 @@
       ],
       "properties": {
         "id": {
-          "$ref": "#/$defs/id"
+          "$ref": "#/$defs/opaqueId"
         },
         "subject": {
           "type": "object",
@@ -5586,7 +5586,7 @@
               ]
             },
             "ref": {
-              "$ref": "#/$defs/id"
+              "$ref": "#/$defs/opaqueId"
             }
           }
         },
@@ -5605,7 +5605,7 @@
               ]
             },
             "id": {
-              "$ref": "#/$defs/id"
+              "$ref": "#/$defs/opaqueId"
             }
           }
         },
@@ -5676,7 +5676,7 @@
       ],
       "properties": {
         "jobId": {
-          "$ref": "#/$defs/id"
+          "$ref": "#/$defs/opaqueId"
         },
         "kind": {
           "enum": [
@@ -5832,19 +5832,19 @@
       ],
       "properties": {
         "id": {
-          "$ref": "#/$defs/id"
+          "$ref": "#/$defs/opaqueId"
         },
         "placementRunId": {
-          "$ref": "#/$defs/id"
+          "$ref": "#/$defs/opaqueId"
         },
         "enrollmentId": {
-          "$ref": "#/$defs/id"
+          "$ref": "#/$defs/opaqueId"
         },
         "objectiveId": {
           "$ref": "#/$defs/id"
         },
         "evidenceRefs": {
-          "$ref": "#/$defs/ids"
+          "$ref": "#/$defs/opaqueIds"
         },
         "outcome": {
           "enum": [
@@ -5901,10 +5901,10 @@
       ],
       "properties": {
         "id": {
-          "$ref": "#/$defs/id"
+          "$ref": "#/$defs/opaqueId"
         },
         "enrollmentId": {
-          "$ref": "#/$defs/id"
+          "$ref": "#/$defs/opaqueId"
         },
         "episodeId": {
           "$ref": "#/$defs/id"
@@ -5915,9 +5915,7 @@
           "minItems": 1
         },
         "placementEvidenceRefs": {
-          "$ref": "#/$defs/ids",
-          "type": "array",
-          "minItems": 1
+          "$ref": "#/$defs/opaqueIds"
         },
         "courseDigest": {
           "$ref": "#/$defs/digest"
@@ -5955,7 +5953,7 @@
       ],
       "properties": {
         "enrollmentId": {
-          "$ref": "#/$defs/id"
+          "$ref": "#/$defs/opaqueId"
         },
         "policyRevision": {
           "type": "integer",
@@ -6100,13 +6098,13 @@
       ],
       "properties": {
         "offerId": {
-          "$ref": "#/$defs/id"
+          "$ref": "#/$defs/opaqueId"
         },
         "scopeId": {
           "$ref": "#/$defs/id"
         },
         "enrollmentId": {
-          "$ref": "#/$defs/id"
+          "$ref": "#/$defs/opaqueId"
         },
         "expectedPolicyRevision": {
           "type": "integer",
@@ -6114,7 +6112,7 @@
           "maximum": 9007199254740991
         },
         "rationaleEvidenceRefs": {
-          "$ref": "#/$defs/ids"
+          "$ref": "#/$defs/opaqueIds"
         },
         "proposedActivities": {
           "$ref": "#/$defs/ids"
@@ -6274,10 +6272,10 @@
       ],
       "properties": {
         "grantId": {
-          "$ref": "#/$defs/id"
+          "$ref": "#/$defs/opaqueId"
         },
         "offerId": {
-          "$ref": "#/$defs/id"
+          "$ref": "#/$defs/opaqueId"
         },
         "acceptedTermsDigest": {
           "$ref": "#/$defs/digest"
@@ -6324,7 +6322,7 @@
       ],
       "properties": {
         "enrollmentId": {
-          "$ref": "#/$defs/id"
+          "$ref": "#/$defs/opaqueId"
         },
         "reason": {
           "enum": [
@@ -6487,17 +6485,17 @@
                   "const": "enrollment"
                 },
                 "enrollmentId": {
-                  "$ref": "#/$defs/id"
+                  "$ref": "#/$defs/opaqueId"
                 }
               }
             }
           ]
         },
         "grantedTo": {
-          "$ref": "#/$defs/id"
+          "$ref": "#/$defs/opaqueId"
         },
         "grantedBy": {
-          "$ref": "#/$defs/id"
+          "$ref": "#/$defs/opaqueId"
         },
         "expiresAt": {
           "oneOf": [
@@ -6555,14 +6553,14 @@
               ]
             },
             "id": {
-              "$ref": "#/$defs/id"
+              "$ref": "#/$defs/opaqueId"
             }
           }
         },
         "jobId": {
           "oneOf": [
             {
-              "$ref": "#/$defs/id"
+              "$ref": "#/$defs/opaqueId"
             },
             {
               "type": "null"
@@ -6591,7 +6589,7 @@
       ],
       "properties": {
         "artifactId": {
-          "$ref": "#/$defs/id"
+          "$ref": "#/$defs/opaqueId"
         },
         "artifactDigest": {
           "$ref": "#/$defs/digest"
@@ -6665,7 +6663,7 @@
       ],
       "properties": {
         "instanceId": {
-          "$ref": "#/$defs/id"
+          "$ref": "#/$defs/opaqueId"
         },
         "activityId": {
           "$ref": "#/$defs/id"
@@ -6674,7 +6672,7 @@
           "$ref": "#/$defs/version"
         },
         "enrollmentId": {
-          "$ref": "#/$defs/id"
+          "$ref": "#/$defs/opaqueId"
         },
         "target": {
           "$ref": "#/$defs/platformTarget"
@@ -6836,7 +6834,7 @@
         "enrollmentId": {
           "oneOf": [
             {
-              "$ref": "#/$defs/id"
+              "$ref": "#/$defs/opaqueId"
             },
             {
               "type": "null"
@@ -6856,7 +6854,7 @@
         "attemptId": {
           "oneOf": [
             {
-              "$ref": "#/$defs/id"
+              "$ref": "#/$defs/opaqueId"
             },
             {
               "type": "null"
@@ -6888,7 +6886,7 @@
         "jobId": {
           "oneOf": [
             {
-              "$ref": "#/$defs/id"
+              "$ref": "#/$defs/opaqueId"
             },
             {
               "type": "null"
@@ -7099,7 +7097,7 @@
       ],
       "properties": {
         "id": {
-          "$ref": "#/$defs/id"
+          "$ref": "#/$defs/opaqueId"
         },
         "kind": {
           "enum": [
@@ -7112,10 +7110,10 @@
           ]
         },
         "subjectRef": {
-          "$ref": "#/$defs/id"
+          "$ref": "#/$defs/opaqueId"
         },
         "enrollmentId": {
-          "$ref": "#/$defs/id"
+          "$ref": "#/$defs/opaqueId"
         },
         "versions": {
           "type": "object",
@@ -7159,7 +7157,7 @@
           }
         },
         "inputEvidenceRefs": {
-          "$ref": "#/$defs/ids"
+          "$ref": "#/$defs/opaqueIds"
         },
         "outcome": {
           "$ref": "#/$defs/shortText"
@@ -7184,7 +7182,7 @@
               ]
             },
             "id": {
-              "$ref": "#/$defs/id"
+              "$ref": "#/$defs/opaqueId"
             }
           }
         },
@@ -7268,7 +7266,15 @@
     },
     "opaqueId": {
       "type": "string",
-      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$"
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}(?![\\s\\S])"
+    },
+    "opaqueIds": {
+      "type": "array",
+      "uniqueItems": true,
+      "maxItems": 2000,
+      "items": {
+        "$ref": "#/$defs/opaqueId"
+      }
     },
     "contextCapsule": {
       "type": "object",
