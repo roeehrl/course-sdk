@@ -7,6 +7,10 @@ import { validateCourseAdaptation } from './adaptation.js';
 import { digestJson } from './integrity.js';
 import { projectLearnerAdaptation, type LearnerAdaptation } from './adaptation-projection.js';
 import type { AdaptationValidationContext, CourseAdaptation } from './adaptation-types.js';
+import type { ActivityDefinition, PlatformAdapter, RendererDefinition } from './contracts-types.js';
+import type { LearnerVersionedGate } from './record-types.js';
+import { isVersionedGate } from './contracts-validate.js';
+import { DEFAULT_REVIEW_INTERVALS_DAYS } from './contract-constants.js';
 
 export class CourseValidationError extends Error {
   constructor(public readonly issues: ValidationIssue[]) {
@@ -15,13 +19,23 @@ export class CourseValidationError extends Error {
   }
 }
 
-export type LearnerCourse = Omit<CourseManifest, 'assessments' | 'gates' | 'placement' | 'retention' | 'extensions' | 'adaptation' | 'research'> & {
+/** Server-only 0.5 sections: grading, agents, research, admin and debug configuration. */
+export const SERVER_ONLY_SECTIONS = ['hypotheses', 'probes', 'rubrics', 'evaluators', 'tools', 'adaptationPolicies', 'adminSections',
+  'researchTasks', 'storyboards', 'agentStrategies', 'debugInspectors'] as const;
+type ServerOnlySection = typeof SERVER_ONLY_SECTIONS[number];
+export type LearnerLegacyGate = { id: string; objectiveIds: string[]; minimumIndependentFamilies: number; requireAllObjectives: boolean };
+export type LearnerActivity = Omit<ActivityDefinition, 'evaluatorRef'>;
+export type LearnerCourse = Omit<CourseManifest, 'assessments' | 'gates' | 'placement' | 'retention' | 'extensions' | 'adaptation' | 'research'
+  | ServerOnlySection | 'activities' | 'renderers' | 'platformAdapters'> & {
   assessments: { id: string; type: string; objectiveIds: string[] }[];
-  gates: { id: string; objectiveIds: string[]; minimumIndependentFamilies: number; requireAllObjectives: boolean }[];
+  gates: (LearnerLegacyGate | LearnerVersionedGate)[];
   placement?: { enabled: boolean; learnerMayDecline: true; objectiveIds: string[]; maxItems: number };
   /** Schedule only; held-out item identities and keys stay server-side. */
   retention?: { intervalsDays: number[]; objectiveIds: string[] };
   extensions: CourseManifest['extensions'];
+  activities?: LearnerActivity[];
+  renderers?: RendererDefinition[];
+  platformAdapters?: PlatformAdapter[];
 };
 
 export interface CompiledCourse {
@@ -37,15 +51,31 @@ export function compileCourse(input: unknown): CompiledCourse {
   if (!result.valid) throw new CourseValidationError(result.issues);
   const server = result.course;
   const digest = createHash('sha256').update(canonicalJson(server)).digest('hex');
-  const { assessments, gates, placement, retention, extensions, adaptation: _authoring, research: _research, ...rest } = structuredClone(server);
+  const { assessments, gates, placement, retention, extensions, adaptation: _authoring, research: _research,
+    activities, renderers, platformAdapters, ...withServerSections } = structuredClone(server);
+  const rest = Object.fromEntries(Object.entries(withServerSections).filter(([key]) => !(SERVER_ONLY_SECTIONS as readonly string[]).includes(key))) as Omit<typeof withServerSections, ServerOnlySection>;
   const learner: LearnerCourse = {
     ...rest,
     // Held-out retention items stay entirely server-side until issued.
     assessments: assessments.filter(({ id }) => !retention?.assessmentIds.includes(id)).map(({ id, type, objectiveIds }) => ({ id, type, objectiveIds })),
-    gates: gates.map(({ id, objectiveIds, minimumIndependentFamilies, requireAllObjectives }) => ({ id, objectiveIds, minimumIndependentFamilies, requireAllObjectives })),
+    gates: gates.map((gate) => {
+      if (!isVersionedGate(gate)) {
+        const { id, objectiveIds, minimumIndependentFamilies, requireAllObjectives } = gate;
+        return { id, objectiveIds, minimumIndependentFamilies, requireAllObjectives };
+      }
+      // Requirements are readable by learners; item banks, rubrics and policy refs are not.
+      const projected: LearnerVersionedGate = { id: gate.id, version: gate.version, scope: gate.scope, requiredObjectives: gate.requiredObjectives,
+        readinessCriteria: gate.readinessCriteria, eligibleEvidenceKinds: gate.eligibleEvidenceKinds, minimumIndependentEvidence: gate.minimumIndependentEvidence,
+        nextActivityId: gate.nextActivityId, appealPolicy: gate.appealPolicy };
+      if (gate.previewAccess) projected.previewAccess = gate.previewAccess;
+      return projected;
+    }),
     extensions: extensions.filter((extension) => extension.execution !== 'server'),
   };
-  if (retention) learner.retention = { intervalsDays: retention.intervalsDays, objectiveIds: retention.objectiveIds };
+  if (activities) learner.activities = activities.map(({ evaluatorRef: _evaluator, ...activity }) => activity);
+  if (renderers) learner.renderers = renderers.filter((renderer) => renderer.surface === 'learner_activity' || renderer.surface === 'visual');
+  if (platformAdapters) learner.platformAdapters = platformAdapters.filter((adapter) => adapter.kind !== 'server_sandbox');
+  if (retention) learner.retention = { intervalsDays: retention.intervalsDays ?? [...DEFAULT_REVIEW_INTERVALS_DAYS], objectiveIds: retention.objectiveIds };
   if (placement) {
     learner.placement = { enabled: placement.enabled, learnerMayDecline: true, objectiveIds: placement.objectiveIds, maxItems: placement.maxItems };
   }
@@ -95,3 +125,9 @@ export function verifyCompiledCourse(value: unknown): value is CompiledCourse {
       && Object.keys(record).sort().join(',') === 'digest,formatVersion,learner,server';
   } catch { return false; }
 }
+
+export {
+  BUNDLE_FILES, CourseBundleError, conformanceReport, diffCourses, importCourse, inspectCourse, licenseInventory, migrateCourse,
+  packCourse, requiredCapabilities, scaffoldCourse, verifyCourseBundle,
+} from './tooling.js';
+export type { BundleManifest, BundleVerification, CapabilityReport, ConformanceReport, CourseDiff, LicenseInventory, MigrationResult } from './tooling.js';

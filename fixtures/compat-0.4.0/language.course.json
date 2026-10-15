@@ -1,0 +1,240 @@
+{
+  "schemaVersion": 1,
+  "id": "language",
+  "version": "1.0.0",
+  "title": "Welcoming phrases",
+  "summary": "Synthetic public authoring fixture; not a live learner record.",
+  "locale": "en",
+  "platforms": [
+    "web"
+  ],
+  "objectives": [
+    {
+      "id": "language-objective",
+      "description": "Explain and apply the declared example task.",
+      "prerequisites": []
+    }
+  ],
+  "chapters": [
+    {
+      "id": "language-chapter",
+      "title": "Practice",
+      "episodes": [
+        {
+          "id": "language-episode",
+          "title": "Try a fresh representation",
+          "objectiveIds": [
+            "language-objective"
+          ],
+          "blocks": [
+            {
+              "id": "language-text",
+              "type": "text",
+              "markdown": "Original explanation."
+            },
+            {
+              "id": "language-check",
+              "type": "assessment",
+              "assessmentId": "language-canonical"
+            }
+          ],
+          "gateId": "language-gate"
+        }
+      ]
+    }
+  ],
+  "assessments": [
+    {
+      "id": "language-canonical",
+      "type": "choice",
+      "objectiveIds": [
+        "language-objective"
+      ],
+      "familyId": "language-family",
+      "prompt": "Choose a welcoming phrase.",
+      "options": [
+        {
+          "id": "welcome",
+          "text": "Welcome"
+        },
+        {
+          "id": "farewell",
+          "text": "Goodbye"
+        }
+      ],
+      "grading": {
+        "correctOptionId": "welcome",
+        "explanation": "Welcome greets an arriving person."
+      }
+    }
+  ],
+  "gates": [
+    {
+      "id": "language-gate",
+      "objectiveIds": [
+        "language-objective"
+      ],
+      "assessmentIds": [
+        "language-canonical"
+      ],
+      "minimumIndependentFamilies": 1,
+      "requireAllObjectives": true
+    }
+  ],
+  "sources": [
+    {
+      "id": "language-source",
+      "title": "Synthetic public teaching source",
+      "url": "urn:example:language",
+      "reviewedAt": "2026-10-12T00:00:00Z"
+    },
+    {
+      "id": "language-verifier-source",
+      "title": "Synthetic independent verifier specification",
+      "url": "urn:example:language:verifier",
+      "reviewedAt": "2026-10-12T00:00:00Z"
+    }
+  ],
+  "extensions": [
+    {
+      "id": "language-generator-extension",
+      "version": "1.0.0",
+      "platforms": [
+        "web"
+      ],
+      "execution": "server",
+      "capabilities": [
+        "teaching.generate"
+      ],
+      "entrypoint": "generators/exercises.js",
+      "integrity": "sha256-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "accessibility": {
+        "keyboard": true,
+        "reducedMotion": true,
+        "textAlternative": "Text exercise generation"
+      }
+    },
+    {
+      "id": "language-verifier-extension",
+      "version": "1.0.0",
+      "platforms": [
+        "web"
+      ],
+      "execution": "server",
+      "capabilities": [
+        "teaching.verify"
+      ],
+      "entrypoint": "verifiers/reference.js",
+      "integrity": "sha256-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "accessibility": {
+        "keyboard": true,
+        "reducedMotion": true,
+        "textAlternative": "Server reference checks"
+      }
+    }
+  ],
+  "visuals": [],
+  "media": [],
+  "policy": {
+    "mode": "bounded",
+    "work": {
+      "additionalEpisodes": 5
+    },
+    "existingMaterialAccess": "read_only"
+  },
+  "adaptation": {
+    "schemaVersion": 1,
+    "targets": [
+      {
+        "episodeId": "language-episode",
+        "objectiveIds": [
+          "language-objective"
+        ],
+        "allowedOperations": [
+          "append_teaching",
+          "replace_teaching",
+          "attach_media",
+          "attach_visual",
+          "add_assessment_variant"
+        ],
+        "replaceableBlockIds": [
+          "language-text"
+        ]
+      }
+    ],
+    "families": [
+      {
+        "familyId": "language-family",
+        "canonicalAssessmentId": "language-canonical",
+        "generatorIds": [
+          "language-generator"
+        ],
+        "verifierIds": [
+          "language-verifier"
+        ],
+        "maxVariantsPerPlan": 3,
+        "numericalRecipeIds": []
+      }
+    ],
+    "generators": [
+      {
+        "id": "language-generator",
+        "version": "1.0.0",
+        "extensionId": "language-generator-extension",
+        "sourceRefs": [
+          "language-source"
+        ],
+        "artifactKinds": [
+          "explanation",
+          "practice",
+          "assessment_variant",
+          "media",
+          "visual",
+          "profile_suggestion"
+        ]
+      }
+    ],
+    "verifiers": [
+      {
+        "id": "language-verifier",
+        "version": "1.0.0",
+        "extensionId": "language-verifier-extension",
+        "sourceRefs": [
+          "language-verifier-source"
+        ],
+        "artifactKinds": [
+          "explanation",
+          "practice",
+          "assessment_variant",
+          "media",
+          "visual",
+          "profile_suggestion"
+        ],
+        "requiredCheckIds": [
+          "reference",
+          "negative-control",
+          "source-review"
+        ]
+      }
+    ],
+    "sourceRefs": [
+      "language-source",
+      "language-verifier-source"
+    ],
+    "profileFieldIds": [
+      "preferred.presentation"
+    ],
+    "numericalRecipes": [],
+    "limits": {
+      "maxOperations": 8,
+      "maxArtifacts": 8,
+      "maxArtifactBytes": 100000,
+      "maxPlannedMinutesPerAssignment": 15,
+      "maxAdditionalEpisodesPerAssignment": 1,
+      "allowedClassifications": [
+        "required",
+        "optional"
+      ]
+    }
+  }
+}

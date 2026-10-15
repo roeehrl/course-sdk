@@ -23,16 +23,38 @@ const targets = [
     ['recipe-instance', 'recipeInstance'], ['assignment-decisions', 'assignmentDecisions']]
     .map(([name, definition]) => [name, `${adaptation.$id}#/$defs/${definition}`]),
 ];
+// One module exports a static validator per public 0.5 contract and runtime record.
+const contractDefinitions = {
+  concept: 'concept', episode: 'episode', assessment: 'assessment', activity: 'activityDefinition', rubric: 'rubricDefinition',
+  tool: 'toolDefinition', adaptationPolicy: 'adaptationPolicy', learningPolicy: 'policy', adminSection: 'adminSection',
+  learningStep: 'learningStep', progressionGate: 'versionedGate', mediaResource: 'media', storyboard: 'storyboard',
+  researchTask: 'researchTask', placementPolicy: 'placement', extension: 'extension', renderer: 'rendererDefinition',
+  evaluator: 'evaluatorDefinition', agentStrategy: 'agentStrategy', platformAdapter: 'platformAdapter', debugInspector: 'debugInspector',
+  visualExperience: 'visual', scene: 'scene', timeline: 'timeline', rendererAdapter: 'rendererAdapter',
+  teachingHypothesis: 'hypothesisTemplate', diagnosticProbe: 'diagnosticProbe', stage: 'stage',
+};
+const recordDefinitions = ['attempt', 'evidence', 'gateDecision', 'teachingHypothesis', 'interventionPlan', 'learnerClaim',
+  'researchRequest', 'researchResult', 'mediaReview', 'mediaJob', 'placementEvidence', 'pathExemption', 'resolvedConstraintSnapshot',
+  'extensionAllowance', 'extensionOffer', 'extensionGrant', 'closureOutcome', 'platformCapabilities', 'adminCapability',
+  'toolCapability', 'artifactValidation', 'activityInstance', 'episodeRevision', 'conceptGraph', 'debugTrace', 'decisionRecord'];
+const contractExports = {};
+for (const [name, definition] of Object.entries(contractDefinitions)) contractExports[`contract_${name}`] = definition;
+for (const name of recordDefinitions) contractExports[`record_${name}`] = name;
+for (const [exportName, definition] of Object.entries(contractExports)) {
+  ajv.addSchema({ $id: `urn:course-core:contract:${exportName}`, $ref: `${course.$id}#/$defs/${definition}` });
+}
+const exportsWith = prefix => Object.fromEntries(Object.keys(contractExports).filter(name => name.startsWith(prefix)).map(name => [name, `urn:course-core:contract:${name}`]));
+targets.push(['contracts', exportsWith('contract_')], ['records', exportsWith('record_')]);
 const licensed = new Map(); const inventory = [];
 function notice(packages) {
   return 'Bundled validator runtime notices\n\nOriginal SDK code is Apache-2.0; the following included runtime code retains its own license.\n\n'
     + packages.map(name => { const p = licensed.get(name); return `${name}@${p.version}\n${p.licenseText}\n`; }).join('\n');
 }
 for (const [name, ref] of targets) {
-  const validate = ajv.compile({ $ref: ref });
   // Build-time code generation only. Consumers load static CSP-safe functions.
+  const code = typeof ref === 'string' ? standaloneCode(ajv, ajv.compile({ $ref: ref })) : standaloneCode(ajv, ref);
   const result = await build({
-    stdin: { contents: standaloneCode(ajv, validate), resolveDir: root.pathname, sourcefile: `${name}-validator.cjs` },
+    stdin: { contents: code, resolveDir: root.pathname, sourcefile: `${name}-validator.cjs` },
     outfile: new URL(`src/generated/${name}-validator.js`, root).pathname,
     bundle: true, platform: 'browser', format: 'esm', target: 'es2022', legalComments: 'inline',
     metafile: true, write: false,
