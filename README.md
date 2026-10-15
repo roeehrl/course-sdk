@@ -121,14 +121,16 @@ cross-reference. `defineCourse`, `defineExtension` and `defineVisualExperience` 
 | `defineProgressionGate` | `gates[]` | Versioned gate with the design's required fields: `id, version, scope, requiredObjectives, readinessCriteria, eligibleEvidenceKinds, minimumIndependentEvidence, assistancePolicy, nextActivityId, remediationPolicyRef, capPolicyRef, appealPolicy`. Readiness needs a `transfer_success` criterion and production transfer evidence; a recognition-only gate is rejected (`RECOGNITION_ONLY_GATE`, `MISSING_TRANSFER_ITEM`). Critical misconceptions need a `no_critical_misconception` criterion and an item that exposes them. Conversational evidence requires a rubric that demands cited learner evidence. |
 | `defineAssessment` | `assessments[]` | New types `prediction`, `trace`, `code_repair`, `counterexample`, `experiment_design`, `teach_back`. Optional `role`, `misconceptionIds`, `allowAbstain` ("I don't know") and `confidence`. Numeric items gain `relativeTolerance` and `unit`. Recognition items cannot be `transfer`. |
 | `defineActivity` | `activities[]`, block `{ type: 'activity', activityId }` | `supportedTargets, rendererRefs, executionAdapter, capabilityRequirements, equivalentFallbacks, offlineBehavior, resourceBudget, accessibleSemantics, stateMigration`, plus `layoutInputs` and compact/medium/expanded `layouts`. Every declared course target needs support or an objective-equivalent fallback. Native execution needs a declared native module. |
-| `defineAdminSection` | `adminSections[]` | Declared permissions, typed settings with checked defaults, audited mutations. Settings cannot target evidence, grading, caps or policy. |
+| `defineAdminSection` | `adminSections[]` | Declared permissions, typed settings with checked defaults, audited mutations. Settings cannot target evidence, grading, caps or policy. `adminSettingsSchema(section)` renders the settings as a JSON Schema form, `adminSettingDefaults(section)` lists the defaults, and hosts check every change server-side with `checkAdminSettingChange(section, change, grantedPermissions)` (`UNKNOWN_SETTING`, `ADMIN_PERMISSION_DENIED`, `SETTING_SCOPE_MISMATCH`, `INVALID_SETTING_VALUE`). |
+| `validateContract('extension', …)` (`defineExtension` stays copy-only) | `extensions[]` | 0.6 adds optional `stateMigration` (`migrateState`: state version, strategy and source versions; versioned state needs a `stateSchema`), `tests` (the extension's own fixtures as portable relative paths) and the full `resourceBudget` (`maxStateBytes`, `maxEventBytes`, `maxEventsPerMinute`) next to `license`, `stateSchema`, `observationSchema` and `evaluatorRef`. Lint notes observation schemas without `observation.emit` and observations without an evaluator. |
+| `defineStage` | `stages[]`, chapter `stageId` | Roadmap grouping. Stages and chapters take `subtitle` and `iconAsset`; `courseRoadmap(course)` returns consecutive stage groups with the author's labels so hosts need no hard-coded "Chapter" labels or icons. Lint warns when one stage's chapters are split. |
 | `defineTeachingHypothesis`, `defineDiagnosticProbe`, `defineConcept` | `hypotheses[]`, `probes[]`, `concepts[]` | Competing hypotheses per objective, and the probes that distinguish them. Probes never count as gate evidence. |
 | `defineResearchTask` | `researchTasks[]` | Author bounds for dedicated research. `validateResearchRequest` and `validateResearchResult` check the request fields (`objective, episodeRevision, misconceptionHypothesis, knownPrerequisites, language, modality, remainingLearningTime, accessibilityNeeds, sourcePolicy, requiredOrOptional`) and the result fields (`sourceUrl` through `concerns`). Metadata-only results carry no claims or segments. |
 | `defineAgentStrategy`, `defineTool` | `agentStrategies[]`, `tools[]` | Roles, tool references, model requirements, autonomy limits, budgets, retry and cancellation. Evaluators and verifiers only propose. |
 | `defineRubric`, `defineEvaluator`, `defineAdaptationPolicy`, `defineLearningPolicy`, `definePlacementPolicy`, `defineLearningStep`, `defineEpisode`, `defineMediaResource`, `defineStoryboard`, `defineRenderer`, `defineRendererAdapter`, `definePlatformAdapter`, `defineDebugInspector`, `defineScene`, `defineTimeline`, `defineStage` | matching fields | See the TypeScript declarations and `course.schema.json`. |
 
 Runtime records (`Attempt`, `Evidence`, `GateDecision`, `TeachingHypothesis`, `ResearchRequest`,
-`ResearchResult`/`MediaCandidate`, `MediaJob`, `PlacementEvidence`, `PathExemption`, `ExtensionOffer`,
+`ResearchResult`/`MediaCandidate` (both record kinds apply the same rules), `MediaJob`, `PlacementEvidence`, `PathExemption`, `ExtensionOffer`,
 `ExtensionGrant`, `ClosureOutcome`, `DebugTrace`, `DecisionRecord` and others) are checked with
 `validateRecord(kind, value)`. Agent-authored answers can only be synthetic evidence.
 Assisted or reattempted work cannot be independent. "I don't know" is recorded without a
@@ -143,6 +145,9 @@ still authenticate evidence and recheck versions at commit time.
 Retention `intervalsDays` may now be omitted. `resolveRetentionIntervals` and the learner
 projection then use the product default `DEFAULT_REVIEW_INTERVALS_DAYS` (1, 3, 7, 21).
 `windowClass(width, fontScale)` returns `compact` (<600), `medium` (600–839) or `expanded` (≥840).
+`PLATFORM_CONTRACT` and `REQUIRED_ACTIVITY_FIELDS` carry the design's platform contract (six targets,
+three layout classes, seven layout inputs and the nine required activity fields);
+`platformContract(activity)` extracts those nine fields from an activity.
 
 Server-only sections never reach the learner projection: hypotheses, probes, rubrics,
 evaluators, tools, adaptation policies, admin sections, research tasks, storyboards, agent

@@ -1,4 +1,4 @@
-import type { LayoutClass, PlatformTarget } from './contracts-types.js';
+import type { ActivityDefinition, LayoutClass, LayoutInput, PlatformTarget } from './contracts-types.js';
 import type { AssessmentType, Platform } from './types.js';
 
 /** Product-default spaced review intervals (days). Author data overrides them. */
@@ -62,4 +62,22 @@ export function targetsForPlatforms(platforms: readonly Platform[]): PlatformTar
 }
 export function platformOfTarget(target: PlatformTarget): Platform {
   return target.startsWith('web') ? 'web' : target.startsWith('android') ? 'android' : 'ios';
+}
+
+/**
+ * The approved design's `platform_contract`: platform targets, layout classes and inputs, and
+ * the nine `required_activity_fields` every activity declares (see `defineActivity`).
+ */
+export const REQUIRED_ACTIVITY_FIELDS = Object.freeze(['supportedTargets', 'rendererRefs', 'executionAdapter', 'capabilityRequirements',
+  'equivalentFallbacks', 'offlineBehavior', 'resourceBudget', 'accessibleSemantics', 'stateMigration'] as const satisfies readonly (keyof ActivityDefinition)[]);
+export type PlatformContract = Pick<ActivityDefinition, typeof REQUIRED_ACTIVITY_FIELDS[number]>;
+export const PLATFORM_CONTRACT = Object.freeze({
+  targets: Object.freeze(['web_desktop', 'web_mobile', 'ios_phone', 'ipados_tablet', 'android_phone', 'android_tablet'] as const satisfies readonly PlatformTarget[]),
+  layoutClasses: Object.freeze(['compact', 'medium', 'expanded'] as const satisfies readonly LayoutClass[]),
+  layoutInputs: Object.freeze(['effective_window_bounds', 'safe_areas', 'font_scale', 'input_mode', 'keyboard_visibility', 'orientation', 'split_view'] as const satisfies readonly LayoutInput[]),
+  requiredActivityFields: REQUIRED_ACTIVITY_FIELDS,
+});
+/** The nine platform-contract fields of an activity, detached from its other fields. */
+export function platformContract(activity: ActivityDefinition): PlatformContract {
+  return structuredClone(Object.fromEntries(REQUIRED_ACTIVITY_FIELDS.map(field => [field, activity[field]]))) as PlatformContract;
 }

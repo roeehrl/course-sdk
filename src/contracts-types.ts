@@ -153,6 +153,11 @@ export interface AdaptationPolicy {
 
 // ---------------------------------------------------------------- activities
 
+/** How saved state from earlier versions is handled. The host runs the migration; it never invents evidence. */
+export interface StateMigration { stateVersion: number; strategy: 'none' | 'migrate' | 'reset_with_notice'; migratesFrom: number[] }
+/** A test fixture shipped with an extension: a portable relative path inside the extension package. */
+export interface ContractTest { id: string; kind: 'conformance' | 'renderer' | 'evaluator' | 'state_migration' | 'accessibility'; fixtureRef: string }
+
 export interface ActivityDefinition {
   id: string;
   version: string;
@@ -167,7 +172,7 @@ export interface ActivityDefinition {
   offlineBehavior: 'unavailable' | 'read_only' | 'queue_observations' | 'full';
   resourceBudget: { timeoutMs: number; maxMemoryMb: number; maxStateBytes: number; maxEventBytes: number; maxEventsPerMinute: number };
   accessibleSemantics: { keyboard: boolean; screenReader: boolean; reducedMotion: boolean; nonPointerPath: boolean; textAlternative: string };
-  stateMigration: { stateVersion: number; strategy: 'none' | 'migrate' | 'reset_with_notice'; migratesFrom: number[] };
+  stateMigration: StateMigration;
   layoutInputs: LayoutInput[];
   layouts: Partial<Record<LayoutClass, Record<string, Json>>>;
   stateSchema?: Record<string, Json>;
@@ -330,7 +335,14 @@ export interface Timeline {
 }
 
 /** Optional roadmap stage grouping; replaces host-hard-coded chapter labels. */
-export interface CourseStage { id: string; title: string; summary?: string }
+export interface CourseStage {
+  id: string;
+  title: string;
+  summary?: string;
+  /** 0.6 (optional) roadmap presentation, in place of host-hard-coded labels and icons. */
+  subtitle?: string;
+  iconAsset?: string;
+}
 
 /** Every optional 0.5 manifest section. */
 export interface CourseContracts0_5 {

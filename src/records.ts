@@ -8,7 +8,7 @@ import type { RecordKind, RecordKinds } from './record-types.js';
 export const RECORD_KINDS = Object.freeze(['attempt', 'evidence', 'gateDecision', 'teachingHypothesis', 'interventionPlan', 'learnerClaim',
   'researchRequest', 'researchResult', 'mediaReview', 'mediaJob', 'placementEvidence', 'pathExemption', 'resolvedConstraintSnapshot',
   'extensionAllowance', 'extensionOffer', 'extensionGrant', 'closureOutcome', 'platformCapabilities', 'adminCapability', 'toolCapability',
-  'artifactValidation', 'activityInstance', 'episodeRevision', 'conceptGraph', 'debugTrace', 'decisionRecord'] as const satisfies readonly RecordKind[]);
+  'artifactValidation', 'activityInstance', 'episodeRevision', 'conceptGraph', 'debugTrace', 'decisionRecord', 'mediaCandidate'] as const satisfies readonly RecordKind[]);
 
 type Report = (code: string, path: string, message: string) => void;
 const GRANTING_OUTCOMES = new Set(['ready', 'demonstrated', 'exempted', 'granted', 'passed']);
@@ -111,6 +111,9 @@ const rules: { [K in RecordKind]?: (value: RecordKinds[K], report: Report) => vo
       report('UNLINKED_DECISION', '/inputEvidenceRefs', 'A progression grant must be linked to evidence and versions.');
   },
 };
+
+// A MediaCandidate is the researcher's result; both names apply the same rules.
+rules.mediaCandidate = rules.researchResult!;
 
 /** Validate a runtime record: JSON data, schema shape and integrity rules. Not authentication. */
 export function validateRecord<K extends RecordKind>(kind: K, value: unknown): { valid: true; value: RecordKinds[K]; issues: [] } | { valid: false; issues: ValidationIssue[] } {
