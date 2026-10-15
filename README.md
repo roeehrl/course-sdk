@@ -2,7 +2,7 @@
 
 `@course-core/sdk` provides portable TypeScript contracts, course validation, and authoring helpers. The Node compiler and `course` CLI are separate from the portable main export.
 
-This checkout targets **0.5.0**, adding the versioned gate, assessment, activity, admin, research, teaching-hypothesis, agent and platform contracts of the approved design while retaining schema-1 and compiled-format-1 course compatibility: every 0.4.0 manifest validates and compiles to byte-identical output (see `fixtures/compat-0.4.0`). It is a release candidate until the maintainer reviews and releases the verified artifact; local success does not imply publication. See [CHANGELOG.md](CHANGELOG.md).
+This checkout targets **0.6.0**, which tightens publication and accessibility rules on top of the 0.5.0 contracts while retaining schema-1 and compiled-format-1 course compatibility: every 0.4.0 and 0.5.0 fixture manifest validates and compiles to byte-identical output, and 0.5.0 compiled artifacts and bundles still verify (see `fixtures/compat-0.4.0` and `fixtures/compat-0.5.0`). It is a release candidate until the maintainer reviews and releases the verified artifact; local success does not imply publication. See [CHANGELOG.md](CHANGELOG.md).
 
 Use Node.js 24 or newer for development, compilation, and the CLI. CI checks Node.js 24 and 26. Browser and native consumers should import the main entry point and supply their own runtime integration; this SDK is not a native UI runtime.
 
@@ -17,7 +17,7 @@ Use Node.js 24 or newer for development, compilation, and the CLI. CI checks Nod
 After the package has been published, install the explicit version:
 
 ```sh
-npm install @course-core/sdk@0.5.0
+npm install @course-core/sdk@0.6.0
 ```
 
 For a local release candidate, run the verification commands below and install the resulting `.tgz` into a separate project with `npm install /path/to/package.tgz`. Do not use a workspace link as evidence that the published package works.
@@ -80,7 +80,7 @@ After installation, use the local CLI with a JSON course file:
 ```sh
 npx --no-install course init my-course            # scaffold a valid 0.5 course (refuses an existing directory)
 npx --no-install course validate course.json
-npx --no-install course lint course.json --strict  # warnings fail with --strict
+npx --no-install course lint course.json --strict  # errors always fail; warnings fail with --strict
 npx --no-install course test course.json           # offline conformance report
 npx --no-install course compile course.json compiled.json
 npx --no-install course inspect course.json
@@ -92,6 +92,19 @@ npx --no-install course import bundle course.json  # recover a verified manifest
 ```
 
 Every command is offline and deterministic, prints JSON, and exits 0 on success, 1 on a failed check and 2 on a usage error. Commands that write refuse to overwrite an existing file or directory. Using `--no-install` avoids silently downloading a different command if the package is missing. The design's `course dev` live preview is not part of the SDK, because preview needs a host renderer.
+
+Data validity and publishability are separate. `validateCourse` and `course compile` keep accepting every
+0.4/0.5 manifest, but `publicationIssues(course)` lists what a host refuses to publish, and `course lint`
+(as errors), `course test` (the `publishable` check) and `course pack` apply it. Today it refuses an
+unversioned gate's `conversationalEvaluatorId` (`CONVERSATIONAL_GATE_UNSUPPORTED`): it names no rubric for a
+judgment to cite, so Course Core rejects it with `PUBLISH_CONVERSATIONAL_GATE_UNSUPPORTED`. Such a gate must
+still collect its declared item families and cover its objectives with items. Use a versioned gate with a
+cited-evidence rubric in `conversationalRubricRef`; `course migrate` lists the step.
+
+Lesson content must be accessible. Validation rejects a visual block whose renderer extension declares no
+keyboard support (`INACCESSIBLE_VISUAL`), a legacy activity block whose extension declares none
+(`INACCESSIBLE_ACTIVITY`), and a blank text alternative on a visual block's renderer, its visual description,
+a legacy activity extension or required media (`MISSING_TEXT_ALTERNATIVE`).
 
 A bundle's SHA-256 integrity map proves the files are intact. It does not prove who wrote them or that they can be trusted.
 
@@ -228,7 +241,7 @@ The portability smoke covers the exercised import and validation paths, includin
 To retain a verified candidate and its file inventory and hashes, choose an empty output directory outside this checkout:
 
 ```sh
-node scripts/check-packed.mjs --expect-version 0.5.0 --output-dir ../sdk-candidate-0.5.0
+node scripts/check-packed.mjs --expect-version 0.6.0 --output-dir ../sdk-candidate-0.6.0
 ```
 
 Missing compiler, validator, schema, declarations, or CLI output is a failure. No missing implementation is replaced by a stub or counted as a pass. The checker does not rebuild implicitly: run the build command first.

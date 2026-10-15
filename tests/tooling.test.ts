@@ -9,12 +9,13 @@ import {
   compileCourse, conformanceReport, diffCourses, importCourse, inspectCourse, licenseInventory, migrateCourse, packCourse, requiredCapabilities,
   scaffoldCourse, verifyCourseBundle, CourseBundleError,
 } from '../src/compiler.js';
-import { lintCourse, validateCourse } from '../src/index.js';
+import { lintCourse, SDK_VERSION, validateCourse } from '../src/index.js';
 import type { VersionedProgressionGate } from '../src/contracts-types.js';
 import { richCourse } from './contracts-fixture.js';
 import { courseFixture } from './fixture.js';
 
 const legacy = () => JSON.parse(readFileSync(new URL('../fixtures/compat-0.4.0/feature-tour.course.json', import.meta.url), 'utf8'));
+const legacyOrdering = () => JSON.parse(readFileSync(new URL('../fixtures/compat-0.4.0/ordering.course.json', import.meta.url), 'utf8'));
 
 describe('bundle, conformance and author tooling', () => {
   it('packs deterministically with manifest, integrity map, licences, capabilities and conformance', () => {
@@ -22,7 +23,7 @@ describe('bundle, conformance and author tooling', () => {
     expect(Object.keys(files)).toEqual(['capabilities.json', 'conformance.json', 'course.compiled.json', 'integrity.json', 'licenses.json', 'manifest.json']);
     expect(packCourse(richCourse())).toEqual(files);
     expect(files['course.compiled.json']).toBe(`${JSON.stringify(compileCourse(richCourse()), null, 2)}\n`);
-    expect(JSON.parse(files['manifest.json']!)).toMatchObject({ bundleFormat: 1, sdk: { version: '0.5.0' }, course: { id: 'pendulum-lab' } });
+    expect(JSON.parse(files['manifest.json']!)).toMatchObject({ bundleFormat: 1, sdk: { version: SDK_VERSION }, course: { id: 'pendulum-lab' } });
     expect(verifyCourseBundle(files)).toMatchObject({ valid: true, issues: [] });
   });
   it.each([
@@ -50,15 +51,29 @@ describe('bundle, conformance and author tooling', () => {
   });
   it('reports conformance: full pass, warnings for 0.4 data, failure for invalid input', () => {
     expect(conformanceReport(richCourse()).status).toBe('passed');
-    const old = conformanceReport(legacy());
+    const old = conformanceReport(legacyOrdering());
     expect(old.status).toBe('passed_with_warnings');
     expect(old.checks.find(c => c.id === 'gates-require-transfer')!.status).toBe('warning');
+    expect(old.checks.find(c => c.id === 'publishable')!.status).toBe('passed');
+    // A legacy conversational gate is valid data but hosts refuse to publish it.
+    const conversational = conformanceReport(legacy());
+    expect(conversational.status).toBe('failed');
+    expect(conversational.checks.filter(c => c.status === 'failed').map(c => c.id)).toEqual(['publishable']);
     expect(conformanceReport({}).status).toBe('failed');
     expect(() => packCourse({})).toThrow(CourseBundleError);
   });
   it('packs a legacy 0.4 course with its compiled file unchanged', () => {
-    const files = packCourse(legacy());
-    expect(files['course.compiled.json']).toBe(readFileSync(new URL('../fixtures/compat-0.4.0/feature-tour.compiled.json', import.meta.url), 'utf8'));
+    const files = packCourse(legacyOrdering());
+    expect(files['course.compiled.json']).toBe(readFileSync(new URL('../fixtures/compat-0.4.0/ordering.compiled.json', import.meta.url), 'utf8'));
+  });
+  it('refuses to pack a legacy conversational gate, naming the gate field', () => {
+    let error: unknown;
+    try { packCourse(legacy()); } catch (caught) { error = caught; }
+    expect(error).toBeInstanceOf(CourseBundleError);
+    expect((error as CourseBundleError).issues).toEqual([expect.objectContaining({ code: 'CONVERSATIONAL_GATE_UNSUPPORTED', path: '/gates/2/conversationalEvaluatorId' })]);
+    // The migrated, versioned course no longer carries the field.
+    const migrated = migrateCourse(legacy()).course;
+    expect(JSON.stringify(migrated)).not.toContain('conversationalEvaluatorId');
   });
   it('imports only verified compiled courses or bundles', () => {
     expect(importCourse(compileCourse(richCourse()))).toEqual(richCourse());

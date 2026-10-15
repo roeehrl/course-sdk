@@ -1,5 +1,6 @@
 import type { CourseManifest } from './types.js';
 import { validateCourse } from './validate.js';
+import { publicationRefusals } from './publication.js';
 import { isVersionedGate } from './contracts-validate.js';
 import { FORBIDDEN_CAPABILITIES, KNOWN_CAPABILITIES, RECOGNITION_TYPES } from './contract-constants.js';
 
@@ -11,9 +12,9 @@ export interface LintFinding {
 }
 
 /**
- * Advisory review of a course. Errors are validation failures; warnings and info are
- * risks that remain valid for compatibility (for example 0.4 gate shapes). Lint never
- * changes data and is not a substitute for host enforcement.
+ * Advisory review of a course. Errors are validation failures or publication refusals
+ * (see publicationIssues); warnings and info are risks that remain valid for compatibility
+ * (for example 0.4 gate shapes). Lint never changes data and is not a substitute for host enforcement.
  */
 export function lintCourse(input: unknown): LintFinding[] {
   const result = validateCourse(input);
@@ -33,9 +34,8 @@ export function lintCourse(input: unknown): LintFinding[] {
     if (!gate.conversationalEvaluatorId && items.length > 0 && items.every(item => RECOGNITION_TYPES.has(item.type)))
       add('warning', 'RECOGNITION_ONLY_GATE', path, 'Every item is recognition-only; a guess can pass this gate.');
     if (gate.minimumIndependentFamilies < 2) add('info', 'SINGLE_FAMILY_GATE', path, 'The design default is two independent item families including transfer.');
-    if (gate.conversationalEvaluatorId) add('warning', 'LEGACY_CONVERSATIONAL_GATE', `${path}/conversationalEvaluatorId`,
-      'Hosts may refuse unversioned conversational gates; use a versioned gate with a cited-evidence rubric.');
   }
+  for (const issue of publicationRefusals(course)) add('error', issue.code, issue.path, issue.message);
   for (const [ci, chapter] of course.chapters.entries()) for (const [ei, episode] of chapter.episodes.entries()) for (const [bi, block] of episode.blocks.entries()) {
     if (block.type === 'activity' && 'extensionId' in block)
       add('warning', 'LEGACY_ACTIVITY_BLOCK', `/chapters/${ci}/episodes/${ei}/blocks/${bi}`, 'This activity lacks targets, fallbacks, offline, budget, accessibility and migration fields; reference a defineActivity contract.');

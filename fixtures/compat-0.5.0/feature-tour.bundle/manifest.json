@@ -1,0 +1,25 @@
+{
+  "bundleFormat": 1,
+  "sdk": {
+    "name": "@course-core/sdk",
+    "version": "0.5.0"
+  },
+  "course": {
+    "id": "tide-tables",
+    "version": "2.1.0",
+    "schemaVersion": 1,
+    "title": "Reading tide tables",
+    "locale": "en",
+    "platforms": [
+      "web",
+      "ios"
+    ]
+  },
+  "compiledDigest": "28f0e577d86d6b53eb111f6b32d4da45781e9f66f148ee3a8fd2b346c835ffde",
+  "contents": [
+    "capabilities.json",
+    "conformance.json",
+    "course.compiled.json",
+    "licenses.json"
+  ]
+}

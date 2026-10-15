@@ -1,0 +1,14 @@
+{
+  "capabilitiesFormat": 1,
+  "platforms": [
+    "web"
+  ],
+  "targets": [
+    "web_desktop",
+    "web_mobile"
+  ],
+  "capabilities": [],
+  "executionAdapters": [],
+  "nativeModules": [],
+  "evaluators": []
+}

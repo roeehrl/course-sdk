@@ -1,0 +1,120 @@
+{
+  "conformanceFormat": 1,
+  "sdkVersion": "0.5.0",
+  "course": {
+    "id": "tide-tables",
+    "version": "2.1.0"
+  },
+  "compiledDigest": "28f0e577d86d6b53eb111f6b32d4da45781e9f66f148ee3a8fd2b346c835ffde",
+  "status": "passed_with_warnings",
+  "checks": [
+    {
+      "id": "schema-and-references",
+      "status": "passed",
+      "detail": "Schema, references, cycles and contract rules hold."
+    },
+    {
+      "id": "deterministic-compile",
+      "status": "passed",
+      "detail": "Compilation is independent of key order and repeatable."
+    },
+    {
+      "id": "compiled-verifies",
+      "status": "passed",
+      "detail": "The compiled artifact verifies."
+    },
+    {
+      "id": "learner-projection-private",
+      "status": "passed",
+      "detail": "No keys, prompts, rubrics or server sections reach learners."
+    },
+    {
+      "id": "gates-require-transfer",
+      "status": "warning",
+      "detail": "Unversioned gates cannot require transfer: read-gate, interp-gate, walk-gate."
+    },
+    {
+      "id": "activity-platform-contracts",
+      "status": "warning",
+      "detail": "1 activity block(s) lack platform contracts."
+    },
+    {
+      "id": "license-inventory",
+      "status": "warning",
+      "detail": "Undeclared licences: extension:curve-lab, extension:curve-renderer, extension:evaluator."
+    },
+    {
+      "id": "lint",
+      "status": "warning",
+      "detail": "5 warning(s), 6 note(s)."
+    }
+  ],
+  "findings": [
+    {
+      "code": "LEGACY_GATE",
+      "severity": "warning",
+      "path": "/gates/0",
+      "message": "Unversioned 0.4 gate: it cannot require transfer or misconception checks. Run `course migrate` and review the result."
+    },
+    {
+      "code": "LEGACY_GATE",
+      "severity": "warning",
+      "path": "/gates/1",
+      "message": "Unversioned 0.4 gate: it cannot require transfer or misconception checks. Run `course migrate` and review the result."
+    },
+    {
+      "code": "LEGACY_GATE",
+      "severity": "warning",
+      "path": "/gates/2",
+      "message": "Unversioned 0.4 gate: it cannot require transfer or misconception checks. Run `course migrate` and review the result."
+    },
+    {
+      "code": "SINGLE_FAMILY_GATE",
+      "severity": "info",
+      "path": "/gates/2",
+      "message": "The design default is two independent item families including transfer."
+    },
+    {
+      "code": "LEGACY_CONVERSATIONAL_GATE",
+      "severity": "warning",
+      "path": "/gates/2/conversationalEvaluatorId",
+      "message": "Hosts may refuse unversioned conversational gates; use a versioned gate with a cited-evidence rubric."
+    },
+    {
+      "code": "LEGACY_ACTIVITY_BLOCK",
+      "severity": "warning",
+      "path": "/chapters/0/episodes/1/blocks/1",
+      "message": "This activity lacks targets, fallbacks, offline, budget, accessibility and migration fields; reference a defineActivity contract."
+    },
+    {
+      "code": "EXTENSION_WITHOUT_LICENSE",
+      "severity": "info",
+      "path": "/extensions/0",
+      "message": "The bundle licence inventory will list this extension as undeclared."
+    },
+    {
+      "code": "EXTENSION_WITHOUT_LICENSE",
+      "severity": "info",
+      "path": "/extensions/1",
+      "message": "The bundle licence inventory will list this extension as undeclared."
+    },
+    {
+      "code": "EXTENSION_WITHOUT_LICENSE",
+      "severity": "info",
+      "path": "/extensions/2",
+      "message": "The bundle licence inventory will list this extension as undeclared."
+    },
+    {
+      "code": "NO_TEACHING_HYPOTHESES",
+      "severity": "info",
+      "path": "/objectives/1",
+      "message": "Critical objectives benefit from declared misconception hypotheses and probes."
+    },
+    {
+      "code": "MEDIA_CAPTIONS_UNDECLARED",
+      "severity": "info",
+      "path": "/media/0",
+      "message": "Declare caption or transcript availability for accessible review."
+    }
+  ]
+}

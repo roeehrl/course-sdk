@@ -106,13 +106,19 @@ export function validateCourse(input: unknown): ValidationResult {
     refs(gate.objectiveIds, objectives, `/gates/${i}/objectiveIds`);
     refs(gate.assessmentIds, assessments, `/gates/${i}/assessmentIds`);
     const items = gate.assessmentIds.map((id) => assessments.get(id)).filter((item) => item !== undefined);
+    // A legacy conversationalEvaluatorId names no rubric to cite, so it can never decide a gate on
+    // its own (hosts refuse it at publication; see publicationIssues). It no longer exempts the
+    // gate from collecting its declared families and covering its objectives with items.
     if (gate.conversationalEvaluatorId) evaluator(gate.conversationalEvaluatorId, `/gates/${i}/conversationalEvaluatorId`);
-    else {
-      if (new Set(items.map((a) => a.familyId)).size < gate.minimumIndependentFamilies) report('INSUFFICIENT_ITEM_FAMILIES', `/gates/${i}`, 'The gate cannot collect its declared independent item families.');
-      if (gate.requireAllObjectives) for (const objective of gate.objectiveIds) {
-        if (!items.some((a) => a.objectiveIds.includes(objective))) report('UNCOVERED_GATE_OBJECTIVE', `/gates/${i}`, `No assessment covers ${objective}.`);
-      }
+    if (new Set(items.map((a) => a.familyId)).size < gate.minimumIndependentFamilies) report('INSUFFICIENT_ITEM_FAMILIES', `/gates/${i}`, 'The gate cannot collect its declared independent item families.');
+    if (gate.requireAllObjectives) for (const objective of gate.objectiveIds) {
+      if (!items.some((a) => a.objectiveIds.includes(objective))) report('UNCOVERED_GATE_OBJECTIVE', `/gates/${i}`, `No assessment covers ${objective}.`);
     }
+  }
+  const blank = (value: string) => value.trim().length === 0;
+  function inaccessibleExtension(extension: CourseManifest['extensions'][number], path: string, code: string, what: string): void {
+    if (!extension.accessibility.keyboard) report(code, path, `A required ${what} needs keyboard support; extension ${extension.id} declares none.`);
+    if (blank(extension.accessibility.textAlternative)) report('MISSING_TEXT_ALTERNATIVE', path, `A required ${what} needs a non-blank text alternative; extension ${extension.id} declares none.`);
   }
   for (const [ci, chapter] of course.chapters.entries()) {
     if (chapter.policy) policy(chapter.policy, `/chapters/${ci}/policy`);
@@ -134,16 +140,22 @@ export function validateCourse(input: unknown): ValidationResult {
           refs([block.visualId], visuals, `${bp}/visualId`);
           const visual = visuals.get(block.visualId);
           if (visual && course.platforms.some((platform) => !visual.platforms.includes(platform))) report('UNSUPPORTED_PLATFORM', bp, 'Required visual does not support every declared course platform.');
+          // Visual blocks are required lesson content: they need a keyboard path and a text alternative.
+          if (visual && blank(visual.accessibility.description)) report('MISSING_TEXT_ALTERNATIVE', `${bp}/visualId`, 'A required visual needs a non-blank text description.');
+          const renderer = visual && extensions.get(visual.rendererId);
+          if (renderer) inaccessibleExtension(renderer, `${bp}/visualId`, 'INACCESSIBLE_VISUAL', 'visual');
         }
         if (block.type === 'activity' && 'extensionId' in block) {
           refs([block.extensionId], extensions, `${bp}/extensionId`);
           const extension = extensions.get(block.extensionId);
           if (extension && course.platforms.some((platform) => !extension.platforms.includes(platform))) report('UNSUPPORTED_PLATFORM', bp, 'Activity extension does not support every declared course platform.');
+          if (extension) inaccessibleExtension(extension, `${bp}/extensionId`, 'INACCESSIBLE_ACTIVITY', 'activity');
         }
         if (block.type === 'media') {
           refs([block.mediaId], media, `${bp}/mediaId`);
           const resource = media.get(block.mediaId);
           if (resource && block.required && resource.review !== 'reviewed') report('UNREVIEWED_REQUIRED_MEDIA', bp, 'Required media must be reviewed.');
+          if (resource && block.required && blank(resource.alternativeMarkdown)) report('MISSING_TEXT_ALTERNATIVE', `${bp}/mediaId`, 'Required media needs a non-blank text alternative.');
         }
       }
     }

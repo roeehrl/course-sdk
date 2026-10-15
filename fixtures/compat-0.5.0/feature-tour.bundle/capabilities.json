@@ -1,0 +1,46 @@
+{
+  "capabilitiesFormat": 1,
+  "platforms": [
+    "ios",
+    "web"
+  ],
+  "targets": [
+    "ios_phone",
+    "ipados_tablet",
+    "web_desktop",
+    "web_mobile"
+  ],
+  "capabilities": [
+    {
+      "capability": "assessment.evaluate",
+      "required": true,
+      "requestedBy": [
+        "extension:evaluator"
+      ]
+    },
+    {
+      "capability": "observation.emit",
+      "required": true,
+      "requestedBy": [
+        "extension:curve-lab"
+      ]
+    },
+    {
+      "capability": "state.read",
+      "required": true,
+      "requestedBy": [
+        "extension:curve-lab",
+        "extension:curve-renderer"
+      ]
+    }
+  ],
+  "executionAdapters": [
+    "declarative",
+    "sandboxed_web",
+    "server"
+  ],
+  "nativeModules": [],
+  "evaluators": [
+    "extension:evaluator@1.0.0"
+  ]
+}

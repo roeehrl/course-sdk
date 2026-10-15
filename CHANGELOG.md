@@ -1,6 +1,28 @@
 # Changelog
 
-## 0.5.0 (unreleased)
+## 0.6.0 (unreleased)
+
+Backward compatible with 0.4.0 and 0.5.0 data. Every 0.4.0 and 0.5.0 fixture manifest validates
+and compiles to byte-identical output, and 0.4.0/0.5.0 compiled artifacts and 0.5.0 bundles still
+verify. The fixtures in `fixtures/compat-0.5.0` were produced by the released 0.5.0 package.
+
+### Added
+- `publicationIssues(course)`: rules a host applies at publication beyond data validity. It refuses
+  an unversioned gate's `conversationalEvaluatorId` (`CONVERSATIONAL_GATE_UNSUPPORTED`), matching
+  Course Core's `PUBLISH_CONVERSATIONAL_GATE_UNSUPPORTED`. `course lint` reports it as an error,
+  `course test` adds a `publishable` check and `course pack` refuses the course.
+- Accessibility rules for lesson content: `INACCESSIBLE_VISUAL` for a visual block whose renderer has
+  no keyboard support, `INACCESSIBLE_ACTIVITY` for a legacy activity block without one, and
+  `MISSING_TEXT_ALTERNATIVE` for blank text alternatives on visual blocks, legacy activity blocks and
+  required media.
+
+### Changed
+- A legacy gate with `conversationalEvaluatorId` is no longer exempt from its family and objective
+  coverage checks.
+- Conformance reports gain the `publishable` check, so a 0.6 bundle's `conformance.json` differs
+  from a 0.5 one. 0.5 bundles still verify (with a `DIFFERENT_SDK_VERSION` warning).
+
+## 0.5.0
 
 Backward compatible with 0.4.0 data. Every 0.4.0 manifest validates and compiles to
 byte-identical output, and 0.4.0 compiled artifacts still verify. The fixtures in

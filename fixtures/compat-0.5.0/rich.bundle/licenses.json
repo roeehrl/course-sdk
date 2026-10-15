@@ -1,0 +1,59 @@
+{
+  "inventoryFormat": 1,
+  "sources": [
+    {
+      "id": "physics-notes",
+      "title": "Synthetic physics notes",
+      "url": "https://reference.example/pendulum",
+      "license": "CC-BY-4.0",
+      "reviewedAt": "2026-10-01T00:00:00Z"
+    }
+  ],
+  "media": [
+    {
+      "id": "swing-video",
+      "type": "video",
+      "url": "https://media.example/swing.mp4",
+      "sourceRef": "physics-notes",
+      "license": "CC-BY-4.0",
+      "generated": false,
+      "review": "reviewed"
+    }
+  ],
+  "extensions": [
+    {
+      "id": "checker-ext",
+      "version": "1.0.0",
+      "integrity": "sha256-dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "license": "MIT"
+    },
+    {
+      "id": "grader",
+      "version": "1.0.0",
+      "integrity": "sha256-dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "license": "MIT"
+    },
+    {
+      "id": "sim-plugin",
+      "version": "1.0.0",
+      "integrity": "sha256-dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "license": "Apache-2.0"
+    },
+    {
+      "id": "writer-ext",
+      "version": "1.0.0",
+      "integrity": "sha256-dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "license": "MIT"
+    }
+  ],
+  "sceneAssets": [
+    {
+      "sceneId": "swing-scene",
+      "assetId": "sky-image",
+      "url": "asset:images/sky.png",
+      "license": "CC0-1.0",
+      "sourceRef": null
+    }
+  ],
+  "undeclared": []
+}

@@ -3,6 +3,7 @@ import { canonicalJson } from './json.js';
 import { compileCourse, verifyCompiledCourse, SERVER_ONLY_SECTIONS, type CompiledCourse } from './compiler.js';
 import { validateCourse } from './validate.js';
 import { lintCourse, type LintFinding } from './lint.js';
+import { publicationRefusals } from './publication.js';
 import { isVersionedGate } from './contracts-validate.js';
 import { DETERMINISTIC_TYPES, PRACTICAL_TYPES, targetsForPlatforms } from './contract-constants.js';
 import { SDK_VERSION } from './version.js';
@@ -112,6 +113,8 @@ export function conformanceReport(input: unknown): ConformanceReport {
   add('learner-projection-private', leaks.length ? 'failed' : 'passed', leaks.length ? `Learner projection exposes ${leaks.join(', ')}.` : 'No keys, prompts, rubrics or server sections reach learners.');
   const legacy = course.gates.filter(g => !isVersionedGate(g)).map(g => g.id);
   add('gates-require-transfer', legacy.length ? 'warning' : 'passed', legacy.length ? `Unversioned gates cannot require transfer: ${legacy.join(', ')}.` : 'Every gate requires independent transfer evidence.');
+  const refusals = publicationRefusals(course);
+  add('publishable', refusals.length ? 'failed' : 'passed', refusals.length ? `Hosts refuse to publish: ${refusals.map(r => `${r.code} at ${r.path}`).join(', ')}.` : 'No rule refuses publication.');
   const legacyBlocks = findings.filter(f => f.code === 'LEGACY_ACTIVITY_BLOCK').length;
   add('activity-platform-contracts', legacyBlocks ? 'warning' : 'passed', legacyBlocks ? `${legacyBlocks} activity block(s) lack platform contracts.` : 'Activities declare targets, fallbacks and budgets.');
   const undeclared = licenseInventory(course).undeclared;
@@ -145,7 +148,9 @@ export function packCourse(input: unknown): Record<string, string> {
   const report = conformanceReport(input);
   if (report.status === 'failed') {
     const validation = validateCourse(input);
-    throw new CourseBundleError(validation.valid ? report.checks.filter(c => c.status === 'failed').map(c => ({ code: 'CONFORMANCE', path: '', message: `${c.id}: ${c.detail}` })) : validation.issues);
+    if (!validation.valid) throw new CourseBundleError(validation.issues);
+    throw new CourseBundleError([...publicationRefusals(validation.course),
+      ...report.checks.filter(c => c.status === 'failed' && c.id !== 'publishable').map(c => ({ code: 'CONFORMANCE', path: '', message: `${c.id}: ${c.detail}` }))]);
   }
   const compiled = compileCourse(input);
   return bundleFiles(compiled, report);

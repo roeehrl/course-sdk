@@ -1,0 +1,70 @@
+{
+  "capabilitiesFormat": 1,
+  "platforms": [
+    "ios",
+    "web"
+  ],
+  "targets": [
+    "ios_phone",
+    "ipados_tablet",
+    "web_desktop",
+    "web_mobile"
+  ],
+  "capabilities": [
+    {
+      "capability": "assessment.evaluate",
+      "required": true,
+      "requestedBy": [
+        "extension:grader"
+      ]
+    },
+    {
+      "capability": "observation.emit",
+      "required": true,
+      "requestedBy": [
+        "activity:pendulum-sim",
+        "extension:sim-plugin"
+      ]
+    },
+    {
+      "capability": "research.search",
+      "required": true,
+      "requestedBy": [
+        "tool:search-notes"
+      ]
+    },
+    {
+      "capability": "state.patch",
+      "required": true,
+      "requestedBy": [
+        "activity:pendulum-sim",
+        "extension:sim-plugin"
+      ]
+    },
+    {
+      "capability": "teaching.generate",
+      "required": true,
+      "requestedBy": [
+        "extension:writer-ext"
+      ]
+    },
+    {
+      "capability": "teaching.verify",
+      "required": true,
+      "requestedBy": [
+        "extension:checker-ext"
+      ]
+    }
+  ],
+  "executionAdapters": [
+    "sandboxed_web",
+    "server"
+  ],
+  "nativeModules": [
+    "ios-haptics"
+  ],
+  "evaluators": [
+    "explain-evaluator@1.0.0",
+    "extension:grader@1.0.0"
+  ]
+}
