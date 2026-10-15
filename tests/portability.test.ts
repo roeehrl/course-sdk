@@ -55,7 +55,7 @@ describe('portable runtime export', () => {
     expect(new Script(`(() => {
       const c = JSON.parse(courseJson);
       const decision = CourseSDK.decideGate(c, 'length-ready', [], { decisionId: 'd', enrollmentId: 'e', courseDigest: 'a'.repeat(64), policyRevision: 1, decidedAt: '2026-10-15T00:00:00Z' });
-      return [CourseSDK.validateCourse(c).valid, CourseSDK.validateContract('activity', c.activities[0]).valid, CourseSDK.validateRecord('evidence', {}).valid, decision.decision.status, CourseSDK.lintCourse(c).length];
-    })()`).runInContext(vm)).toEqual([true, true, false, 'needs_evidence', 1]);
+      return [CourseSDK.validateCourse(c).valid, CourseSDK.validateContract('activity', c.activities[0]).valid, CourseSDK.validateRecord('evidence', {}).valid, decision.decision.status, CourseSDK.lintCourse(c).filter(f => f.severity !== 'info').length];
+    })()`).runInContext(vm)).toEqual([true, true, false, 'needs_evidence', 0]);
   });
 });

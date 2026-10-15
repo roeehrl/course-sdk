@@ -60,7 +60,7 @@ const semantic: Partial<Record<ContractKind, Check>> = {
   storyboard: standaloneChecks.storyboard, evaluator: standaloneChecks.evaluator, agentStrategy: standaloneChecks.agentStrategy,
   platformAdapter: standaloneChecks.platformAdapter, debugInspector: standaloneChecks.debugInspector, scene: standaloneChecks.scene,
   timeline: standaloneChecks.timeline, rendererAdapter: standaloneChecks.rendererAdapter, teachingHypothesis: standaloneChecks.hypothesis,
-  diagnosticProbe: standaloneChecks.probe,
+  diagnosticProbe: standaloneChecks.probe, extension: standaloneChecks.extension,
   mediaResource: ((value: MediaResource, path, report) => standaloneChecks.mediaSegment(value.segment, `${path}/segment`, report)) as Check,
   learningPolicy: ((value: LearningPolicy, path, report) => { for (const i of learningPolicyIssues(value, path)) report(i.code, i.path, i.message); }) as Check,
 };

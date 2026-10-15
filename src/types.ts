@@ -1,6 +1,6 @@
 import type { AdaptationAuthoring } from './adaptation-types.js';
 import type { ResearchAuthoring } from './research-types.js';
-import type { AssessmentRole, ConfidenceCapture, CourseContracts0_5, VersionedProgressionGate } from './contracts-types.js';
+import type { AssessmentRole, ConfidenceCapture, ContractTest, CourseContracts0_5, StateMigration, VersionedProgressionGate } from './contracts-types.js';
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 export type Platform = 'web' | 'ios' | 'android';
 
@@ -159,8 +159,13 @@ export interface ExtensionManifest {
   /** 0.5 (optional) portable contract fields. */
   stateSchema?: Record<string, Json>;
   observationSchema?: Record<string, Json>;
-  resourceBudget?: { timeoutMs: number; maxMemoryMb: number };
+  resourceBudget?: { timeoutMs: number; maxMemoryMb: number; maxStateBytes?: number; maxEventBytes?: number; maxEventsPerMinute?: number };
+  /** Observations reach evidence only through this registered evaluator. */
   evaluatorRef?: string;
+  /** 0.6 (optional): how saved state from earlier extension versions is migrated (`migrateState`). */
+  stateMigration?: StateMigration;
+  /** 0.6 (optional): the extension's own test fixtures, listed in the bundle conformance report. */
+  tests?: ContractTest[];
 }
 
 export interface VisualExperience {

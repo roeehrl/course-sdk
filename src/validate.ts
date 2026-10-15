@@ -2,7 +2,7 @@ import type { ValidateFunction } from 'ajv';
 import { jsonIssue } from './json.js';
 import { getEpisodeRequirement } from './episode.js';
 import { adaptationAuthoringIssues } from './adaptation-authoring.js';
-import { contractIssues, gateAssessmentIds, gateObjectiveIds, isVersionedGate } from './contracts-validate.js';
+import { contractIssues, gateAssessmentIds, gateObjectiveIds, isPortableRelativePath, isVersionedGate } from './contracts-validate.js';
 import generatedValidator from './generated/course-validator.js';
 import type { CourseManifest, LearningPolicy, ValidationIssue, ValidationResult } from './types.js';
 
@@ -161,8 +161,7 @@ export function validateCourse(input: unknown): ValidationResult {
     }
   }
   for (const [i, extension] of course.extensions.entries()) {
-    const segments = extension.entrypoint.split('/');
-    if (!/^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(extension.entrypoint) || segments.some((s) => !s || s === '.' || s === '..')) report('UNSAFE_ENTRYPOINT', `/extensions/${i}/entrypoint`, 'Entrypoints must be portable relative file paths without traversal.');
+    if (!isPortableRelativePath(extension.entrypoint)) report('UNSAFE_ENTRYPOINT', `/extensions/${i}/entrypoint`, 'Entrypoints must be portable relative file paths without traversal.');
   }
   for (const [i, visual] of course.visuals.entries()) {
     refs([visual.rendererId], extensions, `/visuals/${i}/rendererId`);

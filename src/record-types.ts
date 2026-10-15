@@ -412,5 +412,7 @@ export interface RecordKinds {
   conceptGraph: ConceptGraph;
   debugTrace: DebugTrace;
   decisionRecord: DecisionRecord;
+  /** The design's name for a research result; validated identically. */
+  mediaCandidate: MediaCandidate;
 }
 export type RecordKind = keyof RecordKinds;

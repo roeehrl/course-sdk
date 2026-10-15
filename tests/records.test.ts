@@ -49,8 +49,11 @@ const samples: Record<RecordKind, Record<string, unknown>> = {
     view: 'gate_placement_decision', payload: { redacted: true }, replay: { isReplay: false } },
   decisionRecord: { id: 'dr-1', kind: 'gate', subjectRef: 'length-ready', enrollmentId: 'enr-1', versions: { courseDigest: digest, policyRevision: 2, gateVersion: '1.0.0' },
     inputEvidenceRefs: ['ev-1'], outcome: 'ready', reason: 'All criteria met.', decidedBy: { kind: 'host_policy', id: 'host' }, decidedAt: at, traceId: null },
+  mediaCandidate: {},
 };
+samples.mediaCandidate = structuredClone(samples.researchResult);
 const breaks: [RecordKind, string, (v: any) => void, string][] = [
+  ['mediaCandidate', 'metadata-only claims', v => { v.inspectedEvidence.kind = 'metadata_only'; }, 'METADATA_ONLY_REVIEW'],
   ['attempt', 'retrying itself', v => { v.reattemptOf = v.attemptId; }, 'INVALID_ATTEMPT'],
   ['evidence', 'agent-authored answers marked independent', v => { v.author = 'agent'; }, 'AGENT_AUTHORED_EVIDENCE'],
   ['evidence', 'revealed answers marked independent', v => { v.assistance.answerRevealed = true; }, 'ASSISTED_EVIDENCE'],
