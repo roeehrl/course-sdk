@@ -16,6 +16,15 @@ verify. The fixtures in `fixtures/compat-0.5.0` were produced by the released 0.
   `MISSING_TEXT_ALTERNATIVE` for blank text alternatives on visual blocks, legacy activity blocks and
   required media.
 
+- Extension manifests: optional `stateMigration`, `tests` and the full `resourceBudget`, with
+  standalone validation (`validateContract('extension', …)` now applies semantic rules).
+- `REQUIRED_ACTIVITY_FIELDS`, `PLATFORM_CONTRACT` and `platformContract(activity)`.
+- Schema-driven admin settings: `adminSettingsSchema`, `adminSettingDefaults` and the server-side
+  `checkAdminSettingChange`.
+- Roadmap stages: stage `subtitle` and `iconAsset`, and `courseRoadmap(course)` grouping chapters by stage.
+  Lint reports split (`STAGE_NOT_CONTIGUOUS`) and unused stages.
+- `mediaCandidate` record kind, validated like `researchResult`.
+
 ### Changed
 - A legacy gate with `conversationalEvaluatorId` is no longer exempt from its family and objective
   coverage checks.

@@ -1,8 +1,8 @@
-import type { Assessment, CourseManifest, Episode, LearningPolicy, ProgressionGate, ValidationIssue } from './types.js';
+import type { Assessment, CourseManifest, Episode, ExtensionManifest, LearningPolicy, ProgressionGate, ValidationIssue } from './types.js';
 import type {
   ActivityDefinition, AdaptationPolicy, AdminSection, AgentStrategy, DebugInspector, DiagnosticProbe, EvaluatorDefinition,
   PlatformAdapter, RendererAdapter, RendererDefinition, Rubric, Scene, Storyboard, TeachingHypothesisTemplate, Timeline, ToolDefinition,
-  VersionedProgressionGate, LearningStep,
+  VersionedProgressionGate, LearningStep, StateMigration,
 } from './contracts-types.js';
 import {
   ADMIN_WRITE_PERMISSIONS, DECLARATIVE_CAPABILITIES, DETERMINISTIC_TYPES, FORBIDDEN_CAPABILITIES, KNOWN_CAPABILITIES, NATIVE_TARGETS,
@@ -45,6 +45,16 @@ function ordered(times: number[], duration: number, path: string, report: Report
 }
 function reservedWords(id: string): boolean {
   return id.split(/[._:-]/).some(part => RESERVED_AUTHORITY_WORDS.has(part));
+}
+
+function stateMigrationChecks(migration: StateMigration, path: string, report: Report): void {
+  if (migration.stateVersion > 1 && migration.strategy === 'none') report('STATE_MIGRATION_REQUIRED', path, 'A state version above 1 must migrate or reset with notice.');
+  if (migration.migratesFrom.some(v => v >= migration.stateVersion)) report('STATE_MIGRATION_REQUIRED', `${path}/migratesFrom`, 'Migrations come from earlier state versions.');
+  if (migration.strategy === 'migrate' && migration.migratesFrom.length === 0) report('STATE_MIGRATION_REQUIRED', `${path}/migratesFrom`, 'Declare the versions a migration accepts.');
+}
+/** Portable relative file path without traversal, as for extension entrypoints. */
+export function isPortableRelativePath(value: string): boolean {
+  return /^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(value) && value.split('/').every(segment => segment !== '' && segment !== '.' && segment !== '..');
 }
 
 // ------------------------------------------------------------------ standalone (context-free) checks
@@ -92,14 +102,21 @@ export const standaloneChecks = {
     if (!activity.accessibleSemantics.nonPointerPath) report('INACCESSIBLE_ACTIVITY', `${path}/accessibleSemantics/nonPointerPath`, 'Dragging, colour, sound or watching cannot be the only way to complete an activity.');
     if (activity.supportedTargets.some(t => t.startsWith('web')) && !activity.accessibleSemantics.keyboard)
       report('INACCESSIBLE_ACTIVITY', `${path}/accessibleSemantics/keyboard`, 'Web targets need a keyboard path.');
-    const migration = activity.stateMigration;
-    if (migration.stateVersion > 1 && migration.strategy === 'none') report('STATE_MIGRATION_REQUIRED', `${path}/stateMigration`, 'A state version above 1 must migrate or reset with notice.');
-    if (migration.migratesFrom.some(v => v >= migration.stateVersion)) report('STATE_MIGRATION_REQUIRED', `${path}/stateMigration/migratesFrom`, 'Migrations come from earlier state versions.');
-    if (migration.strategy === 'migrate' && migration.migratesFrom.length === 0) report('STATE_MIGRATION_REQUIRED', `${path}/stateMigration/migratesFrom`, 'Declare the versions a migration accepts.');
+    stateMigrationChecks(activity.stateMigration, `${path}/stateMigration`, report);
     if (activity.supportedTargets.some(t => PHONE_TARGETS.has(t)) && !activity.layouts.compact) report('MISSING_LAYOUT', `${path}/layouts`, 'Phone targets need a compact layout.');
     if (activity.supportedTargets.some(t => !PHONE_TARGETS.has(t)) && !activity.layouts.expanded && !activity.layouts.medium) report('MISSING_LAYOUT', `${path}/layouts`, 'Tablet and desktop targets need a medium or expanded layout.');
     for (const input of ['effective_window_bounds', 'font_scale'] as const)
       if (!activity.layoutInputs.includes(input)) report('MISSING_LAYOUT_INPUT', `${path}/layoutInputs`, `Responsive activities must respond to ${input}.`);
+  },
+  extension(extension: ExtensionManifest, path: string, report: Report) {
+    if (extension.stateMigration) stateMigrationChecks(extension.stateMigration, `${path}/stateMigration`, report);
+    if (extension.stateMigration && extension.stateMigration.stateVersion > 1 && !extension.stateSchema)
+      report('STATE_MIGRATION_REQUIRED', `${path}/stateSchema`, 'Versioned extension state needs a declared state schema.');
+    duplicates((extension.tests ?? []).map(t => t.id), `${path}/tests`, report, 'test');
+    for (const [i, test] of (extension.tests ?? []).entries())
+      if (!isPortableRelativePath(test.fixtureRef)) report('UNSAFE_FIXTURE_REF', `${path}/tests/${i}/fixtureRef`, 'Test fixtures must be portable relative paths without traversal.');
+    if (extension.tests?.some(t => t.kind === 'state_migration') && !extension.stateMigration)
+      report('STATE_MIGRATION_REQUIRED', `${path}/tests`, 'A state-migration test needs a declared state migration.');
   },
   adminSection(section: AdminSection, path: string, report: Report) {
     duplicates(section.settings.map(s => s.id), `${path}/settings`, report, 'setting');
@@ -305,7 +322,10 @@ export function contractIssues(course: CourseManifest): ValidationIssue[] {
     standaloneChecks.mediaSegment(media.segment, `/media/${i}/segment`, report);
     if (media.segment && media.review !== 'reviewed') report('UNREVIEWED_SEGMENT', `/media/${i}/segment`, 'Only reviewed media can declare an inspected segment.');
   }
-  for (const [i, ext] of course.extensions.entries()) if (ext.evaluatorRef !== undefined) evaluatorRef(ext.evaluatorRef, `/extensions/${i}/evaluatorRef`);
+  for (const [i, ext] of course.extensions.entries()) {
+    standaloneChecks.extension(ext, `/extensions/${i}`, report);
+    if (ext.evaluatorRef !== undefined) evaluatorRef(ext.evaluatorRef, `/extensions/${i}/evaluatorRef`);
+  }
 
   // concepts
   for (const [i, concept] of (course.concepts ?? []).entries()) {

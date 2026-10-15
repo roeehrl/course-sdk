@@ -46,6 +46,20 @@ export function lintCourse(input: unknown): LintFinding[] {
       else if (!KNOWN_CAPABILITIES.has(capability)) add('info', 'UNKNOWN_CAPABILITY', `/extensions/${i}/capabilities/${j}`, `${capability} is not a declared SDK capability.`);
     }
     if (!extension.license) add('info', 'EXTENSION_WITHOUT_LICENSE', `/extensions/${i}`, 'The bundle licence inventory will list this extension as undeclared.');
+    if (extension.observationSchema && !extension.capabilities.includes('observation.emit'))
+      add('warning', 'OBSERVATION_CAPABILITY_UNDECLARED', `/extensions/${i}/observationSchema`, 'An observation schema without observation.emit cannot be used; hosts deny undeclared capabilities.');
+    if (extension.capabilities.includes('observation.emit') && extension.execution !== 'server' && extension.evaluatorRef === undefined)
+      add('info', 'OBSERVATIONS_WITHOUT_EVALUATOR', `/extensions/${i}`, 'Observations become evidence only through a registered evaluator (evaluatorRef).');
+    if (extension.execution !== 'declarative' && !extension.tests)
+      add('info', 'EXTENSION_WITHOUT_TESTS', `/extensions/${i}`, 'Declare the extension\'s own test fixtures (tests) so reviewers can run them.');
+  }
+  const stageRuns: string[] = [];
+  for (const [i, chapter] of course.chapters.entries())
+    if (chapter.stageId !== undefined && course.chapters[i - 1]?.stageId !== chapter.stageId) stageRuns.push(chapter.stageId);
+  for (const [i, stage] of (course.stages ?? []).entries()) {
+    const runs = stageRuns.filter(id => id === stage.id).length;
+    if (runs === 0) add('info', 'UNUSED_STAGE', `/stages/${i}`, 'No chapter belongs to this stage.');
+    if (runs > 1) add('warning', 'STAGE_NOT_CONTIGUOUS', `/stages/${i}`, 'Chapters of one stage should be consecutive; the roadmap shows each run as its own group.');
   }
   for (const [i, source] of course.sources.entries()) if (!source.license) add('info', 'SOURCE_WITHOUT_LICENSE', `/sources/${i}`, 'The bundle licence inventory will list this source as undeclared.');
   for (const [i, item] of course.assessments.entries()) if (item.allowAbstain === false)

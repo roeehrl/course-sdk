@@ -40,6 +40,8 @@ const recordDefinitions = ['attempt', 'evidence', 'gateDecision', 'teachingHypot
 const contractExports = {};
 for (const [name, definition] of Object.entries(contractDefinitions)) contractExports[`contract_${name}`] = definition;
 for (const name of recordDefinitions) contractExports[`record_${name}`] = name;
+// Design aliases: a MediaCandidate is a research result.
+contractExports.record_mediaCandidate = 'researchResult';
 for (const [exportName, definition] of Object.entries(contractExports)) {
   ajv.addSchema({ $id: `urn:course-core:contract:${exportName}`, $ref: `${course.$id}#/$defs/${definition}` });
 }

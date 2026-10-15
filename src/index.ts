@@ -28,7 +28,13 @@ export { publicationIssues } from './publication.js';
 export type { LintFinding } from './lint.js';
 export { isVersionedGate, gateObjectiveIds, gateAssessmentIds } from './contracts-validate.js';
 export { buildConceptGraph, resolveRetentionIntervals } from './concepts.js';
+export { adminSettingsSchema, adminSettingDefaults, checkAdminSettingChange } from './admin.js';
+export type { AdminSettingChange } from './admin.js';
+export { courseRoadmap } from './roadmap.js';
+export type { Roadmap, RoadmapChapter, RoadmapGroup } from './roadmap.js';
+export type { PlatformContract } from './contract-constants.js';
 export {
+  REQUIRED_ACTIVITY_FIELDS, PLATFORM_CONTRACT, platformContract,
   DEFAULT_REVIEW_INTERVALS_DAYS, PLATFORM_TARGETS, KNOWN_CAPABILITIES, FORBIDDEN_CAPABILITIES, RECOGNITION_TYPES, LAYOUT_BREAKPOINTS,
   MAX_EVENT_BYTES, MAX_STATE_BYTES, windowClass, targetsForPlatforms,
 } from './contract-constants.js';
