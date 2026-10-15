@@ -69,7 +69,7 @@ export const standaloneChecks = {
   evaluator(evaluator: EvaluatorDefinition, path: string, report: Report) {
     if (evaluator.method === 'rubric_model_assisted' && evaluator.humanConfirmation === 'none')
       report('UNCONFIRMED_MODEL_JUDGMENT', `${path}/humanConfirmation`, 'Model-assisted rubric judgments need human confirmation at least when uncertain.');
-    if (evaluator.method === 'deterministic' && evaluator.itemTypes.some(t => !DETERMINISTIC_TYPES.has(t as Assessment['type'])))
+    if (evaluator.method === 'deterministic' && evaluator.itemTypes.some(t => !DETERMINISTIC_TYPES.has(t)))
       report('INVALID_EVALUATOR', `${path}/itemTypes`, 'Deterministic evaluators can only score item types with declared keys.');
   },
   tool(tool: ToolDefinition, path: string, report: Report) {
@@ -307,7 +307,7 @@ export function contractIssues(course: CourseManifest): ValidationIssue[] {
     return ext !== undefined && ext.execution === 'server' && ext.capabilities.includes('assessment.evaluate');
   };
   /** Evaluator IDs resolve to a 0.5 evaluator definition or, for compatibility, a server extension. */
-  const evaluatorRef = (id: string, path: string, itemType?: string, requireDefinition = false) => {
+  const evaluatorRef = (id: string, path: string, itemType?: Assessment['type'], requireDefinition = false) => {
     const definition = evaluators.get(id);
     if (definition) {
       if (itemType && !definition.itemTypes.includes(itemType)) report('INVALID_EVALUATOR', path, `Evaluator ${id} does not declare ${itemType} items.`);

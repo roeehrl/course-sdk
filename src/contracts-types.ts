@@ -4,7 +4,8 @@
  * compiled projections. Contracts declare intent; the host enforces permissions,
  * evidence integrity, caps and authorization.
  */
-import type { Json } from './types.js';
+import type { AssessmentType, Json } from './types.js';
+import type { AdaptationOperationKind } from './adaptation-types.js';
 
 export type PlatformTarget = 'web_desktop' | 'web_mobile' | 'ios_phone' | 'ipados_tablet' | 'android_phone' | 'android_tablet';
 export type LayoutClass = 'compact' | 'medium' | 'expanded';
@@ -115,7 +116,7 @@ export interface EvaluatorDefinition {
   version: string;
   extensionId: string;
   method: EvaluatorMethod;
-  itemTypes: string[];
+  itemTypes: AssessmentType[];
   rubricIds?: string[];
   humanConfirmation: 'required' | 'on_uncertain' | 'none';
   outputs: { uncertainty: true; provenance: true };
@@ -262,7 +263,7 @@ export interface AgentStrategy {
   autonomy: {
     level: 'propose_only' | 'apply_verified_personal';
     /** Adaptation operations the strategy may apply after verification and learner opt-in. */
-    mayApply: string[];
+    mayApply: AdaptationOperationKind[];
     requiresLearnerOptIn: true;
     maxAppliedChangesPerDay: number;
   };

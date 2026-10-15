@@ -50,9 +50,27 @@ const samples: Record<RecordKind, Record<string, unknown>> = {
   decisionRecord: { id: 'dr-1', kind: 'gate', subjectRef: 'length-ready', enrollmentId: 'enr-1', versions: { courseDigest: digest, policyRevision: 2, gateVersion: '1.0.0' },
     inputEvidenceRefs: ['ev-1'], outcome: 'ready', reason: 'All criteria met.', decidedBy: { kind: 'host_policy', id: 'host' }, decidedAt: at, traceId: null },
   mediaCandidate: {},
+  rubricRevision: { id: 'explain-rubric', version: '2.0.0', title: 'Explain length dependence', requiresCitedEvidence: true, uncertain: 'pending_review',
+    criteria: [{ id: 'cause', description: 'Names length as the cause.', required: true, evidence: 'cited_learner_span' }] },
+  contextCapsule: { enrollmentId: '3f2b6c1e-8d4a-4c1b-9e7f-0a1b2c3d4e5f', courseDigest: digest, episodeId: 'length', uiRevision: 3, profileRevision: 1, policyRevision: 2,
+    eventCursor: 41, evidenceRefs: ['ev-1'], sourceRefs: ['physics-notes'], assessmentMode: 'practice', attemptId: '7c9e6679-7425-40de-944b-e07fc1f90ae7' },
+  learningEventExport: { exportFormat: 1, course: { id: 'pendulum-lab', version: '1.0.0', digest }, enrollmentRef: '3f2b6c1e-8d4a-4c1b-9e7f-0a1b2c3d4e5f', exportedAt: later,
+    cursor: { after: '0', through: '9223372036854775807' }, events: [
+      { eventId: 'e1', sequence: '1', type: 'attempt.submitted', actorKind: 'learner', occurredAt: at, payload: { attemptId: 'att-1' }, traceId: null },
+      { eventId: 'e2', sequence: '9007199254740993', type: 'gate.decided', actorKind: 'system', occurredAt: at, payload: { erased: true }, traceId: 'b'.repeat(32) },
+    ] },
 };
 samples.mediaCandidate = structuredClone(samples.researchResult);
 const breaks: [RecordKind, string, (v: any) => void, string][] = [
+  ['rubricRevision', 'uncited conversational criteria', v => { v.criteria[0].evidence = 'observation'; }, 'UNCITED_CONVERSATIONAL_RUBRIC'],
+  ['learningEventExport', 'out-of-order events', v => { v.events.reverse(); }, 'INVALID_CURSOR'],
+  ['learningEventExport', 'an event outside the cursor', v => { v.cursor.through = '5'; }, 'INVALID_CURSOR'],
+  ['learningEventExport', 'a reversed cursor', v => { v.cursor = { after: '10', through: '9' }; v.events = []; }, 'INVALID_CURSOR'],
+  ['learningEventExport', 'duplicate event IDs', v => { v.events[1].eventId = 'e1'; }, 'DUPLICATE_ID'],
+  ['learningEventExport', 'a numeric sequence', v => { v.events[0].sequence = 1; }, 'SCHEMA'],
+  ['learningEventExport', 'a leading-zero sequence', v => { v.events[0].sequence = '01'; }, 'SCHEMA'],
+  ['contextCapsule', 'an unknown assessment mode', v => { v.assessmentMode = 'graded'; }, 'SCHEMA'],
+  ['contextCapsule', 'extra learner fields', v => { v.learnerEmail = 'x'; }, 'SCHEMA'],
   ['mediaCandidate', 'metadata-only claims', v => { v.inspectedEvidence.kind = 'metadata_only'; }, 'METADATA_ONLY_REVIEW'],
   ['attempt', 'retrying itself', v => { v.reattemptOf = v.attemptId; }, 'INVALID_ATTEMPT'],
   ['evidence', 'agent-authored answers marked independent', v => { v.author = 'agent'; }, 'AGENT_AUTHORED_EVIDENCE'],
