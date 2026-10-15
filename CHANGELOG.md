@@ -38,6 +38,14 @@ verify. The fixtures in `fixtures/compat-0.5.0` were produced by the released 0.
 - Conformance reports gain the `publishable` check, so a 0.6 bundle's `conformance.json` differs
   from a 0.5 one. 0.5 bundles still verify (with a `DIFFERENT_SDK_VERSION` warning).
 
+### Fixed
+- Runtime records accept host-generated identifiers. Enrollment, attempt, evidence, decision, request,
+  job, offer, grant, run, instance, artifact and user/actor IDs (and evidence reference lists) use the
+  `opaqueId` definition: 1 to 200 characters of `A-Z a-z 0-9 . _ : -`, starting with a letter or digit,
+  so UUIDs from `randomUUID()` validate even when they start with a digit. Author-defined course IDs
+  (objectives, assessments, gates, episodes, activities, rubrics, tools, pools and scopes) keep the
+  course-ID pattern. Every value valid before stays valid.
+
 ## 0.5.0
 
 Backward compatible with 0.4.0 data. Every 0.4.0 manifest validates and compiles to
