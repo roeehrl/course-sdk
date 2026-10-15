@@ -132,7 +132,9 @@ cross-reference. `defineCourse`, `defineExtension` and `defineVisualExperience` 
 Runtime records (`Attempt`, `Evidence`, `GateDecision`, `TeachingHypothesis`, `ResearchRequest`,
 `ResearchResult`/`MediaCandidate` (both record kinds apply the same rules), `MediaJob`, `PlacementEvidence`, `PathExemption`, `ExtensionOffer`,
 `ExtensionGrant`, `ClosureOutcome`, `DebugTrace`, `DecisionRecord` and others) are checked with
-`validateRecord(kind, value)`. Agent-authored answers can only be synthetic evidence.
+`validateRecord(kind, value)`. Host-generated IDs in records (enrollments, attempts, evidence, decisions, jobs,
+users) are opaque: up to 200 characters of letters, digits and `._:-`, so UUIDs are accepted; author-defined
+course IDs keep the course-ID pattern. Agent-authored answers can only be synthetic evidence.
 Assisted or reattempted work cannot be independent. "I don't know" is recorded without a
 misconception signal or penalty.
 
