@@ -103,7 +103,9 @@ installed adapter confirms quoted findings. A bare extension ID names no rubric 
 refused (`CONVERSATIONAL_GATE_UNSUPPORTED`); such a gate must still collect its declared item families and
 cover its objectives with items. The rubric must require cited evidence (`CONVERSATION_RUBRIC_UNSUPPORTED`).
 The conversation then counts as one item family for every gate objective, and with the listed items the gate
-must still reach `minimumIndependentFamilies` (`GATE_EVIDENCE_UNREACHABLE`). `gateConversation(course, gate)`
+must still reach `minimumIndependentFamilies` (`GATE_EVIDENCE_UNREACHABLE`). A versioned gate's
+`conversationalRubricRef` likewise needs an evaluator that may judge conversations and lists the rubric in
+`rubricIds` (`CONVERSATION_RUBRIC_UNSUPPORTED`). `gateConversation(course, gate)`
 returns the rubric and evaluator a gate's conversation is judged by. `course migrate` turns such a gate into a
 versioned gate that cites the same rubric in `conversationalRubricRef`, and lists a manual step for the rest.
 
