@@ -5,6 +5,10 @@
 Backward compatible with 0.4.0 and 0.5.0 data. Every 0.4.0 and 0.5.0 fixture manifest validates
 and compiles to byte-identical output, and 0.4.0/0.5.0 compiled artifacts and 0.5.0 bundles still
 verify. The fixtures in `fixtures/compat-0.5.0` were produced by the released 0.5.0 package.
+The 0.5.0 `rich` fixture stays valid and compiles byte for byte, but `course pack` and the
+`publishable` check now refuse it (`CONVERSATION_RUBRIC_UNSUPPORTED`): its conversational rubric is
+judged by a model-assisted evaluator with `humanConfirmation: "on_uncertain"`, which Course Core has
+never published.
 
 ### Added
 - `publicationIssues(course)`: rules a host applies at publication beyond data validity, matching
@@ -14,7 +18,9 @@ verify. The fixtures in `fixtures/compat-0.5.0` were produced by the released 0.
   exactly one rubric that may judge a conversation (human or model-assisted with required human
   confirmation, or deterministic); otherwise `CONVERSATIONAL_GATE_UNSUPPORTED`. The rubric must
   require cited evidence (`CONVERSATION_RUBRIC_UNSUPPORTED`), and with the conversation counted as one
-  item family the gate must reach its families (`GATE_EVIDENCE_UNREACHABLE`).
+  item family the gate must reach its families (`GATE_EVIDENCE_UNREACHABLE`). A versioned gate's
+  `conversationalRubricRef` needs an evaluator that judges conversations and lists the rubric in
+  `rubricIds` (`CONVERSATION_RUBRIC_UNSUPPORTED` at `/gates/i/conversationalRubricRef`).
 - `gateConversation(course, gate)` and `judgesConversation(evaluator)`: the rubric and evaluator a
   gate's conversation is judged by, resolved as Course Core resolves them.
 - Evaluator `itemTypes` may include `conversation`: the evaluator judges gate conversations. It needs

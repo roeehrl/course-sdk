@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { conformanceReport, CourseBundleError, migrateCourse, packCourse } from '../src/compiler.js';
 import { gateConversation, lintCourse, publicationIssues, validateContract, validateCourse } from '../src/index.js';
 import type { CourseManifest, LegacyProgressionGate } from '../src/types.js';
-import type { EvaluatorDefinition } from '../src/contracts-types.js';
+import type { EvaluatorDefinition, VersionedProgressionGate } from '../src/contracts-types.js';
+import { richCourse } from './contracts-fixture.js';
 
 // Course Core publishes an unversioned 0.4 gate judged in conversation when its
 // conversationalEvaluatorId names an evaluator definition bound to exactly one cited rubric.
@@ -159,4 +160,41 @@ describe('conversation evaluator item type', () => {
       .toEqual(['INVALID_EVALUATOR /method']);
     expect(validateContract('evaluator', { ...base, itemTypes: ['dialogue'] }).valid).toBe(false);
   });
+});
+
+describe('versioned conversational gates', () => {
+  const ref = (course: CourseManifest) => course.gates.findIndex(g => (g as VersionedProgressionGate).conversationalRubricRef !== undefined);
+  it('publish when an evaluator that judges conversations lists the rubric', () => {
+    const course = richCourse();
+    expect(ref(course)).toBe(0);
+    expect(gateConversation(course, course.gates[0]!)?.evaluator.id).toBe('explain-evaluator');
+    expect(codes(course)).toEqual([]);
+    expect(publishable(course)).toBe('passed');
+    expect(packIssues(course)).toEqual([]);
+    // A deterministic evaluator that confirms quoted findings also judges conversations.
+    Object.assign(course.evaluators![0]!, { method: 'deterministic', itemTypes: ['conversation'], humanConfirmation: 'none' });
+    course.assessments = course.assessments.filter(a => a.type !== 'teach_back');
+    for (const gate of course.gates as VersionedProgressionGate[])
+      if (gate.interactiveCheckRefs) gate.interactiveCheckRefs = gate.interactiveCheckRefs.filter(id => course.assessments.some(a => a.id === id));
+    expect(validateCourse(course).issues).toEqual([]);
+    expect(codes(course)).toEqual([]);
+  });
+
+  it.each([
+    ['a human confirms only uncertain model judgments', (c: CourseManifest) => { c.evaluators![0]!.humanConfirmation = 'on_uncertain'; }],
+    ['no evaluator lists the rubric', (c: CourseManifest) => {
+      c.rubrics!.push({ ...c.rubrics![0]!, id: 'explain-rubric-2' });
+      (c.gates[0] as VersionedProgressionGate).conversationalRubricRef = 'explain-rubric-2';
+    }],
+  ])('refuse a conversationalRubricRef when %s, in lint, test and pack', (_, change) => {
+    const course = richCourse();
+    change(course);
+    const refusal = ['CONVERSATION_RUBRIC_UNSUPPORTED /gates/0/conversationalRubricRef'];
+    expect(validateCourse(course).valid).toBe(true);
+    expect(codes(course)).toEqual(refusal);
+    expect(lintErrors(course)).toEqual(refusal);
+    expect(publishable(course)).toBe('failed');
+    expect(packIssues(course)).toEqual(refusal);
+  });
+
 });

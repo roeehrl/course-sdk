@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { BUNDLE_FILES, compileCourse, importCourse, packCourse, verifyCompiledCourse, verifyCourseBundle } from '../src/compiler.js';
-import { SDK_VERSION, validateCourse } from '../src/index.js';
+import { BUNDLE_FILES, compileCourse, conformanceReport, CourseBundleError, importCourse, packCourse, verifyCompiledCourse, verifyCourseBundle } from '../src/compiler.js';
+import { publicationIssues, SDK_VERSION, validateCourse } from '../src/index.js';
 
 // Produced by the released 0.5.0 package (tag v0.5.0) and committed unchanged: the manifests,
 // their compiled courses and `course pack` bundles. Later SDKs must keep verifying the
@@ -30,8 +30,20 @@ describe('0.5.0 compatibility', () => {
     expect(files['course.compiled.json']).toBe(read(`${name}.compiled.json`));
     expect(importCourse(files)).toEqual(JSON.parse(read(`${name}.course.json`)));
   });
-  it.each(['rich', 'scaffold'])('%s: repacking keeps the compiled course bytes', (name) => {
+  it.each(['scaffold'])('%s: repacking keeps the compiled course bytes', (name) => {
     expect(packCourse(JSON.parse(read(`${name}.course.json`)))['course.compiled.json']).toBe(read(`${name}.compiled.json`));
+  });
+  it('rich: stays valid and compiles byte for byte, but cannot be packed for publication', () => {
+    // Its conversational rubric is judged by a model-assisted evaluator that a human confirms only
+    // when the model is unsure, so Course Core refuses to publish it (PUBLISH_CONVERSATION_RUBRIC_UNSUPPORTED).
+    const course = JSON.parse(read('rich.course.json'));
+    const refusal = [expect.objectContaining({ code: 'CONVERSATION_RUBRIC_UNSUPPORTED', path: '/gates/0/conversationalRubricRef' })];
+    expect(publicationIssues(course)).toEqual(refusal);
+    expect(conformanceReport(course).checks.find((c) => c.id === 'publishable')?.status).toBe('failed');
+    let error: unknown;
+    try { packCourse(course); } catch (caught) { error = caught; }
+    expect(error).toBeInstanceOf(CourseBundleError);
+    expect((error as CourseBundleError).issues).toEqual(refusal);
   });
   it('tampering with a 0.5.0 bundle is still detected', () => {
     const files = bundle('rich');

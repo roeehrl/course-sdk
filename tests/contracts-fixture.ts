@@ -72,7 +72,7 @@ export function richCourse(): CourseManifest {
     rubrics: [{ id: 'explain-rubric', version: '1.0.0', title: 'Explains length dependence', requiresCitedEvidence: true, uncertain: 'clarifying_probe',
       criteria: [{ id: 'length', description: 'Names length as the cause.', required: true, evidence: 'cited_learner_span' }, { id: 'mass', description: 'Rules out mass.', required: true, evidence: 'cited_learner_span' }] }],
     evaluators: [{ id: 'explain-evaluator', version: '1.0.0', extensionId: 'grader', method: 'rubric_model_assisted', itemTypes: ['teach_back', 'rubric'], rubricIds: ['explain-rubric'],
-      humanConfirmation: 'on_uncertain', outputs: { uncertainty: true, provenance: true }, tests: { fixtureRef: 'fixtures/explain-v1', acceptsValidVariants: true, rejectsMisconceptions: true } }],
+      humanConfirmation: 'required', outputs: { uncertainty: true, provenance: true }, tests: { fixtureRef: 'fixtures/explain-v1', acceptsValidVariants: true, rejectsMisconceptions: true } }],
     tools: [{ id: 'search-notes', version: '1.0.0', description: 'Search reviewed course notes.', execution: 'server', extensionId: 'grader', inputSchema: { type: 'object' }, outputSchema: { type: 'object' },
       capabilities: ['research.search'], sideEffects: 'none', idempotency: 'idempotent', timeoutMs: 5000, maxOutputBytes: 65536 }],
     adaptationPolicies: [{ id: 'remediate', version: '1.0.0', maxCyclesPerConcept: 2, strategies: ['contrast_case', 'diagnostic_probe'], onExhausted: 'close_with_gaps', autoApply: 'verified_only', learnerUndo: true }],

@@ -12,17 +12,17 @@ import type { CourseManifest, LegacyProgressionGate, ValidationIssue } from './t
  *   rubric (`rubricIds`) that may judge a conversation: a human or a model-assisted method with
  *   `humanConfirmation: "required"`, or a deterministic method. A bare extension ID names no
  *   rubric to cite, so the conversation could never decide the gate.
- * - CONVERSATION_RUBRIC_UNSUPPORTED (`/gates/i/conversationalEvaluatorId`): the rubric that
- *   evaluator is bound to must require cited evidence. A model impression is not evidence.
+ * - CONVERSATION_RUBRIC_UNSUPPORTED: the rubric that evaluator is bound to must require cited
+ *   evidence (`/gates/i/conversationalEvaluatorId`), and a versioned gate's
+ *   `conversationalRubricRef` needs an evaluator that may judge conversations (as above) and lists
+ *   the rubric in `rubricIds` (`/gates/i/conversationalRubricRef`). A model impression is not evidence.
  * - GATE_EVIDENCE_UNREACHABLE (`/gates/i`): an unversioned gate judged in conversation counts the
  *   conversation as one item family for every gate objective; with the listed items' families it
  *   must reach `minimumIndependentFamilies` for every objective (`requireAllObjectives`) or at
  *   least one.
  *
  * Hosts also check what only they know, such as an installed adapter that can review the
- * conversation, or one that confirms quoted findings for a deterministic evaluator. Course Core
- * also refuses a versioned gate's `conversationalRubricRef` unless some evaluator judging
- * conversations (`judgesConversation`) lists that rubric; this function does not report that yet.
+ * conversation, or one that confirms quoted findings for a deterministic evaluator.
  *
  * Invalid input returns its validation issues. `course test`, `course lint` and `course pack`
  * apply these rules; hosts still enforce their own.
@@ -37,9 +37,15 @@ export function publicationRefusals(course: CourseManifest): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   for (const [i, gate] of course.gates.entries()) {
     const path = `/gates/${i}`;
-    // Versioned gates are checked at validation (a cited conversationalRubricRef with an eligible
-    // evidence kind); see the note on hosts above.
-    if (isVersionedGate(gate) || gate.conversationalEvaluatorId === undefined) continue;
+    if (isVersionedGate(gate)) {
+      // Validation already requires a cited rubric and an eligible conversation evidence kind.
+      if (gate.conversationalRubricRef !== undefined && !gateConversation(course, gate)) issues.push({
+        code: 'CONVERSATION_RUBRIC_UNSUPPORTED', path: `${path}/conversationalRubricRef`,
+        message: `Gate ${gate.id}: no evaluator may judge conversations against rubric ${gate.conversationalRubricRef}. List it in the rubricIds of an evaluator with humanConfirmation "required", or of a deterministic one.`,
+      });
+      continue;
+    }
+    if (gate.conversationalEvaluatorId === undefined) continue;
     const resolved = gateConversation(course, gate);
     if (!resolved) issues.push({
       code: 'CONVERSATIONAL_GATE_UNSUPPORTED', path: `${path}/conversationalEvaluatorId`,
