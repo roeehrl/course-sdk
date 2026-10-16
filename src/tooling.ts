@@ -4,7 +4,7 @@ import { compileCourse, verifyCompiledCourse, SERVER_ONLY_SECTIONS, type Compile
 import { validateCourse } from './validate.js';
 import { lintCourse, type LintFinding } from './lint.js';
 import { publicationRefusals } from './publication.js';
-import { isVersionedGate } from './contracts-validate.js';
+import { gateConversation, isVersionedGate } from './contracts-validate.js';
 import { DETERMINISTIC_TYPES, PRACTICAL_TYPES, targetsForPlatforms } from './contract-constants.js';
 import { SDK_VERSION } from './version.js';
 import type { CourseManifest, ValidationIssue } from './types.js';
@@ -327,9 +327,16 @@ export function migrateCourse(input: unknown): MigrationResult {
     };
     if (interactive.length) migrated.interactiveCheckRefs = interactive;
     if (practical.length) migrated.practicalTaskRefs = practical;
+    // A conversation judged against one cited rubric carries over; the gate keeps citing that rubric.
+    const conversation = gateConversation(course, gate);
+    if (conversation) {
+      migrated.conversationalRubricRef = conversation.rubric.id;
+      migrated.eligibleEvidenceKinds.push('rubric_backed_conversation');
+    }
     if (migrated.eligibleEvidenceKinds.length > 1) migrated.eligibleEvidenceKinds.push('configured_combination');
     changes.push(`Converted gate ${gate.id} to a versioned gate (scope ${scope.kind}, cap ${capPolicyRef}).`);
-    if (gate.conversationalEvaluatorId) manualSteps.push(`Gate ${gate.id}: replace conversationalEvaluatorId with a cited-evidence rubric (defineRubric) and conversationalRubricRef.`);
+    if (conversation) changes.push(`Gate ${gate.id}: conversationalEvaluatorId ${gate.conversationalEvaluatorId} became conversationalRubricRef ${conversation.rubric.id}.`);
+    else if (gate.conversationalEvaluatorId) manualSteps.push(`Gate ${gate.id}: replace conversationalEvaluatorId with a cited-evidence rubric (defineRubric) and conversationalRubricRef.`);
     if (!gate.assessmentIds.some(id => assessments.get(id)?.role === 'transfer'))
       manualSteps.push(`Gate ${gate.id}: mark at least one production item role "transfer" (migration cannot judge which task is novel).`);
     return migrated;

@@ -2,7 +2,7 @@ import type { ValidateFunction } from 'ajv';
 import { jsonIssue } from './json.js';
 import { getEpisodeRequirement } from './episode.js';
 import { adaptationAuthoringIssues } from './adaptation-authoring.js';
-import { contractIssues, gateAssessmentIds, gateObjectiveIds, isPortableRelativePath, isVersionedGate } from './contracts-validate.js';
+import { contractIssues, gateAssessmentIds, gateConversation, gateObjectiveIds, isPortableRelativePath, isVersionedGate } from './contracts-validate.js';
 import generatedValidator from './generated/course-validator.js';
 import type { CourseManifest, LearningPolicy, ValidationIssue, ValidationResult } from './types.js';
 
@@ -106,10 +106,13 @@ export function validateCourse(input: unknown): ValidationResult {
     refs(gate.objectiveIds, objectives, `/gates/${i}/objectiveIds`);
     refs(gate.assessmentIds, assessments, `/gates/${i}/assessmentIds`);
     const items = gate.assessmentIds.map((id) => assessments.get(id)).filter((item) => item !== undefined);
-    // A legacy conversationalEvaluatorId names no rubric to cite, so it can never decide a gate on
-    // its own (hosts refuse it at publication; see publicationIssues). It no longer exempts the
-    // gate from collecting its declared families and covering its objectives with items.
     if (gate.conversationalEvaluatorId) evaluator(gate.conversationalEvaluatorId, `/gates/${i}/conversationalEvaluatorId`);
+    // A conversationalEvaluatorId that names an evaluator definition bound to exactly one rubric
+    // makes the conversation one more item family; whether the gate can still reach its families
+    // is a publication rule (GATE_EVIDENCE_UNREACHABLE, see publicationIssues). Any other value,
+    // such as a bare extension ID, names no rubric to cite and cannot decide the gate (hosts refuse
+    // it at publication), so the listed items alone must supply the families and cover the objectives.
+    if (gateConversation(course, gate)) continue;
     if (new Set(items.map((a) => a.familyId)).size < gate.minimumIndependentFamilies) report('INSUFFICIENT_ITEM_FAMILIES', `/gates/${i}`, 'The gate cannot collect its declared independent item families.');
     if (gate.requireAllObjectives) for (const objective of gate.objectiveIds) {
       if (!items.some((a) => a.objectiveIds.includes(objective))) report('UNCOVERED_GATE_OBJECTIVE', `/gates/${i}`, `No assessment covers ${objective}.`);

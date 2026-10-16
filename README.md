@@ -95,11 +95,22 @@ Every command is offline and deterministic, prints JSON, and exits 0 on success,
 
 Data validity and publishability are separate. `validateCourse` and `course compile` keep accepting every
 0.4/0.5 manifest, but `publicationIssues(course)` lists what a host refuses to publish, and `course lint`
-(as errors), `course test` (the `publishable` check) and `course pack` apply it. Today it refuses an
-unversioned gate's `conversationalEvaluatorId` (`CONVERSATIONAL_GATE_UNSUPPORTED`): it names no rubric for a
-judgment to cite, so Course Core rejects it with `PUBLISH_CONVERSATIONAL_GATE_UNSUPPORTED`. Such a gate must
-still collect its declared item families and cover its objectives with items. Use a versioned gate with a
-cited-evidence rubric in `conversationalRubricRef`; `course migrate` lists the step.
+(as errors), `course test` (the `publishable` check) and `course pack` apply it, with Course Core's rules
+(Core's codes add a `PUBLISH_` prefix). An unversioned gate's `conversationalEvaluatorId` must name an
+evaluator definition bound to exactly one course rubric (`rubricIds`) that may judge a conversation: a
+human or model-assisted method with `humanConfirmation: "required"`, or a deterministic method whose
+installed adapter confirms quoted findings. A bare extension ID names no rubric for a judgment to cite and is
+refused (`CONVERSATIONAL_GATE_UNSUPPORTED`); such a gate must still collect its declared item families and
+cover its objectives with items. The rubric must require cited evidence (`CONVERSATION_RUBRIC_UNSUPPORTED`).
+The conversation then counts as one item family for every gate objective, and with the listed items the gate
+must still reach `minimumIndependentFamilies` (`GATE_EVIDENCE_UNREACHABLE`). `gateConversation(course, gate)`
+returns the rubric and evaluator a gate's conversation is judged by. `course migrate` turns such a gate into a
+versioned gate that cites the same rubric in `conversationalRubricRef`, and lists a manual step for the rest.
+
+An evaluator definition may list `conversation` in `itemTypes` to say it judges gate conversations. It needs
+`rubricIds` and a deterministic, human or model-assisted method, and lets a deterministic conversation
+evaluator avoid listing a keyed item type (such as `trace`) it never scores. Hosts on SDK 0.5 reject the new
+value, so publish such a course only to hosts on SDK 0.6 or later.
 
 Lesson content must be accessible. Validation rejects a visual block whose renderer extension declares no
 keyboard support (`INACCESSIBLE_VISUAL`), a legacy activity block whose extension declares none

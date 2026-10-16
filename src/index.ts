@@ -26,7 +26,7 @@ export type { GateDecisionContext, GateDecisionResult } from './gate-decision.js
 export { lintCourse } from './lint.js';
 export { publicationIssues } from './publication.js';
 export type { LintFinding } from './lint.js';
-export { isVersionedGate, gateObjectiveIds, gateAssessmentIds } from './contracts-validate.js';
+export { isVersionedGate, gateObjectiveIds, gateAssessmentIds, gateConversation, judgesConversation } from './contracts-validate.js';
 export { buildConceptGraph, resolveRetentionIntervals } from './concepts.js';
 export { adminSettingsSchema, adminSettingDefaults, checkAdminSettingChange } from './admin.js';
 export type { AdminSettingChange } from './admin.js';
