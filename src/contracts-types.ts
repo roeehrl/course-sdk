@@ -110,13 +110,16 @@ export interface Rubric {
   uncertain: 'pending_review' | 'clarifying_probe';
 }
 
+/** What an evaluator judges: assessment items of these types, or `conversation`, the quoted
+ * findings of a gate conversation (see `gateConversation`). */
+export type EvaluatorItemType = AssessmentType | 'conversation';
 export type EvaluatorMethod = 'deterministic' | 'code_tests' | 'rubric_model_assisted' | 'human' | 'external';
 export interface EvaluatorDefinition {
   id: string;
   version: string;
   extensionId: string;
   method: EvaluatorMethod;
-  itemTypes: AssessmentType[];
+  itemTypes: EvaluatorItemType[];
   rubricIds?: string[];
   humanConfirmation: 'required' | 'on_uncertain' | 'none';
   outputs: { uncertainty: true; provenance: true };

@@ -1,15 +1,28 @@
 import { validateCourse } from './validate.js';
-import { isVersionedGate } from './contracts-validate.js';
-import type { CourseManifest, ValidationIssue } from './types.js';
+import { gateConversation, isVersionedGate } from './contracts-validate.js';
+import type { CourseManifest, LegacyProgressionGate, ValidationIssue } from './types.js';
 
 /**
- * Rules a course must meet to be published, beyond data validity. Data that 0.4 and 0.5
- * accepted stays valid and compiles byte for byte, but a host refuses to publish it:
+ * Rules a course must meet to be published, beyond data validity. They match Course Core's
+ * publication check (its codes carry a `PUBLISH_` prefix). Data that 0.4 and 0.5 accepted stays
+ * valid and compiles byte for byte, but a host refuses to publish it:
  *
- * - CONVERSATIONAL_GATE_UNSUPPORTED: an unversioned gate's `conversationalEvaluatorId` names
- *   no rubric for a judgment to cite, so the conversation can never decide the gate. Course
- *   Core refuses it at publication (`PUBLISH_CONVERSATIONAL_GATE_UNSUPPORTED`). Use a versioned
- *   gate with a cited-evidence rubric in `conversationalRubricRef`; `course migrate` lists the step.
+ * - CONVERSATIONAL_GATE_UNSUPPORTED (`/gates/i/conversationalEvaluatorId`): an unversioned gate's
+ *   `conversationalEvaluatorId` must name an evaluator definition bound to exactly one course
+ *   rubric (`rubricIds`) that may judge a conversation: a human or a model-assisted method with
+ *   `humanConfirmation: "required"`, or a deterministic method. A bare extension ID names no
+ *   rubric to cite, so the conversation could never decide the gate.
+ * - CONVERSATION_RUBRIC_UNSUPPORTED (`/gates/i/conversationalEvaluatorId`): the rubric that
+ *   evaluator is bound to must require cited evidence. A model impression is not evidence.
+ * - GATE_EVIDENCE_UNREACHABLE (`/gates/i`): an unversioned gate judged in conversation counts the
+ *   conversation as one item family for every gate objective; with the listed items' families it
+ *   must reach `minimumIndependentFamilies` for every objective (`requireAllObjectives`) or at
+ *   least one.
+ *
+ * Hosts also check what only they know, such as an installed adapter that can review the
+ * conversation, or one that confirms quoted findings for a deterministic evaluator. Course Core
+ * also refuses a versioned gate's `conversationalRubricRef` unless some evaluator judging
+ * conversations (`judgesConversation`) lists that rubric; this function does not report that yet.
  *
  * Invalid input returns its validation issues. `course test`, `course lint` and `course pack`
  * apply these rules; hosts still enforce their own.
@@ -23,10 +36,31 @@ export function publicationIssues(input: unknown): ValidationIssue[] {
 export function publicationRefusals(course: CourseManifest): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   for (const [i, gate] of course.gates.entries()) {
-    if (!isVersionedGate(gate) && gate.conversationalEvaluatorId !== undefined) issues.push({
-      code: 'CONVERSATIONAL_GATE_UNSUPPORTED', path: `/gates/${i}/conversationalEvaluatorId`,
-      message: `Gate ${gate.id}: conversationalEvaluatorId cannot be published. Use a versioned gate with a cited-evidence rubric (conversationalRubricRef).`,
+    const path = `/gates/${i}`;
+    // Versioned gates are checked at validation (a cited conversationalRubricRef with an eligible
+    // evidence kind); see the note on hosts above.
+    if (isVersionedGate(gate) || gate.conversationalEvaluatorId === undefined) continue;
+    const resolved = gateConversation(course, gate);
+    if (!resolved) issues.push({
+      code: 'CONVERSATIONAL_GATE_UNSUPPORTED', path: `${path}/conversationalEvaluatorId`,
+      message: `Gate ${gate.id}: conversationalEvaluatorId must name an evaluator definition bound to exactly one rubric, judged by a human, a human-confirmed model draft or a deterministic method. Or use a versioned gate with conversationalRubricRef.`,
+    });
+    else if (!resolved.rubric.requiresCitedEvidence) issues.push({
+      code: 'CONVERSATION_RUBRIC_UNSUPPORTED', path: `${path}/conversationalEvaluatorId`,
+      message: `Gate ${gate.id}: rubric ${resolved.rubric.id} must require cited evidence; a model impression is not evidence.`,
+    });
+    else if (!legacyConversationReachable(course, gate, resolved.rubric.id)) issues.push({
+      code: 'GATE_EVIDENCE_UNREACHABLE', path,
+      message: `Gate ${gate.id}: with the conversation as one family, the listed items cannot supply ${gate.minimumIndependentFamilies} independent families for ${gate.requireAllObjectives ? 'every' : 'any'} gate objective.`,
     });
   }
   return issues;
+}
+
+/** The conversation is one family for every gate objective, so the listed items must supply the rest. */
+function legacyConversationReachable(course: CourseManifest, gate: LegacyProgressionGate, rubricId: string): boolean {
+  const items = gate.assessmentIds.map(id => course.assessments.find(a => a.id === id)).filter(item => item !== undefined);
+  const reachable = (objective: string) =>
+    new Set([...items.filter(item => item.objectiveIds.includes(objective)).map(item => item.familyId), `conversation:${rubricId}`]).size >= gate.minimumIndependentFamilies;
+  return gate.requireAllObjectives ? gate.objectiveIds.every(reachable) : gate.objectiveIds.some(reachable);
 }

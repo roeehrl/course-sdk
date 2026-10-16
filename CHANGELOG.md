@@ -7,10 +7,21 @@ and compiles to byte-identical output, and 0.4.0/0.5.0 compiled artifacts and 0.
 verify. The fixtures in `fixtures/compat-0.5.0` were produced by the released 0.5.0 package.
 
 ### Added
-- `publicationIssues(course)`: rules a host applies at publication beyond data validity. It refuses
-  an unversioned gate's `conversationalEvaluatorId` (`CONVERSATIONAL_GATE_UNSUPPORTED`), matching
-  Course Core's `PUBLISH_CONVERSATIONAL_GATE_UNSUPPORTED`. `course lint` reports it as an error,
-  `course test` adds a `publishable` check and `course pack` refuses the course.
+- `publicationIssues(course)`: rules a host applies at publication beyond data validity, matching
+  Course Core's publication check (Core's codes add a `PUBLISH_` prefix). `course lint` reports them
+  as errors, `course test` adds a `publishable` check and `course pack` refuses the course.
+  An unversioned gate's `conversationalEvaluatorId` must name an evaluator definition bound to
+  exactly one rubric that may judge a conversation (human or model-assisted with required human
+  confirmation, or deterministic); otherwise `CONVERSATIONAL_GATE_UNSUPPORTED`. The rubric must
+  require cited evidence (`CONVERSATION_RUBRIC_UNSUPPORTED`), and with the conversation counted as one
+  item family the gate must reach its families (`GATE_EVIDENCE_UNREACHABLE`).
+- `gateConversation(course, gate)` and `judgesConversation(evaluator)`: the rubric and evaluator a
+  gate's conversation is judged by, resolved as Course Core resolves them.
+- Evaluator `itemTypes` may include `conversation`: the evaluator judges gate conversations. It needs
+  `rubricIds` and a deterministic, human or model-assisted method; a deterministic evaluator may list
+  it without a keyed item type. SDK 0.5 hosts reject the new value.
+- `course migrate` carries a resolved `conversationalEvaluatorId` over as `conversationalRubricRef`
+  with `rubric_backed_conversation` evidence.
 - Accessibility rules for lesson content: `INACCESSIBLE_VISUAL` for a visual block whose renderer has
   no keyboard support, `INACCESSIBLE_ACTIVITY` for a legacy activity block without one, and
   `MISSING_TEXT_ALTERNATIVE` for blank text alternatives on visual blocks, legacy activity blocks and
@@ -30,9 +41,10 @@ verify. The fixtures in `fixtures/compat-0.5.0` were produced by the released 0.
   contract and record type and `CourseManifest`.
 
 ### Changed
-- A legacy gate with `conversationalEvaluatorId` is no longer exempt from its family and objective
-  coverage checks.
-- TypeScript only: `EvaluatorDefinition.itemTypes` is `AssessmentType[]`, `AgentStrategy.autonomy.mayApply`
+- A legacy gate whose `conversationalEvaluatorId` does not resolve to an evaluator definition bound to
+  exactly one rubric (for example a bare extension ID) is no longer exempt from its family and objective
+  coverage checks. A gate whose conversation resolves counts it as one family; publication checks the rest.
+- TypeScript only: `EvaluatorDefinition.itemTypes` is `EvaluatorItemType[]` (`AssessmentType | 'conversation'`), `AgentStrategy.autonomy.mayApply`
   is `AdaptationOperationKind[]` and `AdminCapability.permission` is `AdminPermission`, matching what the
   schema already accepted. Data validity is unchanged.
 - Conformance reports gain the `publishable` check, so a 0.6 bundle's `conformance.json` differs

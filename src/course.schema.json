@@ -2832,7 +2832,8 @@
               "code_repair",
               "counterexample",
               "experiment_design",
-              "teach_back"
+              "teach_back",
+              "conversation"
             ]
           },
           "uniqueItems": true

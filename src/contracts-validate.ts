@@ -23,6 +23,34 @@ export function gateAssessmentIds(gate: ProgressionGate): string[] {
   return isVersionedGate(gate) ? [...new Set([...(gate.interactiveCheckRefs ?? []), ...(gate.practicalTaskRefs ?? [])])] : gate.assessmentIds;
 }
 
+/**
+ * Whether an evaluator definition may judge a gate conversation, as Course Core decides it: a human
+ * must confirm every judgment (a model draft alone never confirms anything), or the method is
+ * deterministic and the host's installed adapter confirms each quoted finding itself.
+ */
+export function judgesConversation(evaluator: EvaluatorDefinition): boolean {
+  return ((evaluator.method === 'human' || evaluator.method === 'rubric_model_assisted') && evaluator.humanConfirmation === 'required')
+    || evaluator.method === 'deterministic';
+}
+/**
+ * The rubric and evaluator a gate's conversation is judged by, as Course Core resolves them: a
+ * versioned gate's `conversationalRubricRef` with an evaluator that judges conversations against
+ * it, or an unversioned 0.4 gate's `conversationalEvaluatorId` when it names an evaluator
+ * definition bound to exactly one course rubric. A bare extension ID names no rubric to cite and
+ * resolves to nothing. Undefined also when the gate declares no conversation.
+ */
+export function gateConversation(course: CourseManifest, gate: ProgressionGate): { rubric: Rubric; evaluator: EvaluatorDefinition } | undefined {
+  if (isVersionedGate(gate)) {
+    const rubric = gate.conversationalRubricRef === undefined ? undefined : course.rubrics?.find(r => r.id === gate.conversationalRubricRef);
+    const evaluator = rubric && course.evaluators?.find(e => e.rubricIds?.includes(rubric.id) && judgesConversation(e));
+    return rubric && evaluator ? { rubric, evaluator } : undefined;
+  }
+  const evaluator = gate.conversationalEvaluatorId === undefined ? undefined : course.evaluators?.find(e => e.id === gate.conversationalEvaluatorId);
+  if (!evaluator || evaluator.rubricIds?.length !== 1 || !judgesConversation(evaluator)) return undefined;
+  const rubric = course.rubrics?.find(r => r.id === evaluator.rubricIds![0]);
+  return rubric ? { rubric, evaluator } : undefined;
+}
+
 function duplicates(ids: string[], path: string, report: Report, label = 'ID'): void {
   const seen = new Set<string>();
   for (const [i, id] of ids.entries()) {
@@ -69,8 +97,14 @@ export const standaloneChecks = {
   evaluator(evaluator: EvaluatorDefinition, path: string, report: Report) {
     if (evaluator.method === 'rubric_model_assisted' && evaluator.humanConfirmation === 'none')
       report('UNCONFIRMED_MODEL_JUDGMENT', `${path}/humanConfirmation`, 'Model-assisted rubric judgments need human confirmation at least when uncertain.');
-    if (evaluator.method === 'deterministic' && evaluator.itemTypes.some(t => !DETERMINISTIC_TYPES.has(t)))
+    // A deterministic evaluator may also confirm quoted gate-conversation findings ('conversation').
+    if (evaluator.method === 'deterministic' && evaluator.itemTypes.some(t => t !== 'conversation' && !DETERMINISTIC_TYPES.has(t)))
       report('INVALID_EVALUATOR', `${path}/itemTypes`, 'Deterministic evaluators can only score item types with declared keys.');
+    if (evaluator.itemTypes.includes('conversation')) {
+      if (!(evaluator.rubricIds?.length)) report('INVALID_EVALUATOR', `${path}/rubricIds`, 'A conversation evaluator judges against a declared rubric; list it in rubricIds.');
+      if (!['deterministic', 'human', 'rubric_model_assisted'].includes(evaluator.method))
+        report('INVALID_EVALUATOR', `${path}/method`, 'Conversations are judged by a human, a human-confirmed model draft or a deterministic confirmation of quoted findings.');
+    }
   },
   tool(tool: ToolDefinition, path: string, report: Report) {
     capabilities(tool.capabilities, `${path}/capabilities`, report);
