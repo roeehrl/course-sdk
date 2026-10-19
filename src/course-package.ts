@@ -17,7 +17,7 @@ export const COURSE_PACKAGE_FORMAT = 'course-package';
 export const COURSE_PACKAGE_FORMAT_VERSION = 1;
 export const COURSE_PACKAGE_LISTING = 'course-package.json';
 /** Course Core release expected to install course-package v1; override per package. */
-export const DEFAULT_MINIMUM_CORE_VERSION = '0.1.45';
+export const DEFAULT_MINIMUM_CORE_VERSION = '0.1.46';
 export const COURSE_PACKAGE_ROLES = Object.freeze(['course-manifest', 'learner-projection', 'adaptation-registry', 'host-requirement', 'licence', 'other'] as const);
 export type CoursePackageRole = typeof COURSE_PACKAGE_ROLES[number];
 

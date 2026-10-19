@@ -138,7 +138,7 @@ uncompressed, 64 MiB compressed. Exactly one member is `course-package.json`, pu
   "format": "course-package", "formatVersion": 1,
   "courseId": "pendulum-lab", "courseVersion": "1.0.0",
   "courseDigest": "<64-hex digest computed by compileCourse>",
-  "sdkVersion": "0.6.0", "minimumCoreVersion": "0.1.45",
+  "sdkVersion": "0.6.0", "minimumCoreVersion": "0.1.46",
   "source": { "repository": "https://…", "commit": "<40 lowercase hex>" },
   "members": [{ "name": "course.json", "bytes": 1234, "sha256": "<64-hex>", "role": "course-manifest" }]
 }
@@ -159,7 +159,7 @@ needs a new `formatVersion`.
 ```sh
 npx --no-install course pack my-course --out my-course-1.0.0.course.tgz \
   --registry registry.json --host-requirement verifier.py --licence LICENSE.txt \
-  --repository https://example.invalid/my-course --commit <40-hex> --minimum-core-version 0.1.45
+  --repository https://example.invalid/my-course --commit <40-hex> --minimum-core-version 0.1.46
 npx --no-install course verify my-course-1.0.0.course.tgz
 ```
 
