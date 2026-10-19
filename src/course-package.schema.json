@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:course-core:schema:course-package:1",
+  "title": "course-package.json (course-package v1)",
+  "description": "The listing at the top of a <courseId>-<version>.course.tgz course package. Structural rules only: an installer must also run the archive, listing, digest, role and course checks that verifyCoursePackage performs.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "formatVersion", "courseId", "courseVersion", "courseDigest", "sdkVersion", "minimumCoreVersion", "members"],
+  "properties": {
+    "format": { "const": "course-package" },
+    "formatVersion": { "const": 1 },
+    "courseId": { "$ref": "#/$defs/courseId", "description": "Must equal the course manifest's id." },
+    "courseVersion": { "$ref": "#/$defs/semver", "description": "Must equal the course manifest's version." },
+    "courseDigest": { "$ref": "#/$defs/sha256", "description": "Must equal the digest the SDK compiler computes for the course manifest." },
+    "sdkVersion": { "$ref": "#/$defs/semver", "description": "The exact SDK version used to compile." },
+    "minimumCoreVersion": { "$ref": "#/$defs/semver" },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "repository": { "type": "string", "pattern": "^https://[^\\s]+$", "maxLength": 2048 },
+        "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" }
+      }
+    },
+    "members": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 199,
+      "items": { "$ref": "#/$defs/member" }
+    }
+  },
+  "$defs": {
+    "courseId": { "type": "string", "pattern": "^[a-z][a-z0-9._:-]{0,127}$" },
+    "semver": { "type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "member": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "bytes", "sha256", "role"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]{1,100}$",
+          "not": { "enum": [".", "..", "course-package.json"] },
+          "description": "A top-level member name. The spec allows 128 characters, but a ustar name field holds 100 bytes without a directory prefix."
+        },
+        "bytes": { "type": "integer", "minimum": 0, "maximum": 33554432 },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "role": { "enum": ["course-manifest", "learner-projection", "adaptation-registry", "host-requirement", "licence", "other"] }
+      }
+    }
+  }
+}

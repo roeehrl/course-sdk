@@ -11,6 +11,14 @@ judged by a model-assisted evaluator with `humanConfirmation: "on_uncertain"`, w
 never published.
 
 ### Added
+- course-package v1: `packCoursePackage` and `verifyCoursePackage` (from `@course-core/sdk/compiler`) build
+  and verify a deterministic `<courseId>-<version>.course.tgz` (strict top-level ustar, no dependency) listed
+  by `course-package.json`, whose JSON Schema is published as `@course-core/sdk/package-schema`. Verification
+  enforces archive safety, size limits, exact listing, member SHA-256, roles, the course id/version/compiler
+  digest and learner projection, and refuses with stable `PACKAGE_*` codes (`CoursePackageError`).
+  `coursePackageChecksum` and `verifyCoursePackageChecksum` write and check the `sha256sum` sibling.
+  `course pack <course> --out <file.course.tgz>` writes the package and `<file>.sha256`; `course verify` accepts a
+  package. The existing bundle form of `course pack` is unchanged.
 - `publicationIssues(course)`: rules a host applies at publication beyond data validity, matching
   Course Core's publication check (Core's codes add a `PUBLISH_` prefix). `course lint` reports them
   as errors, `course test` adds a `publishable` check and `course pack` refuses the course.

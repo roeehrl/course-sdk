@@ -86,6 +86,8 @@ npx --no-install course compile course.json compiled.json
 npx --no-install course inspect course.json
 npx --no-install course pack course.json bundle    # manifest, integrity map, licences, capabilities, conformance
 npx --no-install course verify bundle              # or a compiled.json
+npx --no-install course pack my-course --out my-course-1.0.0.course.tgz   # course-package v1 (+ .sha256)
+npx --no-install course verify my-course-1.0.0.course.tgz
 npx --no-install course diff old.json new.json
 npx --no-install course migrate old.json new.json  # upgrade 0.4 gates; lists manual steps
 npx --no-install course import bundle course.json  # recover a verified manifest
@@ -120,6 +122,102 @@ keyboard support (`INACCESSIBLE_VISUAL`), a legacy activity block whose extensio
 a legacy activity extension or required media (`MISSING_TEXT_ALTERNATIVE`).
 
 A bundle's SHA-256 integrity map proves the files are intact. It does not prove who wrote them or that they can be trusted.
+
+## Course packages
+
+A course package (course-package v1) is the release artifact a host installs: a gzip-compressed POSIX
+ustar archive named `<courseId>-<version>.course.tgz`, usually with a sibling `<file>.sha256` in
+`sha256sum` format. The archive holds only top-level regular files (no directories, links, devices or
+PAX/GNU records; names match `^[A-Za-z0-9._-]{1,128}$` and, because a ustar name field holds 100 bytes
+without a directory prefix, are at most 100 bytes). Limits: 200 members, 32 MiB per member, 128 MiB
+uncompressed, 64 MiB compressed. Exactly one member is `course-package.json`, published as the JSON Schema
+`@course-core/sdk/package-schema`:
+
+```json
+{
+  "format": "course-package", "formatVersion": 1,
+  "courseId": "pendulum-lab", "courseVersion": "1.0.0",
+  "courseDigest": "<64-hex digest computed by compileCourse>",
+  "sdkVersion": "0.6.0", "minimumCoreVersion": "0.1.45",
+  "source": { "repository": "https://…", "commit": "<40 lowercase hex>" },
+  "members": [{ "name": "course.json", "bytes": 1234, "sha256": "<64-hex>", "role": "course-manifest" }]
+}
+```
+
+| Role | Count | Meaning |
+| --- | --- | --- |
+| `course-manifest` | exactly 1 | The authored course manifest that `compileCourse` validates, never a compiled wrapper. |
+| `learner-projection` | 0..1 | Must deep-equal the compiler's learner projection. |
+| `adaptation-registry` | 0..1 | The release's recovery/adaptation registry JSON; a host installs it only with explicit operator approval. |
+| `host-requirement` | 0..n | Files the host must already have configured (code fixtures, teaching verifiers). Never installed or executed; a host reports whether it has an identical file (SHA-256). |
+| `licence`, `other` | 0..n | Carried and listed; hosts ignore them. |
+
+Every member except `course-package.json` is listed exactly once with its byte length and SHA-256;
+unlisted members, unknown roles and unknown keys (top level, `source` or member) are refused. A new key
+needs a new `formatVersion`.
+
+```sh
+npx --no-install course pack my-course --out my-course-1.0.0.course.tgz \
+  --registry registry.json --host-requirement verifier.py --licence LICENSE.txt \
+  --repository https://example.invalid/my-course --commit <40-hex> --minimum-core-version 0.1.45
+npx --no-install course verify my-course-1.0.0.course.tgz
+```
+
+`pack` takes a course directory (its `course.json`) or a manifest file, stores the manifest bytes as
+given, adds the compiler's learner projection (`--no-learner` omits it), refuses a course a host would not
+publish, and writes the package plus `<file>.sha256`; it refuses to replace either. `--host-requirement`,
+`--licence` and `--other` repeat; members are named by their file's base name. `verify` prints a JSON
+summary (course identity, digest, members and roles, whether a `.sha256` sibling was checked) and exits 1
+with `{ "valid": false, "code": "PACKAGE_…" }` on any refusal. The two-argument
+`course pack <course.json> <output-directory>` bundle is unchanged.
+
+From Node (`@course-core/sdk/compiler`):
+
+```ts
+import { packCoursePackage, verifyCoursePackage, verifyCoursePackageChecksum, CoursePackageError } from '@course-core/sdk/compiler';
+
+const bytes = packCoursePackage({ manifest, adaptationRegistry, hostRequirements: [{ name: 'verifier.py', bytes: verifier }],
+  source: { repository: 'https://example.invalid/my-course', commit } });
+const { packageManifest, courseManifest, courseDigest, learner, adaptationRegistry: registry, members } = verifyCoursePackage(bytes);
+```
+
+Packing is deterministic: members are sorted, every header has mode 0644, uid/gid 0, empty owner names and
+mtime 0, and the gzip header is fixed (no name, mtime 0, OS 255). The same inputs give the same bytes on
+the same Node.js zlib; the uncompressed tar stream is the same everywhere. Package checks never depend on the
+archive bytes beyond the optional `.sha256`.
+
+### How installers must verify
+
+An installer must treat a package as untrusted data and never execute anything in it. Before using any
+member it must, in this order (as `verifyCoursePackage` does):
+
+1. If a `<file>.sha256` sibling is present, check it (one line, matching hash and file name).
+2. Refuse a compressed size over 64 MiB and stop decompressing at the uncompressed limit.
+3. Parse the tar strictly: valid header checksums, `ustar\0` `00` magic, only regular files, empty prefix and
+   link name, no traversal, absolute or nested names, no duplicates, the member/size limits, and nothing after the
+   end marker. Never extract to disk by path from the archive.
+4. Parse `course-package.json` (strict UTF-8 JSON without a byte-order mark); refuse unknown formats, versions,
+   keys and roles.
+5. Require exact listing equality: every archive member except `course-package.json` listed once, every listed
+   member present, matching `bytes` and `sha256`, and the role counts above.
+6. Compile the `course-manifest` member with the SDK (a compiled wrapper is refused); its `id`, `version` and
+   compiler digest must equal `courseId`, `courseVersion` and `courseDigest`.
+7. If present, the `learner-projection` must deep-equal the compiler's learner output, and the
+   `adaptation-registry` must be JSON.
+
+Errors are `CoursePackageError`s with a stable `code` (listed in `COURSE_PACKAGE_ERROR_CODES`):
+`PACKAGE_NOT_GZIP`, `PACKAGE_CORRUPT`, `PACKAGE_TOO_LARGE`, `PACKAGE_TOO_MANY_MEMBERS`, `PACKAGE_LINK_ENTRY`,
+`PACKAGE_UNSUPPORTED_ENTRY`, `PACKAGE_UNSAFE_PATH`, `PACKAGE_INVALID_MEMBER_NAME`, `PACKAGE_DUPLICATE_MEMBER`,
+`PACKAGE_LISTING_MISSING`, `PACKAGE_LISTING_INVALID`, `PACKAGE_UNSUPPORTED_FORMAT`, `PACKAGE_UNKNOWN_KEY`,
+`PACKAGE_UNKNOWN_ROLE`, `PACKAGE_DUPLICATE_LISTING`, `PACKAGE_UNLISTED_MEMBER`, `PACKAGE_MISSING_MEMBER`,
+`PACKAGE_MEMBER_SIZE_MISMATCH`, `PACKAGE_MEMBER_DIGEST_MISMATCH`, `PACKAGE_ROLE_COUNT`, `PACKAGE_MEMBER_NOT_JSON`,
+`PACKAGE_COMPILED_WRAPPER`, `PACKAGE_COURSE_INVALID`, `PACKAGE_COURSE_ID_MISMATCH`, `PACKAGE_COURSE_VERSION_MISMATCH`,
+`PACKAGE_COURSE_DIGEST_MISMATCH`, `PACKAGE_LEARNER_MISMATCH`, `PACKAGE_CHECKSUM_INVALID`, `PACKAGE_CHECKSUM_MISMATCH`;
+packing adds `PACKAGE_INPUT_INVALID` and `PACKAGE_COURSE_UNPUBLISHABLE`. `verifyCoursePackage(bytes, { maxSizes })`
+may lower the limits (`members`, `memberBytes`, `uncompressedBytes`, `compressedBytes`), never raise them.
+
+A verified package proves its members match the listing and that the course compiles to the listed digest.
+It does not prove who made it, that the lessons are correct, or that a host's own publication checks pass.
 
 ## SDK 0.5 contracts
 
