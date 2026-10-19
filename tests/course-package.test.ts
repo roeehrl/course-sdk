@@ -88,7 +88,7 @@ describe('course-package v1', () => {
     const result = verifyCoursePackage(pkg);
     expect(result.packageManifest).toMatchObject({
       format: 'course-package', formatVersion: 1, courseId: 'pendulum-lab', courseVersion: '1.0.0', courseDigest: compiled.digest,
-      sdkVersion: SDK_VERSION, source: { repository: 'https://example.invalid/course', commit: 'a'.repeat(40) },
+      sdkVersion: SDK_VERSION, minimumCoreVersion: '0.1.46', source: { repository: 'https://example.invalid/course', commit: 'a'.repeat(40) },
     });
     expect(result.courseManifest).toEqual(richCourse());
     expect(result.learner).toEqual(compiled.learner);

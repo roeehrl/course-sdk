@@ -18,7 +18,8 @@ never published.
   digest and learner projection, and refuses with stable `PACKAGE_*` codes (`CoursePackageError`).
   `coursePackageChecksum` and `verifyCoursePackageChecksum` write and check the `sha256sum` sibling.
   `course pack <course> --out <file.course.tgz>` writes the package and `<file>.sha256`; `course verify` accepts a
-  package. The existing bundle form of `course pack` is unchanged.
+  package. `minimumCoreVersion` defaults to `0.1.46`, the first Course Core release with the installer.
+  The existing bundle form of `course pack` is unchanged.
 - `publicationIssues(course)`: rules a host applies at publication beyond data validity, matching
   Course Core's publication check (Core's codes add a `PUBLISH_` prefix). `course lint` reports them
   as errors, `course test` adds a `publishable` check and `course pack` refuses the course.
