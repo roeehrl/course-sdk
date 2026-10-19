@@ -18,6 +18,7 @@ const requiredFiles = [
   'package.json', 'README.md', 'LICENSE', 'NOTICE', 'dist/index.js', 'dist/index.d.ts',
   'dist/compiler.js', 'dist/compiler.d.ts', 'dist/cli.js', 'dist/course.schema.json',
   'dist/adaptation.js', 'dist/adaptation.d.ts', 'dist/adaptation.schema.json',
+  'dist/course-package.js', 'dist/course-package.d.ts', 'dist/course-package.schema.json', 'dist/tar.js',
   'dist/numerical-recipe.js', 'dist/validator-dependencies.json',
   'dist/research.js', 'dist/research.d.ts', 'dist/research-types.d.ts', 'dist/generated/research-selection-validator.js',
   'dist/episode.js', 'dist/episode.d.ts',
@@ -105,13 +106,14 @@ function auditManifest(manifest, expectedVersion) {
     'Expected a public Apache-2.0 ESM package');
   check(manifest.engines?.node === '>=24', 'Expected engines.node >=24; update the CI matrix if this changes');
   assert.deepEqual([...(manifest.files ?? [])].sort(), ['LICENSE', 'NOTICE', 'README.md', 'dist'], 'Keep the package files allowlist explicit');
-  assert.deepEqual(Object.keys(manifest.exports ?? {}).sort(), ['.', './adaptation-schema', './compiler', './schema'], 'Unexpected public export surface');
+  assert.deepEqual(Object.keys(manifest.exports ?? {}).sort(), ['.', './adaptation-schema', './compiler', './package-schema', './schema'], 'Unexpected public export surface');
   for (const [key, stem] of [['.', 'index'], ['./compiler', 'compiler']]) {
     assert.deepEqual(manifest.exports[key], { types: `./dist/${stem}.d.ts`, import: `./dist/${stem}.js` }, `Unexpected ${key} export`);
     check(Object.keys(manifest.exports[key])[0] === 'types', `${key}: put the types condition first`);
   }
   check(manifest.exports['./schema'] === './dist/course.schema.json', 'Missing standalone schema export');
   check(manifest.exports['./adaptation-schema'] === './dist/adaptation.schema.json', 'Missing standalone adaptation schema export');
+  check(manifest.exports['./package-schema'] === './dist/course-package.schema.json', 'Missing standalone course-package schema export');
   assert.deepEqual(manifest.bin, { course: './dist/cli.js' }, 'Expected the course CLI');
   check(!manifest.workspaces && !manifest.bundleDependencies && !manifest.bundledDependencies && !manifest.overrides,
     'Workspaces, bundled dependencies, and overrides need an explicit package policy review');
@@ -184,7 +186,7 @@ async function auditSource(expectedVersion) {
 }
 
 function allowedFile(name) {
-  if (['package.json', 'README.md', 'LICENSE', 'NOTICE', 'dist/course.schema.json', 'dist/adaptation.schema.json', 'dist/validator-dependencies.json'].includes(name)) return true;
+  if (['package.json', 'README.md', 'LICENSE', 'NOTICE', 'dist/course.schema.json', 'dist/adaptation.schema.json', 'dist/course-package.schema.json', 'dist/validator-dependencies.json'].includes(name)) return true;
   if (!/^dist\/(?:[a-zA-Z0-9_-]+\/)*[a-zA-Z0-9_-]+\.(?:js|d\.ts)$/.test(name)) return false;
   return !/(?:^|\/)(?:tests?|fixtures?|examples?|data|datasets?|coverage|node_modules|src)(?:[/._-]|$)/i.test(name);
 }
@@ -259,6 +261,7 @@ function auditPackage(entries, manifest, report) {
   check(cli.bytes.toString('utf8').startsWith('#!/usr/bin/env node\n'), 'The packed CLI must have a Node shebang');
   JSON.parse(entries.get('dist/course.schema.json').bytes.toString('utf8'));
   JSON.parse(entries.get('dist/adaptation.schema.json').bytes.toString('utf8'));
+  JSON.parse(entries.get('dist/course-package.schema.json').bytes.toString('utf8'));
   const notice = entries.get('NOTICE').bytes.toString('utf8');
   const inventory = JSON.parse(entries.get('dist/validator-dependencies.json').bytes.toString('utf8'));
   const bundledNames = new Set();
@@ -513,6 +516,15 @@ void privateSelection;
   await writeFile(licenses, (await readFile(licenses, 'utf8')).replace('"inventoryFormat": 1', '"inventoryFormat": 1 '));
   mustFail(['verify', 'bundle-again'], 'A tampered bundle must fail verification');
   run(cli, ['import', 'bundle', 'imported.json'], { cwd: consumer, env });
+  // course-package v1: deterministic .course.tgz with a sha256sum sibling, verified by the installed CLI.
+  run(cli, ['pack', 'starter', '--out', 'starter.course.tgz'], { cwd: consumer, env });
+  run(cli, ['pack', 'starter/course.json', '--out', 'starter-again.course.tgz'], { cwd: consumer, env });
+  assert.deepEqual(await readFile(path.join(consumer, 'starter.course.tgz')), await readFile(path.join(consumer, 'starter-again.course.tgz')), 'Course package is not deterministic');
+  mustFail(['pack', 'starter', '--out', 'starter.course.tgz'], 'pack must refuse an existing package');
+  const verifiedPackage = JSON.parse(run(cli, ['verify', 'starter.course.tgz'], { cwd: consumer, env }));
+  check(verifiedPackage.valid === true && verifiedPackage.checksum === 'verified', 'Installed CLI must verify its course package');
+  await writeFile(path.join(consumer, 'starter-again.course.tgz.sha256'), `${'0'.repeat(64)}  starter-again.course.tgz\n`);
+  mustFail(['verify', 'starter-again.course.tgz'], 'A package with a wrong .sha256 must fail verification');
 }
 
 async function selfTest() {
@@ -686,7 +698,7 @@ async function main() {
       checks: ['dependency-sources', 'tar-safety', 'file-allowlist', 'sensitive-content-patterns',
         'isolated-install', 'portable-main-runtime-no-code-generation', 'portable-main-types', 'compiler-integrity-and-learner-projection',
         'schema-export', 'adaptation-recipe-contracts', 'generated-grading-projection', 'public-research-boundary', 'episode-requirements', 'bundled-license-notices', 'cli-validation-compilation-exclusive-output',
-        'cli-init-test-lint-pack-verify-import'],
+        'cli-init-test-lint-pack-verify-import', 'cli-course-package-pack-verify'],
     };
     if (outputDir) {
       await mkdir(outputDir, { recursive: true });

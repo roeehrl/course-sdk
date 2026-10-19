@@ -23,7 +23,8 @@
       "import": "./dist/compiler.js"
     },
     "./schema": "./dist/course.schema.json",
-    "./adaptation-schema": "./dist/adaptation.schema.json"
+    "./adaptation-schema": "./dist/adaptation.schema.json",
+    "./package-schema": "./dist/course-package.schema.json"
   },
   "bin": {
     "course": "./dist/cli.js"

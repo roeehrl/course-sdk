@@ -131,3 +131,12 @@ export {
   packCourse, requiredCapabilities, scaffoldCourse, verifyCourseBundle,
 } from './tooling.js';
 export type { BundleManifest, BundleVerification, CapabilityReport, ConformanceReport, CourseDiff, LicenseInventory, MigrationResult } from './tooling.js';
+export {
+  ADAPTATION_REGISTRY_MEMBER, COURSE_MANIFEST_MEMBER, COURSE_PACKAGE_ERROR_CODES, COURSE_PACKAGE_FORMAT, COURSE_PACKAGE_FORMAT_VERSION,
+  COURSE_PACKAGE_LIMITS, COURSE_PACKAGE_LISTING, COURSE_PACKAGE_ROLES, CoursePackageError, DEFAULT_MINIMUM_CORE_VERSION, LEARNER_PROJECTION_MEMBER,
+  coursePackageChecksum, packCoursePackage, verifyCoursePackage, verifyCoursePackageChecksum,
+} from './course-package.js';
+export type {
+  CoursePackageErrorCode, CoursePackageLimits, CoursePackageManifest, CoursePackageMember, CoursePackageRole, PackageFile, PackageFileContent,
+  PackCoursePackageInput, VerifiedCoursePackage, VerifiedCoursePackageMember, VerifyCoursePackageOptions,
+} from './course-package.js';
