@@ -4,7 +4,11 @@ Read [AGENTS.md](AGENTS.md) before making changes. Keep this repository public a
 
 Use Node.js 24 or 26 and the committed npm lockfile. Run the checks in [README.md](README.md) before opening a pull request. `npm ci` uses `--ignore-scripts`; required build work must be an explicit, reviewed command. The main export must remain usable without Node compiler or CLI imports.
 
-Changes to validation should cover structural errors, missing references, cycles, unsupported capabilities, and legitimate alternative inputs. Changes to the package boundary must also pass `node scripts/check-packed.mjs`. Its `--self-test` mode only exercises checker policy; it is not evidence that the SDK compiles or that a consumer can use it.
+Changes to validation should cover structural errors, missing references, cycles, unsupported capabilities, and legitimate alternative inputs. `tests/properties.test.ts` uses fast-check (fixed seed) to check that generated valid courses validate, compile deterministically, pack and verify, and that any one-character edit to a bundle file or any byte flip in a course package is detected.
+
+`node scripts/api-compat.mjs` (run by the verify workflow after the build) compares the built `dist/*.d.ts` of every typed export entry with the last release named in `scripts/api-baseline.json`, a GitHub release asset pinned by SHA-512. Removed exports, runtime values that became type-only, changed type-parameter counts and signatures or types that tsc no longer finds compatible are breaking. They need a major version bump, or a minor bump while the major version is 0. Any API change needs a version bump. After a release, point the baseline at that release's tarball and integrity. Exemptions need a stated reason in the baseline file.
+
+Release verification on a tag also runs a separate `provenance` job that generates a CycloneDX SBOM for the retained tarball (`scripts/release-sbom.mjs`) and attests build provenance for the tarball, `verification.json` and the SBOM. Only that job has `id-token: write` and `attestations: write`; it does not publish. Changes to the package boundary must also pass `node scripts/check-packed.mjs`. Its `--self-test` mode only exercises checker policy; it is not evidence that the SDK compiles or that a consumer can use it.
 
 ## Package policy
 

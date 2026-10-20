@@ -66,6 +66,8 @@ jobs:
         run: npm test
       - name: Build
         run: npm run build
+      - name: Compare the public API with the last release (breaking changes need a major, or 0.x minor, bump)
+        run: node scripts/api-compat.mjs
       - name: Inspect tarball, license notices and isolated course/adaptation consumers
         run: node scripts/check-packed.mjs --output-dir "$RUNNER_TEMP/verified-sdk"
       - name: Retain verified release candidate
