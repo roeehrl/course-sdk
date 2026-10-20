@@ -1,0 +1,65 @@
+name: Nightly dependency audit
+
+# Scheduled dependency vulnerability scans of the committed lock file. Not a
+# required pull-request check; a finding fails the run. No installation, build
+# or publishing happens here.
+on:
+  schedule:
+    - cron: '41 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  audit:
+    name: Dependency vulnerabilities
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
+      NPM_CONFIG_IGNORE_SCRIPTS: 'true'
+      NPM_CONFIG_FUND: 'false'
+    steps:
+      - name: Check out this repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          submodules: false
+          lfs: false
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: '26'
+          package-manager-cache: false
+      - name: Use unauthenticated public npm configuration
+        run: |
+          printf 'registry=https://registry.npmjs.org/\nignore-scripts=true\nfund=false\n' > "$RUNNER_TEMP/sdk-user.npmrc"
+          : > "$RUNNER_TEMP/sdk-global.npmrc"
+          printf 'NPM_CONFIG_USERCONFIG=%s\n' "$RUNNER_TEMP/sdk-user.npmrc" >> "$GITHUB_ENV"
+          printf 'NPM_CONFIG_GLOBALCONFIG=%s\n' "$RUNNER_TEMP/sdk-global.npmrc" >> "$GITHUB_ENV"
+      - name: Audit dependency sources
+        run: node scripts/check-packed.mjs --audit-source
+      - name: npm audit of the lock file (high or critical fails)
+        run: npm audit --package-lock-only --audit-level=high
+      - name: OSV scan of the lock file (any known vulnerability fails)
+        # Runs even when npm audit failed, so one run reports both scanners.
+        if: ${{ !cancelled() }}
+        env:
+          OSV_SCANNER_VERSION: v2.6.0
+          # Official osv-scanner_linux_amd64 release asset digest (osv-scanner_SHA256SUMS).
+          OSV_SCANNER_SHA256: ca69b3d3cd08f889a49dc0a383122f71cc528b83803671df5fd874d97485b108
+        run: |
+          scanner="$RUNNER_TEMP/osv-scanner"
+          curl -fsSL --retry 3 -o "$scanner" "https://github.com/google/osv-scanner/releases/download/${OSV_SCANNER_VERSION}/osv-scanner_linux_amd64"
+          echo "${OSV_SCANNER_SHA256}  ${scanner}" | sha256sum -c -
+          chmod +x "$scanner"
+          "$scanner" scan source --lockfile=package-lock.json

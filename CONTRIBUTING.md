@@ -24,7 +24,7 @@ All third-party action references must be official `actions/*` actions pinned to
 | `actions/setup-node` | `v6` / commit version `v6.5.0` | `249970729cb0ef3589644e2896645e5dc5ba9c38` |
 | `actions/upload-artifact` | `v6` / commit version `v6.0.0` | `b7c566a772e6b6bfb58ed0dc250532a479d7789f` |
 
-Dependabot proposes GitHub Actions updates. Review them and retain SHA pins. `actionlint .github/workflows/*.yml` validates workflow syntax when actionlint is available locally.
+Dependabot proposes GitHub Actions updates. Review them and retain SHA pins. `nightly.yml` runs `npm audit --audit-level=high` and a checksum-pinned osv-scanner over `package-lock.json` on a schedule (or by dispatch). It is not a required pull-request check, and a finding fails the run. `tests/workflows.test.ts` keeps every action SHA-pinned and every token read-only. `actionlint .github/workflows/*.yml` validates workflow syntax when actionlint is available locally.
 
 Untrusted pull requests run on fresh GitHub-hosted runners with `contents: read` and without publishing secrets, inherited reusable-workflow secrets, persistent checkout credentials, or package-manager caches. Do not introduce `pull_request_target`, a privileged `workflow_run` consumer of PR artifacts, self-hosted runners, private checkout steps, or authentication to dependency registries. Do not fetch a private repository to make public checks pass.
 
