@@ -2,6 +2,10 @@
   "version": "0.5.0",
   "url": "https://github.com/roeehrl/course-sdk/releases/download/v0.5.0/course-core-sdk-0.5.0.tgz",
   "integrity": "sha512-UCNXLGwJ+xeaiXSQESSSoqLN/B23kpmOMLzte42EayGG7w39rRCp4ROFzeZfVBZBxjylE9nrHOg1Q4VAQmkyyg==",
+  "additive": {
+    "version": "0.6.0",
+    "reason": "0.6.0 is backward compatible with 0.5.0: it adds exports, optional fields and wider unions, and removes nothing, although a 0.x minor bump would allow it."
+  },
   "exempt": {
     "SDK_VERSION": "Its literal type is the package version, so it differs in every release; removal is still reported."
   }

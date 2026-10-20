@@ -54,8 +54,47 @@ never published.
   (64-bit-safe decimal sequences, strictly increasing within the cursor range).
 - TypeScript generated from `course.schema.json`, with a type-level equality test against every public
   contract and record type and `CourseManifest`.
+- Render features `symbol`, `spring`, `stagger`, `layout_set` and `panes` (Course Core visuals 0.2/0.3) for
+  renderer definitions and adapters (up to 15 features each).
+- `VisualExperience.requiredFeatures`: checked against the course's `visual` renderer definitions for the
+  visual's extension (`UNSUPPORTED_FEATURE`), and must list `layout_set` / `panes` when the visual uses them
+  (`MISSING_REQUIRED_FEATURE`).
+- `VisualExperience.layouts` may carry the four-layout set (`tabletPortrait`, `tabletLandscape`, `wide` next to
+  `compact`; all three or none, `INCOMPLETE_LAYOUT_SET`), built with `responsiveVariant`. `expanded` stays the
+  fallback for renderers without `layout_set`.
+- The Interaction contract: `VisualExperience.interactions` (`defineInteraction`) bound to visual state with
+  `bindData(state, { range | values })`. Bindings must name declared state (`MISSING_REFERENCE`) and be well
+  formed (`INVALID_BINDING`); pointer-only interactions need a keyboard or control alternative
+  (`INACCESSIBLE_INTERACTION`).
+- Synchronized panes: `VisualExperience.panes` (`defineVisualPane`), one to eight `table`, `code` or `formula`
+  panes. Table rows match the columns (`INVALID_PANE`) and formula panes carry a text alternative.
+- Scene `defs` (`clips`, `masks`, `symbols`), layer `clip` / `mask` references, the `use` layer kind with
+  `symbol`, and layer `label`. References are checked (`MISSING_REFERENCE`, `INVALID_LAYER`) and a definition
+  cannot draw itself (`DEFS_CYCLE`).
+- `browserExecution: 'python' | 'none'` on `code` and `code_repair` items (Course Core's browser practice runs).
+  `python` needs `language: "python"` (`UNSUPPORTED_BROWSER_EXECUTION`); lint warns that placement and retention
+  items never offer a run (`BROWSER_RUN_NOT_OFFERED`).
+- `studyInstruments` manifest section (`defineStudyInstruments`, server-only): `pre`, `post`, `transfer` and
+  `delayed` instrument sets and optional `allowedArms`, checked as Course Core checks study definitions
+  (`STUDY_ITEM_IN_TWO_SETS`, `STUDY_TRANSFER_ROLE`, `STUDY_DELAYED_NOT_RETENTION`). Lint reports unmatched
+  pre/post objective coverage (`STUDY_INSTRUMENTS_UNMATCHED`) and instrument items that count toward a gate.
+- Learning step kind `pre_test`: it presents at least one assessment and none of its items may count toward a
+  gate (`PRE_TEST_GATE_EVIDENCE`).
+- `conceptMappingDrafts` (`defineConceptMappingDraft`, server-only): draft `equivalent`, `prerequisite_of` and
+  `overlaps` links between this course's objectives and a named other course's, applied by a host only after
+  staff review (`CONCEPT_MAPPING_LINK_SCOPE`, `CONCEPT_MAPPING_DUPLICATE_LINK`, `CONCEPT_MAPPING_SAME_COURSE`).
+- `@course-core/sdk/event-export-schema`: the learning-event export as its own JSON Schema
+  (`learning-event-export.schema.json`), derived from `course.schema.json` at build time.
+- README sections on the 0.6 additions and on the three extension points: activities, evaluators and admin
+  sections.
+- `scripts/api-baseline.json` declares 0.6.0 additive: the API check fails if an export is removed, loses its
+  runtime value or changes its type-parameter count, although a 0.x minor bump would allow it.
 
 ### Changed
+- `defineCourse`, `defineVisualExperience` and `defineExtension` validate (as `validateCourse` and
+  `validateContract`) and throw `ContractValidationError` instead of returning an unchecked copy.
+- Publication (`publicationIssues`, `course lint`, `course pack`) and `defineScene` refuse an equation layer
+  without a non-blank `label` (`MISSING_TEXT_ALTERNATIVE`). Such 0.5 scenes stay valid data and compile unchanged.
 - A legacy gate whose `conversationalEvaluatorId` does not resolve to an evaluator definition bound to
   exactly one rubric (for example a bare extension ID) is no longer exempt from its family and objective
   coverage checks. A gate whose conversation resolves counts it as one family; publication checks the rest.

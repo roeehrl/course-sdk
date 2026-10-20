@@ -1,13 +1,13 @@
 import type { ValidateFunction } from 'ajv';
 import validators from './generated/contracts-validator.js';
 import { shapeIssues } from './adaptation-shape.js';
-import { standaloneChecks } from './contracts-validate.js';
-import { learningPolicyIssues } from './validate.js';
-import type { Assessment, Episode, ExtensionManifest, LearningPolicy, MediaResource, PlacementPolicy, ValidationIssue, VisualExperience } from './types.js';
+import { standaloneChecks, unlabeledEquationLayers } from './contracts-validate.js';
+import { learningPolicyIssues, validateCourse } from './validate.js';
+import type { Assessment, CourseManifest, Episode, ExtensionManifest, Json, LearningPolicy, MediaResource, PlacementPolicy, ValidationIssue, VisualExperience } from './types.js';
 import type {
   ActivityDefinition, AdaptationPolicy, AdminSection, AgentStrategy, Concept, CourseStage, DebugInspector, DiagnosticProbe, EvaluatorDefinition,
   LearningStep, PlatformAdapter, RendererAdapter, RendererDefinition, ResearchTask, Rubric, Scene, Storyboard, TeachingHypothesisTemplate,
-  Timeline, ToolDefinition, VersionedProgressionGate,
+  Timeline, ToolDefinition, VersionedProgressionGate, Interaction, DataBinding, VisualLayouts, VisualPane, StudyInstruments, ConceptMappingDraft,
 } from './contracts-types.js';
 
 export interface ContractKinds {
@@ -36,6 +36,12 @@ export interface ContractKinds {
   scene: Scene;
   timeline: Timeline;
   rendererAdapter: RendererAdapter;
+  interaction: Interaction;
+  dataBinding: DataBinding;
+  visualLayouts: VisualLayouts;
+  visualPane: VisualPane;
+  studyInstruments: StudyInstruments;
+  conceptMappingDraft: ConceptMappingDraft;
   teachingHypothesis: TeachingHypothesisTemplate;
   diagnosticProbe: DiagnosticProbe;
   stage: CourseStage;
@@ -44,7 +50,8 @@ export type ContractKind = keyof ContractKinds;
 export const CONTRACT_KINDS = Object.freeze(['concept', 'episode', 'assessment', 'activity', 'rubric', 'tool', 'adaptationPolicy', 'learningPolicy',
   'adminSection', 'learningStep', 'progressionGate', 'mediaResource', 'storyboard', 'researchTask', 'placementPolicy', 'extension', 'renderer',
   'evaluator', 'agentStrategy', 'platformAdapter', 'debugInspector', 'visualExperience', 'scene', 'timeline', 'rendererAdapter',
-  'teachingHypothesis', 'diagnosticProbe', 'stage'] as const satisfies readonly ContractKind[]);
+  'teachingHypothesis', 'diagnosticProbe', 'stage', 'interaction', 'dataBinding', 'visualLayouts', 'visualPane', 'studyInstruments',
+  'conceptMappingDraft'] as const satisfies readonly ContractKind[]);
 
 export class ContractValidationError extends Error {
   constructor(public readonly contract: string, public readonly issues: ValidationIssue[]) {
@@ -61,6 +68,9 @@ const semantic: Partial<Record<ContractKind, Check>> = {
   platformAdapter: standaloneChecks.platformAdapter, debugInspector: standaloneChecks.debugInspector, scene: standaloneChecks.scene,
   timeline: standaloneChecks.timeline, rendererAdapter: standaloneChecks.rendererAdapter, teachingHypothesis: standaloneChecks.hypothesis,
   diagnosticProbe: standaloneChecks.probe, extension: standaloneChecks.extension,
+  visualExperience: standaloneChecks.visual, interaction: standaloneChecks.interaction, dataBinding: standaloneChecks.dataBinding,
+  visualLayouts: standaloneChecks.visualLayouts, visualPane: standaloneChecks.visualPane, studyInstruments: standaloneChecks.studyInstruments,
+  conceptMappingDraft: standaloneChecks.conceptMappingDraft,
   mediaResource: ((value: MediaResource, path, report) => standaloneChecks.mediaSegment(value.segment, `${path}/segment`, report)) as Check,
   learningPolicy: ((value: LearningPolicy, path, report) => { for (const i of learningPolicyIssues(value, path)) report(i.code, i.path, i.message); }) as Check,
 };
@@ -77,13 +87,36 @@ export function validateContract<K extends ContractKind>(kind: K, value: unknown
   return issues.length ? { valid: false, issues } : { valid: true, value: structuredClone(value) as ContractKinds[K], issues: [] };
 }
 
+/**
+ * Authoring rules the define* helpers add to validateContract. They are publication rules
+ * (see publicationIssues) that need no other course data; data validity is unchanged.
+ */
+const authoring: Partial<Record<ContractKind, (value: never) => ValidationIssue[]>> = {
+  scene: ((value: Scene) => unlabeledEquationLayers(value, '')) as (value: never) => ValidationIssue[],
+};
+
 function define<K extends ContractKind>(kind: K, value: ContractKinds[K]): ContractKinds[K] {
   const result = validateContract(kind, value);
   if (!result.valid) throw new ContractValidationError(kind, result.issues);
+  const issues = authoring[kind]?.(result.value as never) ?? [];
+  if (issues.length) throw new ContractValidationError(kind, issues);
   return result.value;
 }
 
 /* Validating authoring helpers. Each throws ContractValidationError and returns a detached copy. */
+/**
+ * Validates a whole course (schema, references and semantic rules, as validateCourse) and returns a
+ * detached copy. 0.6: throws ContractValidationError (contract "course") instead of copying unchecked.
+ */
+export function defineCourse(course: CourseManifest): CourseManifest {
+  const result = validateCourse(course);
+  if (!result.valid) throw new ContractValidationError('course', result.issues);
+  return result.course;
+}
+/** 0.6: validates like validateContract('visualExperience', …) instead of copying unchecked. */
+export const defineVisualExperience = (value: VisualExperience) => define('visualExperience', value);
+/** 0.6: validates like validateContract('extension', …) instead of copying unchecked. */
+export const defineExtension = (value: ExtensionManifest) => define('extension', value);
 export const defineConcept = (value: Concept) => define('concept', value);
 export const defineEpisode = (value: Episode) => define('episode', value);
 export const defineAssessment = (value: Assessment) => define('assessment', value);
@@ -110,3 +143,28 @@ export const defineRendererAdapter = (value: RendererAdapter) => define('rendere
 export const defineTeachingHypothesis = (value: TeachingHypothesisTemplate) => define('teachingHypothesis', value);
 export const defineDiagnosticProbe = (value: DiagnosticProbe) => define('diagnosticProbe', value);
 export const defineStage = (value: CourseStage) => define('stage', value);
+export const defineInteraction = (value: Interaction) => define('interaction', value);
+export const defineVisualPane = (value: VisualPane) => define('visualPane', value);
+export const defineStudyInstruments = (value: StudyInstruments) => define('studyInstruments', value);
+export const defineConceptMappingDraft = (value: ConceptMappingDraft) => define('conceptMappingDraft', value);
+
+/**
+ * Binds a learner input to one key of a visual's `state`: a numeric `range` (with an optional
+ * `step`) or a list of discrete `values`. Validated like validateContract('dataBinding', …).
+ */
+export function bindData(state: string, options: { range?: DataBinding['range']; values?: Json[] } = {}): DataBinding {
+  const binding: DataBinding = { state };
+  if (options.range !== undefined) binding.range = options.range;
+  if (options.values !== undefined) binding.values = options.values;
+  return define('dataBinding', binding);
+}
+
+/**
+ * Builds a visual's four-layout set. `expanded`, the fallback for renderers without the
+ * `layout_set` feature, defaults to a copy of `wide`. Validated like validateContract('visualLayouts', …).
+ */
+export function responsiveVariant(layouts: Omit<VisualLayouts, 'expanded' | 'tabletPortrait' | 'tabletLandscape' | 'wide'>
+  & Required<Pick<VisualLayouts, 'tabletPortrait' | 'tabletLandscape' | 'wide'>> & { expanded?: VisualLayouts['expanded'] }): VisualLayouts {
+  const { compact, tabletPortrait, tabletLandscape, wide, expanded } = layouts;
+  return define('visualLayouts', { compact, expanded: expanded ?? structuredClone(wide), tabletPortrait, tabletLandscape, wide });
+}

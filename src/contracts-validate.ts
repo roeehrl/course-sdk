@@ -1,8 +1,9 @@
-import type { Assessment, CourseManifest, Episode, ExtensionManifest, LearningPolicy, ProgressionGate, ValidationIssue } from './types.js';
+import type { Assessment, CourseManifest, Episode, ExtensionManifest, LearningPolicy, ProgressionGate, ValidationIssue, VisualExperience } from './types.js';
 import type {
   ActivityDefinition, AdaptationPolicy, AdminSection, AgentStrategy, DebugInspector, DiagnosticProbe, EvaluatorDefinition,
   PlatformAdapter, RendererAdapter, RendererDefinition, Rubric, Scene, Storyboard, TeachingHypothesisTemplate, Timeline, ToolDefinition,
-  VersionedProgressionGate, LearningStep, StateMigration,
+  VersionedProgressionGate, LearningStep, StateMigration, Interaction, DataBinding, VisualLayouts, VisualPane, StudyInstruments, ConceptMappingDraft,
+  RenderFeature,
 } from './contracts-types.js';
 import {
   ADMIN_WRITE_PERMISSIONS, DECLARATIVE_CAPABILITIES, DETERMINISTIC_TYPES, FORBIDDEN_CAPABILITIES, KNOWN_CAPABILITIES, NATIVE_TARGETS,
@@ -73,6 +74,59 @@ function ordered(times: number[], duration: number, path: string, report: Report
 }
 function reservedWords(id: string): boolean {
   return id.split(/[._:-]/).some(part => RESERVED_AUTHORITY_WORDS.has(part));
+}
+
+/** Interaction kinds a keyboard or switch user cannot perform directly. */
+const POINTER_ONLY_INTERACTIONS: ReadonlySet<Interaction['kind']> = new Set(['drag', 'scrub', 'pinch', 'pan', 'hover', 'stylus']);
+const STUDY_INSTRUMENT_SETS = ['pre', 'post', 'transfer', 'delayed'] as const;
+const hasLayoutSet = (layouts: VisualLayouts) => layouts.tabletPortrait !== undefined && layouts.tabletLandscape !== undefined && layouts.wide !== undefined;
+
+/** Scene `defs`: unique IDs per kind, every reference resolves, `use` layers and only those name a
+ * symbol, and no definition draws itself through its own layers (directly or through others). */
+function sceneDefsChecks(scene: Scene, path: string, report: Report): void {
+  const layers = new Map(scene.layers.map(l => [l.id, l]));
+  const kinds = { clip: scene.defs?.clips ?? [], mask: scene.defs?.masks ?? [], symbol: scene.defs?.symbols ?? [] };
+  const plural = { clip: 'clips', mask: 'masks', symbol: 'symbols' } as const;
+  for (const kind of ['clip', 'mask', 'symbol'] as const) {
+    duplicates(kinds[kind].map(d => d.id), `${path}/defs/${plural[kind]}`, report, kind);
+    for (const [i, def] of kinds[kind].entries()) for (const [j, id] of def.layerIds.entries())
+      if (!layers.has(id)) report('MISSING_REFERENCE', `${path}/defs/${plural[kind]}/${i}/layerIds/${j}`, `Unknown layer ${id}.`);
+  }
+  const defined = { clip: new Set(kinds.clip.map(d => d.id)), mask: new Set(kinds.mask.map(d => d.id)), symbol: new Set(kinds.symbol.map(d => d.id)) };
+  for (const [i, layer] of scene.layers.entries()) {
+    for (const kind of ['clip', 'mask', 'symbol'] as const) {
+      const id = layer[kind];
+      if (id !== undefined && !defined[kind].has(id)) report('MISSING_REFERENCE', `${path}/layers/${i}/${kind}`, `Unknown ${kind} ${id}.`);
+    }
+    if ((layer.kind === 'use') !== (layer.symbol !== undefined)) report('INVALID_LAYER', `${path}/layers/${i}`, 'Use layers, and only use layers, instantiate a symbol.');
+  }
+  // A definition depends on the definitions its own layers reference.
+  const key = (kind: string, id: string) => `${kind}:${id}`;
+  const edges = new Map<string, string[]>();
+  for (const kind of ['clip', 'mask', 'symbol'] as const) for (const def of kinds[kind]) {
+    const next: string[] = [];
+    for (const id of def.layerIds) {
+      const layer = layers.get(id);
+      if (!layer) continue;
+      for (const k of ['clip', 'mask', 'symbol'] as const) if (layer[k] !== undefined) next.push(key(k, layer[k]!));
+    }
+    edges.set(key(kind, def.id), next);
+  }
+  for (const kind of ['clip', 'mask', 'symbol'] as const) for (const [i, def] of kinds[kind].entries()) {
+    const start = key(kind, def.id), seen = new Set<string>(), stack = [...(edges.get(start) ?? [])];
+    while (stack.length) {
+      const node = stack.pop()!;
+      if (node === start) { report('DEFS_CYCLE', `${path}/defs/${plural[kind]}/${i}`, `The ${kind} ${def.id} draws itself through its own layers.`); break; }
+      if (seen.has(node)) continue;
+      seen.add(node); stack.push(...(edges.get(node) ?? []));
+    }
+  }
+}
+
+/** Equation layers without a non-blank `label` (their text alternative). Publication refuses them. */
+export function unlabeledEquationLayers(scene: Scene, path: string): ValidationIssue[] {
+  return scene.layers.flatMap((layer, i) => layer.kind === 'equation' && !layer.label?.trim()
+    ? [{ code: 'MISSING_TEXT_ALTERNATIVE', path: `${path}/layers/${i}/label`, message: `Equation layer ${layer.id} needs a label as its text alternative.` }] : []);
 }
 
 function stateMigrationChecks(migration: StateMigration, path: string, report: Report): void {
@@ -221,6 +275,74 @@ export const standaloneChecks = {
       if (layer.assetRef !== undefined && !assets.has(layer.assetRef)) report('MISSING_REFERENCE', `${path}/layers/${i}/assetRef`, `Unknown asset ${layer.assetRef}.`);
       if (!layer.decorative && layer.semanticNodeIds.length === 0) report('INACCESSIBLE_SCENE', `${path}/layers/${i}`, 'Meaningful layers need semantic nodes for the accessible tree.');
     }
+    sceneDefsChecks(scene, path, report);
+  },
+  visual(visual: VisualExperience, path: string, report: Report) {
+    standaloneChecks.visualLayouts(visual.layouts, `${path}/layouts`, report);
+    duplicates((visual.interactions ?? []).map(x => x.id), `${path}/interactions`, report, 'interaction');
+    for (const [i, interaction] of (visual.interactions ?? []).entries()) {
+      const ip = `${path}/interactions/${i}`;
+      standaloneChecks.interaction(interaction, ip, report);
+      const state = interaction.binding.state;
+      if (!Object.hasOwn(visual.state, state)) report('MISSING_REFERENCE', `${ip}/binding/state`, `The visual declares no state ${state}.`);
+      else if (interaction.binding.range && typeof visual.state[state] !== 'number') report('INVALID_BINDING', `${ip}/binding/range`, `A range binds numeric state; ${state} is not a number.`);
+    }
+    duplicates((visual.panes ?? []).map(x => x.id), `${path}/panes`, report, 'pane');
+    for (const [i, pane] of (visual.panes ?? []).entries()) standaloneChecks.visualPane(pane, `${path}/panes/${i}`, report);
+    if (visual.requiredFeatures) {
+      const needs = (feature: RenderFeature, used: boolean, what: string) => {
+        if (used && !visual.requiredFeatures!.includes(feature)) report('MISSING_REQUIRED_FEATURE', `${path}/requiredFeatures`, `${what} needs the ${feature} render feature.`);
+      };
+      needs('layout_set', hasLayoutSet(visual.layouts), 'The four-layout set');
+      needs('panes', (visual.panes?.length ?? 0) > 0, 'Synchronized panes');
+    }
+  },
+  visualLayouts(layouts: VisualLayouts, path: string, report: Report) {
+    const set = [layouts.tabletPortrait, layouts.tabletLandscape, layouts.wide];
+    if (set.some(Boolean) && !set.every(Boolean))
+      report('INCOMPLETE_LAYOUT_SET', path, 'The four-layout set needs tabletPortrait, tabletLandscape and wide (with compact), or none of them.');
+  },
+  dataBinding(binding: DataBinding, path: string, report: Report) {
+    if (binding.range && binding.values) report('INVALID_BINDING', path, 'A binding has a numeric range or discrete values, not both.');
+    if (binding.range) {
+      const { min, max, step } = binding.range;
+      if (!(min < max)) report('INVALID_BINDING', `${path}/range`, 'The range minimum must be below its maximum.');
+      else if (step !== undefined && step > max - min) report('INVALID_BINDING', `${path}/range/step`, 'The step cannot exceed the range.');
+    }
+  },
+  interaction(interaction: Interaction, path: string, report: Report) {
+    standaloneChecks.dataBinding(interaction.binding, `${path}/binding`, report);
+    if (POINTER_ONLY_INTERACTIONS.has(interaction.kind) && !interaction.alternative)
+      report('INACCESSIBLE_INTERACTION', `${path}/alternative`, `A ${interaction.kind} interaction needs a keyboard or control alternative.`);
+  },
+  visualPane(pane: VisualPane, path: string, report: Report) {
+    if (pane.kind === 'table') for (const [i, row] of pane.rows.entries())
+      if (row.length !== pane.columns.length) report('INVALID_PANE', `${path}/rows/${i}`, 'Every table row needs one cell per column.');
+    if (pane.kind === 'formula') {
+      if (pane.label.trim() === '') report('MISSING_TEXT_ALTERNATIVE', `${path}/label`, 'A formula pane needs a non-blank text alternative.');
+      duplicates((pane.values ?? []).map(v => v.symbol), `${path}/values`, report, 'symbol');
+    }
+  },
+  studyInstruments(instruments: StudyInstruments, path: string, report: Report) {
+    const seen = new Map<string, string>();
+    for (const set of STUDY_INSTRUMENT_SETS) for (const [i, id] of (instruments[set] ?? []).entries()) {
+      const other = seen.get(id);
+      if (other !== undefined && other !== set) report('STUDY_ITEM_IN_TWO_SETS', `${path}/${set}/${i}`, `${id} is already in the ${other} set; a repeat is not a new measurement.`);
+      else seen.set(id, set);
+    }
+    duplicates((instruments.allowedArms ?? []).map(a => a.id), `${path}/allowedArms`, report, 'study arm');
+  },
+  conceptMappingDraft(draft: ConceptMappingDraft, path: string, report: Report) {
+    const pairs = new Set<string>();
+    for (const [i, link] of draft.links.entries()) {
+      const lp = `${path}/links/${i}`;
+      if (link.from.course === link.to.course) { report('CONCEPT_MAPPING_LINK_SCOPE', lp, 'A link joins an objective of this course to one of the other course.'); continue; }
+      const own = link.from.course === 'this' ? link.from.objectiveId : link.to.objectiveId;
+      const other = link.from.course === 'this' ? link.to.objectiveId : link.from.objectiveId;
+      const pair = `${own}\u0000${other}`;
+      if (pairs.has(pair)) report('CONCEPT_MAPPING_DUPLICATE_LINK', lp, `${own} and ${other} are already linked.`);
+      pairs.add(pair);
+    }
   },
   timeline(timeline: Timeline, path: string, report: Report) {
     duplicates(timeline.tracks.map(t => t.id), `${path}/tracks`, report, 'track');
@@ -262,6 +384,8 @@ export const standaloneChecks = {
   },
   assessment(item: Assessment, path: string, report: Report) {
     if (item.role === 'transfer' && RECOGNITION_TYPES.has(item.type)) report('TRANSFER_REQUIRES_PRODUCTION', `${path}/role`, 'A recognition item cannot establish transfer.');
+    if ((item.type === 'code' || item.type === 'code_repair') && item.browserExecution === 'python' && item.language !== 'python')
+      report('UNSUPPORTED_BROWSER_EXECUTION', `${path}/browserExecution`, `Browser Python runs need language "python", not "${item.language}".`);
     if (item.type === 'choice') {
       const correct = item.options.find(o => o.id === item.grading.correctOptionId);
       if (correct?.misconceptionId !== undefined) report('INVALID_ANSWER_KEY', `${path}/grading`, 'The correct option cannot signal a misconception.');
@@ -684,6 +808,52 @@ export function contractIssues(course: CourseManifest): ValidationIssue[] {
     const families = new Set(course.placement.assessmentIds.map(id => assessments.get(id)?.familyId).filter(Boolean)).size;
     if (families < course.placement.evidenceThresholds.minimumIndependentFamilies)
       report('UNSATISFIABLE_PLACEMENT', '/placement/evidenceThresholds', 'Placement items cannot meet the declared family threshold.');
+  }
+
+  // 0.6: render features a visual requires, against the renderer definitions of its extension
+  for (const [i, visual] of course.visuals.entries()) {
+    const offered = (course.renderers ?? []).filter(r => r.surface === 'visual' && r.extensionId === visual.rendererId);
+    if (!offered.length) continue;
+    for (const [j, feature] of (visual.requiredFeatures ?? []).entries())
+      if (!offered.some(r => r.features.includes(feature)))
+        report('UNSUPPORTED_FEATURE', `/visuals/${i}/requiredFeatures/${j}`, `No visual renderer of ${visual.rendererId} declares ${feature}.`);
+  }
+
+  // 0.6: pre-test steps never count as gate evidence
+  const gateItems = new Set(course.gates.flatMap(gate => gateAssessmentIds(gate)));
+  for (const [i, step] of (course.learningSteps ?? []).entries()) {
+    if (step.kind !== 'pre_test') continue;
+    const episode = episodes.get(step.episodeId);
+    if (!episode) continue;
+    const blocks = step.blockIds.map(id => episode.blocks.find(b => b.id === id)).filter(b => b !== undefined);
+    const items = blocks.flatMap(b => (b.type === 'assessment' ? [b.assessmentId] : []));
+    if (!items.length) report('INVALID_STEP', `/learningSteps/${i}/blockIds`, 'A pre-test step presents at least one assessment item.');
+    for (const id of items) if (gateItems.has(id))
+      report('PRE_TEST_GATE_EVIDENCE', `/learningSteps/${i}/blockIds`, `${id} counts toward a gate; a pre-test item never counts as gate evidence.`);
+  }
+
+  // 0.6: study instruments
+  if (course.studyInstruments) {
+    const si = course.studyInstruments, path = '/studyInstruments';
+    standaloneChecks.studyInstruments(si, path, report);
+    const held = new Set(course.retention?.assessmentIds ?? []);
+    for (const set of STUDY_INSTRUMENT_SETS) refs(si[set] ?? [], assessments, `${path}/${set}`);
+    for (const [j, id] of (si.transfer ?? []).entries()) {
+      const role = assessments.get(id)?.role;
+      if (role !== undefined && role !== 'transfer') report('STUDY_TRANSFER_ROLE', `${path}/transfer/${j}`, `${id} declares role ${role}, not transfer.`);
+    }
+    for (const [j, id] of (si.delayed ?? []).entries())
+      if (assessments.has(id) && !held.has(id)) report('STUDY_DELAYED_NOT_RETENTION', `${path}/delayed/${j}`, `${id} is not a held-out retention item, so no delayed check schedules it.`);
+  }
+
+  // 0.6: cross-course concept-mapping drafts
+  byId(course.conceptMappingDrafts, '/conceptMappingDrafts');
+  for (const [i, draft] of (course.conceptMappingDrafts ?? []).entries()) {
+    const path = `/conceptMappingDrafts/${i}`;
+    standaloneChecks.conceptMappingDraft(draft, path, report);
+    if (draft.otherCourse.id === course.id) report('CONCEPT_MAPPING_SAME_COURSE', `${path}/otherCourse/id`, 'A concept mapping links two different courses.');
+    for (const [j, link] of draft.links.entries()) for (const end of ['from', 'to'] as const)
+      if (link[end].course === 'this') ref(link[end].objectiveId, objectives, `${path}/links/${j}/${end}/objectiveId`);
   }
   return issues;
 }

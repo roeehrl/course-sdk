@@ -7,6 +7,8 @@ export const CONTRACT_DEFINITIONS = Object.freeze({
   researchTask: 'researchTask', placementPolicy: 'placement', extension: 'extension', renderer: 'rendererDefinition',
   evaluator: 'evaluatorDefinition', agentStrategy: 'agentStrategy', platformAdapter: 'platformAdapter', debugInspector: 'debugInspector',
   visualExperience: 'visual', scene: 'scene', timeline: 'timeline', rendererAdapter: 'rendererAdapter',
+  interaction: 'interaction', dataBinding: 'dataBinding', visualLayouts: 'visualLayouts', visualPane: 'visualPane',
+  studyInstruments: 'studyInstruments', conceptMappingDraft: 'conceptMappingDraft',
   teachingHypothesis: 'hypothesisTemplate', diagnosticProbe: 'diagnosticProbe', stage: 'stage',
 });
 const records = ['attempt', 'evidence', 'gateDecision', 'teachingHypothesis', 'interventionPlan', 'learnerClaim',

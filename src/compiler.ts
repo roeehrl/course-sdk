@@ -19,9 +19,9 @@ export class CourseValidationError extends Error {
   }
 }
 
-/** Server-only 0.5 sections: grading, agents, research, admin and debug configuration. */
+/** Server-only sections: grading, agents, research, admin and debug configuration, and (0.6) study instruments and concept-mapping drafts. */
 export const SERVER_ONLY_SECTIONS = ['hypotheses', 'probes', 'rubrics', 'evaluators', 'tools', 'adaptationPolicies', 'adminSections',
-  'researchTasks', 'storyboards', 'agentStrategies', 'debugInspectors'] as const;
+  'researchTasks', 'storyboards', 'agentStrategies', 'debugInspectors', 'studyInstruments', 'conceptMappingDrafts'] as const;
 type ServerOnlySection = typeof SERVER_ONLY_SECTIONS[number];
 export type LearnerLegacyGate = { id: string; objectiveIds: string[]; minimumIndependentFamilies: number; requireAllObjectives: boolean };
 export type LearnerActivity = Omit<ActivityDefinition, 'evaluatorRef'>;

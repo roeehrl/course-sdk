@@ -1,6 +1,9 @@
 import type { AdaptationAuthoring } from './adaptation-types.js';
 import type { ResearchAuthoring } from './research-types.js';
-import type { AssessmentRole, ConfidenceCapture, ContractTest, CourseContracts0_5, StateMigration, VersionedProgressionGate } from './contracts-types.js';
+import type {
+  AssessmentRole, ConceptMappingDraft, ConfidenceCapture, ContractTest, CourseContracts0_5, Interaction, RenderFeature, StateMigration, StudyInstruments,
+  VersionedProgressionGate, VisualLayouts, VisualPane,
+} from './contracts-types.js';
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 export type Platform = 'web' | 'ios' | 'android';
 
@@ -99,17 +102,23 @@ export type Assessment = AssessmentBase & (
   | { type: 'choice'; options: { id: string; text: string; misconceptionId?: string }[]; grading: { correctOptionId: string; explanation: string } }
   | { type: 'numeric'; grading: { expected: number; absoluteTolerance: number; relativeTolerance?: number; unit?: string; explanation: string } }
   | { type: 'rubric'; grading: { evaluatorId: string; rubric: { id: string; description: string; required: boolean }[] } }
-  | { type: 'code'; language: string; starterCode: string; grading: { evaluatorId: string; fixtureRef: string } }
+  | { type: 'code'; language: string; starterCode: string; grading: { evaluatorId: string; fixtureRef: string }; browserExecution?: BrowserExecution }
   /** 0.5: commit to a quantitative prediction before observing the result. */
   | { type: 'prediction'; observationRef?: string; grading: { expected: number; absoluteTolerance: number; relativeTolerance?: number; unit?: string; explanation: string } }
   /** 0.5: annotate each step of a trace with its value. */
   | { type: 'trace'; steps: { id: string; prompt: string }[]; grading: { expected: { stepId: string; answer: string }[]; match: 'exact' | 'case_insensitive' | 'normalized_whitespace'; explanation: string } }
   /** 0.5: repair faulty code; graded by tests. */
-  | { type: 'code_repair'; language: string; starterCode: string; grading: { evaluatorId: string; fixtureRef: string } }
+  | { type: 'code_repair'; language: string; starterCode: string; grading: { evaluatorId: string; fixtureRef: string }; browserExecution?: BrowserExecution }
   /** 0.5: rubric-backed production tasks. */
   | { type: 'counterexample' | 'experiment_design' | 'teach_back'; grading: { evaluatorId: string; rubricId: string } }
 );
 export type AssessmentType = Assessment['type'];
+/**
+ * 0.6: whether a host may offer an in-browser practice run of a code or code_repair item. `python`
+ * needs `language: "python"`; `none` opts the item out. Omitted, the host decides. A browser run is
+ * practice feedback only: it never creates an attempt, evidence or a gate decision.
+ */
+export type BrowserExecution = 'python' | 'none';
 
 /** The 0.4 gate shape. Still valid; `course lint` reports recognition-only risk. */
 export interface LegacyProgressionGate {
@@ -174,10 +183,17 @@ export interface VisualExperience {
   platforms: Platform[];
   state: Record<string, Json>;
   scene: Record<string, Json>;
-  layouts: { compact: Record<string, Json>; expanded: Record<string, Json> };
+  /** 0.6: may carry the four-layout set (compact, tabletPortrait, tabletLandscape, wide). */
+  layouts: VisualLayouts;
   timeline: { durationMs: number; seekable: boolean; cues: { atMs: number; event: string }[] };
   accessibility: { description: string; reducedMotion: Record<string, Json> };
   referenceChecks: string[];
+  /** 0.6 (optional): render features the visual needs; a host refuses a renderer that lacks one. */
+  requiredFeatures?: RenderFeature[];
+  /** 0.6 (optional): learner inputs bound to `state`. */
+  interactions?: Interaction[];
+  /** 0.6 (optional): synchronized table, code and formula panes. */
+  panes?: VisualPane[];
 }
 
 export interface MediaResource {
@@ -219,6 +235,10 @@ export interface CourseManifest extends CourseContracts0_5 {
   research?: ResearchAuthoring;
   /** 0.5 (optional): host label for chapters, for example "Unit" or "Module". */
   chapterLabel?: string;
+  /** 0.6 (optional, server-only): evaluation-study instrument sets and allowed arms. */
+  studyInstruments?: StudyInstruments;
+  /** 0.6 (optional, server-only): cross-course concept-mapping drafts, applied by a host only after staff review. */
+  conceptMappingDrafts?: ConceptMappingDraft[];
 }
 
 export interface ValidationIssue {

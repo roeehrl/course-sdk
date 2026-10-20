@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { gzipSync } from 'node:zlib';
@@ -59,6 +59,24 @@ describe('API compatibility', () => {
     expect(decide(none, versionPolicy('0.5.0', '0.5.0')).ok).toBe(true);
     expect(decide({ ...none, added: ['x'] }, versionPolicy('0.5.0', '0.5.0')).reason).toMatch(/without a version bump/);
     expect(decide({ ...none, removed: ['x'] }, versionPolicy('1.0.0', '1.1.0')).reason).toMatch(/major version bump/);
+  });
+
+  it('holds a release declared additive to no removals even when its bump allows breaking changes', () => {
+    const none = { removed: [], changed: [], added: [] };
+    const additive = { ...versionPolicy('0.5.0', '0.6.0'), additiveOnly: true };
+    expect(decide({ ...none, added: ['bindData'] }, additive)).toMatchObject({ ok: true });
+    // Widened types and signatures are compatible additions for data written against the baseline.
+    expect(decide({ ...none, changed: ['RenderFeature (type) is not compatible with 0.5.0'] }, additive)).toMatchObject({ ok: true });
+    expect(decide({ ...none, removed: ['defineCourse'] }, additive).reason).toMatch(/declared additive/);
+    expect(decide({ ...none, changed: ['defineCourse: runtime value is no longer exported'] }, additive).reason).toMatch(/declared additive/);
+    expect(decide({ ...none, changed: ['Box: required type parameters 1 -> 2'] }, additive).reason).toMatch(/declared additive/);
+    expect(decide({ ...none, removed: ['defineCourse'] }, versionPolicy('0.5.0', '0.6.0'))).toMatchObject({ ok: true });
+  });
+
+  it('declares 0.6.0 additive against the 0.5.0 baseline', async () => {
+    const config = JSON.parse(readFileSync(new URL('../scripts/api-baseline.json', import.meta.url), 'utf8'));
+    expect(config.additive).toMatchObject({ version: '0.6.0' });
+    await expect(loadBaseline({ ...config, additive: { version: '0.6.0', reason: 'no' } }, { fetchImpl: async () => new Response('') })).rejects.toThrow(/stated reason/);
   });
 
   it('flags removed exports, lost runtime values and arity changes before type checking', () => {

@@ -128,7 +128,12 @@ export function versionPolicy(baseline, current) {
 export function decide(report, policy) {
   const breaking = report.removed.length + report.changed.length > 0, any = breaking || report.added.length > 0;
   if (any && !policy.changeAllowed) return { ok: false, reason: 'The public API changed without a version bump' };
+  // An additive release keeps every export, its runtime value and its type-parameter count, even
+  // when the version bump would permit more. Types and signatures may still widen.
+  const surface = report.removed.length + report.changed.filter((c) => !/ is not compatible with /.test(c)).length;
+  if (policy.additiveOnly && surface > 0) return { ok: false, reason: 'This release is declared additive: exports cannot be removed, lose their runtime value or change type-parameter counts' };
   if (breaking && !policy.breakingAllowed) return { ok: false, reason: 'Breaking API changes need a major version bump (a minor bump while the major version is 0)' };
+  if (breaking && policy.additiveOnly) return { ok: true, reason: 'Additive release: no export was removed; changed types and signatures are allowed by this version bump' };
   return { ok: true, reason: breaking ? 'Breaking changes are allowed by this version bump' : 'Compatible' };
 }
 
@@ -148,12 +153,14 @@ export function declarationFiles(tarball) {
   return files;
 }
 
-/** @param {{ version: string, url: string, integrity: string, exempt?: Record<string, string> }} config
+/** @param {{ version: string, url: string, integrity: string, exempt?: Record<string, string>, additive?: { version: string, reason: string } }} config
  *  @param {{ tarball?: string, fetchImpl?: typeof fetch }} [options] */
 export async function loadBaseline(config, options = {}) {
   const { tarball: localTarball, fetchImpl = fetch } = options;
   check(/^\d+\.\d+\.\d+$/.test(config.version) && /^sha512-[A-Za-z0-9+/]{86}==$/.test(config.integrity), 'Invalid API baseline configuration');
   check(config.exempt === undefined || (typeof config.exempt === 'object' && Object.values(config.exempt).every((why) => typeof why === 'string' && why.length >= 10)), 'Each API exemption needs a stated reason');
+  check(config.additive === undefined || (/^\d+\.\d+\.\d+$/.test(config.additive.version ?? '') && typeof config.additive.reason === 'string' && config.additive.reason.length >= 10),
+    'An additive release declaration needs a version and a stated reason');
   check(config.url === `https://github.com/roeehrl/course-sdk/releases/download/v${config.version}/course-core-sdk-${config.version}.tgz`, 'API baseline must be a course-sdk release asset');
   let bytes;
   if (localTarball) bytes = await readFile(localTarball);
@@ -167,7 +174,7 @@ export async function loadBaseline(config, options = {}) {
 }
 
 /** Runs the whole comparison. `oldFiles` maps .d.ts names to bytes; `newDirectory` holds the built dist. */
-export async function compareApi({ oldFiles, newDirectory, entries, baselineVersion, currentVersion, exempt = {}, tsc = path.join(ROOT, 'node_modules/typescript/bin/tsc') }) {
+export async function compareApi({ oldFiles, newDirectory, entries, baselineVersion, currentVersion, exempt = {}, additiveOnly = false, tsc = path.join(ROOT, 'node_modules/typescript/bin/tsc') }) {
   const scratch = await mkdtemp(path.join(tmpdir(), 'sdk-api-compat-'));
   try {
     await mkdir(path.join(scratch, 'old')); await mkdir(path.join(scratch, 'new'));
@@ -197,7 +204,7 @@ export async function compareApi({ oldFiles, newDirectory, entries, baselineVers
     }
     report.changed.push(...report.incompatible.map((n) => `${n} is not compatible with ${baselineVersion}`));
     report.changed.sort();
-    return { ...report, ...decide(report, versionPolicy(baselineVersion, currentVersion)), baseline: baselineVersion, current: currentVersion };
+    return { ...report, ...decide(report, { ...versionPolicy(baselineVersion, currentVersion), additiveOnly }), baseline: baselineVersion, current: currentVersion };
   } finally { await rm(scratch, { recursive: true, force: true }); }
 }
 
@@ -207,7 +214,8 @@ export async function main(args = process.argv.slice(2)) {
   const manifest = JSON.parse(await readFile(path.join(ROOT, 'package.json'), 'utf8'));
   const entries = Object.values(manifest.exports).filter((e) => typeof e === 'object' && e.types).map((e) => path.basename(e.types));
   check(entries.length > 0, 'No typed package entry points');
-  const result = await compareApi({ oldFiles: await loadBaseline(config, { tarball: args[1] }), newDirectory: path.join(ROOT, 'dist'), entries, baselineVersion: config.version, currentVersion: manifest.version, exempt: config.exempt ?? {} });
+  const result = await compareApi({ oldFiles: await loadBaseline(config, { tarball: args[1] }), newDirectory: path.join(ROOT, 'dist'), entries, baselineVersion: config.version, currentVersion: manifest.version, exempt: config.exempt ?? {},
+    additiveOnly: config.additive?.version === manifest.version });
   for (const key of ['removed', 'changed', 'added']) console.log(`${key} (${result[key].length})${result[key].length ? `:\n  ${result[key].join('\n  ')}` : ''}`);
   console.log(`API ${result.baseline} -> ${result.current}: ${result.reason}.`);
   check(result.ok, result.reason);
