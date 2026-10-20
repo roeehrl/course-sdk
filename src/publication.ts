@@ -1,5 +1,5 @@
 import { validateCourse } from './validate.js';
-import { gateConversation, isVersionedGate } from './contracts-validate.js';
+import { gateConversation, isVersionedGate, unlabeledEquationLayers } from './contracts-validate.js';
 import type { CourseManifest, LegacyProgressionGate, ValidationIssue } from './types.js';
 
 /**
@@ -20,6 +20,10 @@ import type { CourseManifest, LegacyProgressionGate, ValidationIssue } from './t
  *   conversation as one item family for every gate objective; with the listed items' families it
  *   must reach `minimumIndependentFamilies` for every objective (`requireAllObjectives`) or at
  *   least one.
+ *
+ * - MISSING_TEXT_ALTERNATIVE (`/scenes/i/layers/j/label`, SDK 0.6): an equation layer needs a
+ *   non-blank `label` as its text alternative. Course Core's visuals require one on every equation;
+ *   0.5 scenes without it stay valid data, but are not publishable. `defineScene` applies it too.
  *
  * Hosts also check what only they know, such as an installed adapter that can review the
  * conversation, or one that confirms quoted findings for a deterministic evaluator.
@@ -60,6 +64,7 @@ export function publicationRefusals(course: CourseManifest): ValidationIssue[] {
       message: `Gate ${gate.id}: with the conversation as one family, the listed items cannot supply ${gate.minimumIndependentFamilies} independent families for ${gate.requireAllObjectives ? 'every' : 'any'} gate objective.`,
     });
   }
+  for (const [i, scene] of (course.scenes ?? []).entries()) issues.push(...unlabeledEquationLayers(scene, `/scenes/${i}`));
   return issues;
 }
 

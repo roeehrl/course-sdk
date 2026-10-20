@@ -17,6 +17,15 @@ const samples: Record<ContractKind, unknown> = {
   platformAdapter: course.platformAdapters![0], debugInspector: course.debugInspectors![0], visualExperience: course.visuals[0], scene: course.scenes![0],
   timeline: course.timelines![0], rendererAdapter: course.rendererAdapters![0], teachingHypothesis: course.hypotheses![0], diagnosticProbe: course.probes![0],
   stage: course.stages![0],
+  interaction: { id: 'drag-length', kind: 'drag', target: 'bob', label: 'Pendulum length', binding: { state: 'length', range: { min: 1, max: 4, step: 0.5 } },
+    alternative: { kind: 'keyboard', keys: ['ArrowLeft', 'ArrowRight'] } },
+  dataBinding: { state: 'length', range: { min: 1, max: 4, step: 0.5 } },
+  visualLayouts: { compact: { stack: true }, expanded: { columns: 3 }, tabletPortrait: { columns: 1 }, tabletLandscape: { columns: 2 }, wide: { columns: 3 } },
+  visualPane: { id: 'periods', kind: 'table', title: 'Periods', columns: ['Length (m)', 'Period (s)'], rows: [[1, 2], [4, { state: 'period' }]], highlightRow: { state: 'row' } },
+  studyInstruments: { pre: ['length-choice'], post: ['length-trace'], transfer: ['length-teach'], delayed: ['later-prediction'],
+    allowedArms: [{ id: 'fixed', label: 'Fixed path', behaviour: 'fixed' }, { id: 'full', label: 'Full course', behaviour: 'supervisor' }] },
+  conceptMappingDraft: { id: 'to-waves', status: 'draft', otherCourse: { id: 'waves-intro', version: '1.0.0' },
+    links: [{ relation: 'prerequisite_of', from: { course: 'this', objectiveId: 'measure-period' }, to: { course: 'other', objectiveId: 'wave-period' } }] },
 };
 /** A context-free semantic violation for each kind with standalone rules. */
 const semanticBreaks: Partial<Record<ContractKind, [(v: any) => void, string]>> = {
@@ -39,23 +48,36 @@ const semanticBreaks: Partial<Record<ContractKind, [(v: any) => void, string]>> 
   rendererAdapter: [v => { v.fallbacks = [{ feature: 'path_draw', fallback: 'equivalent_static' }]; }, 'REDUNDANT_FALLBACK'],
   teachingHypothesis: [v => { v.kind = 'slip'; }, 'INVALID_HYPOTHESIS'],
   diagnosticProbe: [v => { v.signals[0].hypothesisId = 'unrelated'; }, 'INVALID_PROBE'],
+  visualExperience: [v => { v.layouts.wide = {}; }, 'INCOMPLETE_LAYOUT_SET'],
+  interaction: [v => { delete v.alternative; }, 'INACCESSIBLE_INTERACTION'],
+  dataBinding: [v => { v.range = { min: 4, max: 1 }; }, 'INVALID_BINDING'],
+  visualLayouts: [v => { v.wide = v.compact; delete v.tabletLandscape; }, 'INCOMPLETE_LAYOUT_SET'],
+  visualPane: [v => { v.rows.push([7]); }, 'INVALID_PANE'],
+  studyInstruments: [v => { v.post.push('length-choice'); }, 'STUDY_ITEM_IN_TWO_SETS'],
+  conceptMappingDraft: [v => { v.links[0].to.course = 'this'; }, 'CONCEPT_MAPPING_LINK_SCOPE'],
 };
-const helperName = (kind: string) => `define${kind[0]!.toUpperCase()}${kind.slice(1)}`;
+/** The authoring helper of each kind: define<Kind>, or the two named helpers. */
+function helperFor(kind: string): ((v: any) => unknown) | undefined {
+  if (kind === 'dataBinding') return (v) => sdk.bindData(v.state, v);
+  if (kind === 'visualLayouts') return (v) => sdk.responsiveVariant(v);
+  return (sdk as Record<string, unknown>)[`define${kind[0]!.toUpperCase()}${kind.slice(1)}`] as ((v: unknown) => unknown) | undefined;
+}
 
 describe('validating define* helpers', () => {
   it('covers every define* function the approved design lists', () => {
     const design = ['defineCourse', 'defineConcept', 'defineEpisode', 'defineAssessment', 'defineActivity', 'defineRubric', 'defineTool', 'defineAdaptationPolicy',
       'defineLearningPolicy', 'defineAdminSection', 'defineLearningStep', 'defineProgressionGate', 'defineMediaResource', 'defineStoryboard', 'defineResearchTask',
       'definePlacementPolicy', 'defineExtension', 'defineRenderer', 'defineEvaluator', 'defineAgentStrategy', 'definePlatformAdapter', 'defineDebugInspector',
-      'defineVisualExperience', 'defineScene', 'defineTimeline', 'defineRendererAdapter'];
+      'defineVisualExperience', 'defineScene', 'defineTimeline', 'defineRendererAdapter', 'bindData', 'responsiveVariant', 'defineInteraction', 'defineVisualPane',
+      'defineStudyInstruments', 'defineConceptMappingDraft'];
     for (const name of design) expect(typeof (sdk as Record<string, unknown>)[name], name).toBe('function');
   });
   it.each(CONTRACT_KINDS)('%s: accepts a valid contract and returns a detached copy', (kind) => {
     const value = structuredClone(samples[kind]);
     const result = validateContract(kind, value);
     expect(result.issues).toEqual([]);
-    const define = (sdk as Record<string, unknown>)[helperName(kind)] as ((v: unknown) => unknown) | undefined;
-    if (define && !['extension', 'visualExperience'].includes(kind)) {
+    const define = helperFor(kind);
+    if (define) {
       const copy = define(value) as Record<string, unknown>;
       expect(copy).toEqual(value); expect(copy).not.toBe(value);
     }
@@ -68,14 +90,33 @@ describe('validating define* helpers', () => {
     const value = structuredClone(samples[kind as ContractKind]); mutate(value);
     const result = validateContract(kind as ContractKind, value);
     expect(result.issues.map(i => i.code)).toContain(code);
-    const define = (sdk as Record<string, unknown>)[helperName(kind)] as (v: unknown) => unknown;
-    expect(() => define(value)).toThrow(ContractValidationError);
+    expect(() => helperFor(kind)!(value)).toThrow(ContractValidationError);
   });
   it('rejects unknown contract kinds', () => {
     expect(validateContract('banana' as ContractKind, {}).issues[0]!.code).toBe('UNKNOWN_CONTRACT');
   });
-  it('keeps the 0.4 clone-only helpers unchanged', () => {
-    expect(sdk.defineExtension({ id: 'not valid' } as never)).toEqual({ id: 'not valid' });
+  it('0.6: defineCourse, defineExtension and defineVisualExperience validate instead of copying', () => {
+    for (const [define, value] of [[sdk.defineExtension, { id: 'not valid' }], [sdk.defineVisualExperience, { id: 'not valid' }], [sdk.defineCourse, { id: 'not valid' }]] as const) {
+      let error: unknown;
+      try { (define as (v: unknown) => unknown)(value); } catch (e) { error = e; }
+      expect(error).toBeInstanceOf(ContractValidationError);
+      expect((error as ContractValidationError).issues.map(i => i.code)).toContain('SCHEMA');
+    }
+    const authored = sdk.defineCourse(course);
+    expect(authored).toEqual(course); expect(authored).not.toBe(course);
+    const broken = structuredClone(course); broken.visuals[0]!.rendererId = 'ghost';
+    expect(() => sdk.defineCourse(broken)).toThrow(expect.objectContaining({ contract: 'course', issues: [expect.objectContaining({ code: 'MISSING_REFERENCE', path: '/visuals/0/rendererId/0' })] }));
+  });
+  it('0.6: defineScene also applies the equation text-alternative publication rule', () => {
+    const scene = structuredClone(course.scenes![0]!);
+    scene.semanticNodes.push({ id: 'formula', label: 'Period formula', role: 'relation' });
+    scene.layers.push({ id: 'period-formula', kind: 'equation', semanticNodeIds: ['formula'], decorative: false });
+    expect(validateContract('scene', scene).valid).toBe(true);
+    expect(() => sdk.defineScene(scene)).toThrow(expect.objectContaining({ issues: [expect.objectContaining({ code: 'MISSING_TEXT_ALTERNATIVE', path: '/layers/2/label' })] }));
+    scene.layers[2]!.label = '   ';
+    expect(() => sdk.defineScene(scene)).toThrow(ContractValidationError);
+    scene.layers[2]!.label = 'T equals two pi root L over g';
+    expect(sdk.defineScene(scene).layers[2]!.label).toBe('T equals two pi root L over g');
   });
   it('derives window classes from logical width and font scale', () => {
     expect([windowClass(599), windowClass(600), windowClass(839), windowClass(840), windowClass(1000, 2)]).toEqual(['compact', 'medium', 'medium', 'expanded', 'compact']);

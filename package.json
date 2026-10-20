@@ -24,7 +24,8 @@
     },
     "./schema": "./dist/course.schema.json",
     "./adaptation-schema": "./dist/adaptation.schema.json",
-    "./package-schema": "./dist/course-package.schema.json"
+    "./package-schema": "./dist/course-package.schema.json",
+    "./event-export-schema": "./dist/learning-event-export.schema.json"
   },
   "bin": {
     "course": "./dist/cli.js"

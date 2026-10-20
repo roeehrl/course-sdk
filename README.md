@@ -63,7 +63,7 @@ if (!result.valid) {
 }
 ```
 
-`defineCourse` is a typed authoring helper. Run validation before accepting or publishing content. Keep compiler imports in Node tooling:
+`defineCourse` validates the whole course (as `validateCourse` does) and returns a detached copy; it throws `ContractValidationError` (contract `course`) with every issue. Before 0.6 it copied without checking. Publication rules (`publicationIssues`) are separate. Keep compiler imports in Node tooling:
 
 ```ts
 import { compileCourse, verifyCompiledCourse } from '@course-core/sdk/compiler';
@@ -224,8 +224,8 @@ It does not prove who made it, that the lessons are correct, or that a host's ow
 All 0.5 sections are optional manifest fields, so 0.4 data is unchanged. Each new `define*`
 helper validates its contract on its own (schema plus context-free rules), throws
 `ContractValidationError` and returns a detached copy. `validateCourse` checks every
-cross-reference. `defineCourse`, `defineExtension` and `defineVisualExperience` keep their
-0.4 copy-only behavior; use `validateContract(kind, value)` for those.
+cross-reference. Since 0.6, `defineCourse`, `defineExtension` and `defineVisualExperience`
+validate too (they copied without checking in 0.4 and 0.5).
 
 | Helper | Manifest field | Notes |
 | --- | --- | --- |
@@ -233,7 +233,7 @@ cross-reference. `defineCourse`, `defineExtension` and `defineVisualExperience` 
 | `defineAssessment` | `assessments[]` | New types `prediction`, `trace`, `code_repair`, `counterexample`, `experiment_design`, `teach_back`. Optional `role`, `misconceptionIds`, `allowAbstain` ("I don't know") and `confidence`. Numeric items gain `relativeTolerance` and `unit`. Recognition items cannot be `transfer`. |
 | `defineActivity` | `activities[]`, block `{ type: 'activity', activityId }` | `supportedTargets, rendererRefs, executionAdapter, capabilityRequirements, equivalentFallbacks, offlineBehavior, resourceBudget, accessibleSemantics, stateMigration`, plus `layoutInputs` and compact/medium/expanded `layouts`. Every declared course target needs support or an objective-equivalent fallback. Native execution needs a declared native module. |
 | `defineAdminSection` | `adminSections[]` | Declared permissions, typed settings with checked defaults, audited mutations. Settings cannot target evidence, grading, caps or policy. `adminSettingsSchema(section)` renders the settings as a JSON Schema form, `adminSettingDefaults(section)` lists the defaults, and hosts check every change server-side with `checkAdminSettingChange(section, change, grantedPermissions)` (`UNKNOWN_SETTING`, `ADMIN_PERMISSION_DENIED`, `SETTING_SCOPE_MISMATCH`, `INVALID_SETTING_VALUE`). |
-| `validateContract('extension', …)` (`defineExtension` stays copy-only) | `extensions[]` | 0.6 adds optional `stateMigration` (`migrateState`: state version, strategy and source versions; versioned state needs a `stateSchema`), `tests` (the extension's own fixtures as portable relative paths) and the full `resourceBudget` (`maxStateBytes`, `maxEventBytes`, `maxEventsPerMinute`) next to `license`, `stateSchema`, `observationSchema` and `evaluatorRef`. Lint notes observation schemas without `observation.emit` and observations without an evaluator. |
+| `defineExtension` | `extensions[]` | 0.6 adds optional `stateMigration` (`migrateState`: state version, strategy and source versions; versioned state needs a `stateSchema`), `tests` (the extension's own fixtures as portable relative paths) and the full `resourceBudget` (`maxStateBytes`, `maxEventBytes`, `maxEventsPerMinute`) next to `license`, `stateSchema`, `observationSchema` and `evaluatorRef`. Lint notes observation schemas without `observation.emit` and observations without an evaluator. |
 | `defineStage` | `stages[]`, chapter `stageId` | Roadmap grouping. Stages and chapters take `subtitle` and `iconAsset`; `courseRoadmap(course)` returns consecutive stage groups with the author's labels so hosts need no hard-coded "Chapter" labels or icons. Lint warns when one stage's chapters are split. |
 | `defineTeachingHypothesis`, `defineDiagnosticProbe`, `defineConcept` | `hypotheses[]`, `probes[]`, `concepts[]` | Competing hypotheses per objective, and the probes that distinguish them. Probes never count as gate evidence. |
 | `defineResearchTask` | `researchTasks[]` | Author bounds for dedicated research. `validateResearchRequest` and `validateResearchResult` check the request fields (`objective, episodeRevision, misconceptionHypothesis, knownPrerequisites, language, modality, remainingLearningTime, accessibilityNeeds, sourcePolicy, requiredOrOptional`) and the result fields (`sourceUrl` through `concerns`). Metadata-only results carry no claims or segments. |
@@ -276,12 +276,134 @@ three layout classes, seven layout inputs and the nine required activity fields)
 
 Server-only sections never reach the learner projection: hypotheses, probes, rubrics,
 evaluators, tools, adaptation policies, admin sections, research tasks, storyboards, agent
-strategies and debug inspectors. Versioned gates project their readable requirements, but not
+strategies, debug inspectors and (0.6) study instruments and concept-mapping drafts. Versioned gates project their readable requirements, but not
 their item, rubric or policy references.
 
 TypeScript note: `ProgressionGate` is now `LegacyProgressionGate | VersionedProgressionGate`,
 the activity block is a union, and `RetentionPolicy.intervalsDays` is optional. Narrow with
 `isVersionedGate` or `'extensionId' in block`. Data and compiled output are unaffected.
+
+## SDK 0.6 contract additions
+
+Every addition is optional, so 0.4 and 0.5 data validates and compiles as before. Hosts on SDK 0.5
+reject the new values.
+
+| Helper | Where | Rules |
+| --- | --- | --- |
+| `RenderFeature` | `renderers[].features`, `rendererAdapters[]`, `visuals[].requiredFeatures` | Adds `symbol`, `spring`, `stagger`, `layout_set` and `panes` (Course Core visuals 0.2/0.3). |
+| `defineVisualExperience` | `visuals[]` | Optional `requiredFeatures`: when a course declares `visual` renderer definitions for the visual's extension, one of them must declare each feature (`UNSUPPORTED_FEATURE`). A visual using the four-layout set or panes must list `layout_set` / `panes` once it declares `requiredFeatures` (`MISSING_REQUIRED_FEATURE`). |
+| `responsiveVariant({ compact, tabletPortrait, tabletLandscape, wide, expanded? })` | `visuals[].layouts` | The four-layout set. All three of `tabletPortrait`, `tabletLandscape` and `wide`, or none (`INCOMPLETE_LAYOUT_SET`). `expanded` stays the fallback for renderers without `layout_set` and defaults to `wide`. |
+| `defineInteraction`, `bindData(state, { range \| values })` | `visuals[].interactions` | The Interaction contract: `tap`, `drag`, `scrub`, `pinch`, `pan`, `hover`, `keyboard` or `stylus` on a semantic `target`, bound to one key of the visual's `state`. The key must exist (`MISSING_REFERENCE`); a `range` binds numeric state with `min < max` and a `step` within the range, or the binding lists discrete `values` (`INVALID_BINDING`). Pointer-only kinds need a keyboard or control `alternative` (`INACCESSIBLE_INTERACTION`). |
+| `defineVisualPane` | `visuals[].panes` | One to eight synchronized `table`, `code` or `formula` panes. Table rows have one cell per column (`INVALID_PANE`); a formula pane needs a non-blank `label` as its text alternative. Cell, highlight and value expressions are renderer data. |
+| `defineScene` | `scenes[].defs`, layers | Scene-local `defs` (`clips`, `masks`, `symbols`, each listing the layers that draw it). Layers may name a `clip` or `mask`; the new `use` layer, and only it, names a `symbol` (`INVALID_LAYER`). References must resolve (`MISSING_REFERENCE`) and a definition cannot draw itself, directly or through another one (`DEFS_CYCLE`). Layers take a `label`; an equation layer without one stays valid data, but `publicationIssues`, `course lint` and `defineScene` refuse it (`MISSING_TEXT_ALTERNATIVE`). |
+| `defineAssessment` | `code` and `code_repair` items | `browserExecution: 'python' \| 'none'`. `python` needs `language: "python"` (`UNSUPPORTED_BROWSER_EXECUTION`); `none` opts the item out of in-browser practice runs. Omitted, the host decides. A browser run is practice feedback only and never creates an attempt, evidence or a gate decision. Lint warns that placement and delayed retention items never offer a run. |
+| `defineStudyInstruments` | `studyInstruments` | Evaluation-study instrument sets (`pre`, `post`, optional `transfer` and `delayed`) over the course's own items, and optional `allowedArms` (2 to 6 of `{ id, label, behaviour: 'fixed' \| 'chat_only' \| 'supervisor' }`); a host offers only those arms. An item is in at most one set (`STUDY_ITEM_IN_TWO_SETS`), transfer items cannot declare another role (`STUDY_TRANSFER_ROLE`) and delayed items must be held-out retention items (`STUDY_DELAYED_NOT_RETENTION`). Lint warns when the pre-test and post-test cover different objectives (`STUDY_INSTRUMENTS_UNMATCHED`) and when an instrument item also counts toward a gate. |
+| `defineLearningStep` | `learningSteps[]` | Step kind `pre_test`: it presents at least one assessment (`INVALID_STEP`), references no gate, and none of its items may count toward a gate (`PRE_TEST_GATE_EVIDENCE`), so a pre-test answer is never gate evidence. |
+| `defineConceptMappingDraft` | `conceptMappingDrafts[]` | A **draft** (`status: 'draft'`) mapping between this course's objectives and a named other course's: `equivalent`, `prerequisite_of` (from → to) or `overlaps`. Each link joins one objective of each course (`CONCEPT_MAPPING_LINK_SCOPE`), once (`CONCEPT_MAPPING_DUPLICATE_LINK`), to a different course (`CONCEPT_MAPPING_SAME_COURSE`). |
+
+The study instruments are a manifest section rather than an `instrument` tag on each assessment.
+Course Core's studies name items by set (pre, post, transfer, delayed), so the section maps onto a
+host's study definition one to one. The rules that span items (an item in one set only, matched
+pre/post coverage) and the allowed arms live in one place. Items stay reusable across studies
+without editing them, and the assessment contract is unchanged.
+
+A concept-mapping draft is not a mapping. A host shows it to staff who administer both courses and
+applies it only after one of them reviews and saves it. Nothing in a course package can create a
+mapping, move evidence between courses or grant mastery.
+
+The learning-event export has its own schema export, `@course-core/sdk/event-export-schema`
+(`learning-event-export.schema.json`). It is derived at build time from `course.schema.json`, so it
+cannot drift from `validateRecord('learningEventExport', …)`, which also applies the ordering rules.
+
+## Extension points: activities, evaluators and admin sections
+
+A course adds domain behavior through three declared contracts. Core enforces the permissions and
+evidence rules around them; it never runs course-specific code outside them. The examples are
+synthetic.
+
+### Activities
+
+An activity is an interactive unit a lesson block references (`{ type: 'activity', activityId }`).
+Its code ships as an extension (`extensions[]`) with a pinned `integrity` hash. The activity contract
+says where it runs and what it may do:
+
+```ts
+import { defineActivity } from '@course-core/sdk';
+
+export const pendulumLab = defineActivity({
+  id: 'pendulum-sim', version: '1.0.0', title: 'Pendulum simulator', objectiveIds: ['predict-period'],
+  supportedTargets: ['web_desktop', 'web_mobile'],
+  rendererRefs: [{ target: 'web_desktop', rendererId: 'sim-renderer' }, { target: 'web_mobile', rendererId: 'sim-renderer' }],
+  executionAdapter: 'sandboxed_web',
+  capabilityRequirements: [{ capability: 'state.patch', required: true }, { capability: 'observation.emit', required: true }],
+  equivalentFallbacks: [{ target: 'ios_phone', kind: 'text_block', ref: 'length-table', objectiveIds: ['predict-period'] }],
+  offlineBehavior: 'queue_observations',
+  resourceBudget: { timeoutMs: 2000, maxMemoryMb: 64, maxStateBytes: 8192, maxEventBytes: 2048, maxEventsPerMinute: 120 },
+  accessibleSemantics: { keyboard: true, screenReader: true, reducedMotion: true, nonPointerPath: true, textAlternative: 'A table of lengths and periods.' },
+  stateMigration: { stateVersion: 1, strategy: 'none', migratesFrom: [] },
+  layoutInputs: ['effective_window_bounds', 'font_scale'], layouts: { compact: { stack: true }, expanded: { columns: 2 } },
+  evaluatorRef: 'period-evaluator',
+});
+```
+
+- Every course target needs support or an objective-equivalent fallback; native execution needs a
+  reviewed app build. Capabilities are checked against `KNOWN_CAPABILITIES`; host authority
+  (`FORBIDDEN_CAPABILITIES`, such as issuing grades) cannot be requested.
+- An activity emits observations, never evidence. Observations become evidence only through the
+  evaluator named by `evaluatorRef`.
+- State is bounded by `resourceBudget` and carried across versions by `stateMigration`.
+  `platformContract(activity)` returns the nine fields a host needs to place it.
+
+### Evaluators
+
+An evaluator turns learner work into evidence for named item types. It is server-side and its
+method decides who confirms a judgment:
+
+```ts
+import { defineEvaluator } from '@course-core/sdk';
+
+export const explainEvaluator = defineEvaluator({
+  id: 'explain-evaluator', version: '1.0.0', extensionId: 'grader', method: 'rubric_model_assisted',
+  itemTypes: ['teach_back', 'conversation'], rubricIds: ['explain-rubric'], humanConfirmation: 'required',
+  outputs: { uncertainty: true, provenance: true },
+  tests: { fixtureRef: 'fixtures/explain-v1', acceptsValidVariants: true, rejectsMisconceptions: true },
+});
+```
+
+- `method` is `deterministic`, `human` or `rubric_model_assisted`. A model draft never confirms
+  anything alone: model-assisted evaluators that judge gate evidence need `humanConfirmation: 'required'`.
+- `itemTypes` may include `conversation` to judge gate conversations against the listed `rubricIds`;
+  the rubric must require cited learner evidence.
+- `tests` names the evaluator's own fixtures; they must accept valid variants and reject the
+  declared misconceptions. Assessments reference the evaluator by `grading.evaluatorId`.
+
+### Admin sections
+
+An admin section adds course-specific settings to the staff workspace. Settings are typed, bounded
+and audited, and they cannot reach evidence, grading, caps or policy:
+
+```ts
+import { defineAdminSection, adminSettingsSchema, adminSettingDefaults, checkAdminSettingChange } from '@course-core/sdk';
+
+export const labSettings = defineAdminSection({
+  id: 'lab-settings', version: '1.0.0', title: 'Lab settings',
+  requiredPermissions: ['course.read', 'course.settings.write'], learnerDataAccess: 'none', audit: 'all_mutations', rendererRef: 'admin-panel',
+  settings: [
+    { id: 'max-length', label: 'Longest pendulum (m)', scope: 'course', mutationPermission: 'course.settings.write', type: 'number', default: 4, minimum: 1, maximum: 10 },
+    { id: 'units', label: 'Units', scope: 'course', mutationPermission: 'course.settings.write', type: 'enum', default: 'metric', options: ['metric', 'imperial'] },
+  ],
+});
+
+adminSettingsSchema(labSettings);  // a JSON Schema form for the settings
+adminSettingDefaults(labSettings); // { 'max-length': 4, units: 'metric' }
+// Server side, on every change: the actor's permissions decide, not the UI.
+checkAdminSettingChange(labSettings, { settingId: 'units', scope: 'course', value: 'imperial' }, ['course.read', 'course.settings.write']); // []
+```
+
+- `requiredPermissions` gate the section; each setting names the permission that may change it.
+  `learnerDataAccess` declares what learner data the section may read.
+- `rendererRef` names an `admin` surface renderer. Hosts check every change server-side with
+  `checkAdminSettingChange` and audit it.
 
 ## Required episodes and optional branches
 

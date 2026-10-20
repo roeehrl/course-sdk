@@ -1,7 +1,7 @@
 import type { CourseManifest } from './types.js';
 import { validateCourse } from './validate.js';
 import { publicationRefusals } from './publication.js';
-import { isVersionedGate } from './contracts-validate.js';
+import { gateAssessmentIds, isVersionedGate } from './contracts-validate.js';
 import { FORBIDDEN_CAPABILITIES, KNOWN_CAPABILITIES, RECOGNITION_TYPES } from './contract-constants.js';
 
 export interface LintFinding {
@@ -70,5 +70,55 @@ export function lintCourse(input: unknown): LintFinding[] {
     add('info', 'NO_TEACHING_HYPOTHESES', `/objectives/${i}`, 'Critical objectives benefit from declared misconception hypotheses and probes.');
   for (const [i, media] of course.media.entries()) if ((media.type === 'video' || media.type === 'youtube') && media.captions === undefined)
     add('info', 'MEDIA_CAPTIONS_UNDECLARED', `/media/${i}`, 'Declare caption or transcript availability for accessible review.');
+  lint060(course, add);
   return findings;
+}
+
+type Add = (severity: LintFinding['severity'], code: string, path: string, message: string) => void;
+
+/** 0.6 advisories: visuals, browser runs, study instruments, pre-tests and concept-mapping drafts. */
+function lint060(course: CourseManifest, add: Add): void {
+  for (const [i, visual] of course.visuals.entries()) {
+    const uses = visual.layouts.wide !== undefined || (visual.panes?.length ?? 0) > 0;
+    if (uses && visual.requiredFeatures === undefined)
+      add('info', 'UNDECLARED_RENDER_FEATURES', `/visuals/${i}`, 'Declare requiredFeatures (layout_set, panes, ...) so a host can refuse a renderer that lacks them.');
+  }
+  // Course Core offers browser runs only on lesson checks; placement and delayed checks never get one.
+  const heldOut = new Set([...(course.placement?.assessmentIds ?? []), ...(course.retention?.assessmentIds ?? [])]);
+  for (const [i, item] of course.assessments.entries())
+    if ((item.type === 'code' || item.type === 'code_repair') && item.browserExecution === 'python' && heldOut.has(item.id))
+      add('warning', 'BROWSER_RUN_NOT_OFFERED', `/assessments/${i}/browserExecution`, 'Placement and delayed retention checks never offer a browser run; this setting has no effect there.');
+  const items = new Map(course.assessments.map(a => [a.id, a]));
+  const si = course.studyInstruments;
+  if (si) {
+    const objectives = (ids: string[]) => new Set(ids.flatMap(id => items.get(id)?.objectiveIds ?? []));
+    const pre = objectives(si.pre), post = objectives(si.post);
+    if (!si.pre.length || !si.post.length) add('warning', 'STUDY_INSTRUMENTS_INCOMPLETE', '/studyInstruments', 'A study opens only with both a pre-test and a post-test.');
+    else if (pre.size !== post.size || [...pre].some(o => !post.has(o)))
+      add('warning', 'STUDY_INSTRUMENTS_UNMATCHED', '/studyInstruments', `The pre-test covers ${[...pre].sort().join(', ') || 'no objectives'} and the post-test ${[...post].sort().join(', ') || 'no objectives'}; matched sets cover the same objectives.`);
+    const gated = new Set(course.gates.flatMap(g => gateAssessmentIds(g)));
+    for (const set of ['pre', 'post', 'transfer'] as const) for (const [j, id] of (si[set] ?? []).entries()) {
+      if (gated.has(id)) add('warning', 'STUDY_ITEM_GATED', `/studyInstruments/${set}/${j}`, `${id} also counts toward a gate, so learners may meet it during instruction.`);
+      if (set === 'transfer' && items.has(id) && items.get(id)!.role === undefined)
+        add('info', 'STUDY_TRANSFER_ROLE_UNDECLARED', `/studyInstruments/transfer/${j}`, `${id} declares no role; confirm it is a novel transfer task.`);
+    }
+  }
+  const pretest = new Set(si?.pre ?? []);
+  const episodes = new Map(course.chapters.flatMap(c => c.episodes).map(e => [e.id, e]));
+  for (const [i, step] of (course.learningSteps ?? []).entries()) {
+    if (step.kind !== 'pre_test' || !si) continue;
+    const episode = episodes.get(step.episodeId);
+    for (const id of step.blockIds) {
+      const block = episode?.blocks.find(b => b.id === id);
+      if (block?.type === 'assessment' && !pretest.has(block.assessmentId))
+        add('warning', 'PRE_TEST_NOT_INSTRUMENT', `/learningSteps/${i}/blockIds`, `${block.assessmentId} is presented as a pre-test but is not in studyInstruments.pre.`);
+    }
+  }
+  const others = new Map<string, number>();
+  for (const [i, draft] of (course.conceptMappingDrafts ?? []).entries()) {
+    add('info', 'CONCEPT_MAPPING_DRAFT', `/conceptMappingDrafts/${i}`, 'A draft only: a host applies it after staff who administer both courses review and save it.');
+    const before = others.get(draft.otherCourse.id);
+    if (before !== undefined) add('warning', 'CONCEPT_MAPPING_DRAFT_REPEATED', `/conceptMappingDrafts/${i}/otherCourse`, `Draft ${before} already maps ${draft.otherCourse.id}; a host keeps one mapping per course pair.`);
+    else others.set(draft.otherCourse.id, i);
+  }
 }

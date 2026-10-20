@@ -2,7 +2,7 @@ import type { ValidateFunction } from 'ajv';
 import { jsonIssue } from './json.js';
 import { getEpisodeRequirement } from './episode.js';
 import { adaptationAuthoringIssues } from './adaptation-authoring.js';
-import { contractIssues, gateAssessmentIds, gateConversation, gateObjectiveIds, isPortableRelativePath, isVersionedGate } from './contracts-validate.js';
+import { contractIssues, gateAssessmentIds, gateConversation, gateObjectiveIds, isPortableRelativePath, isVersionedGate, standaloneChecks } from './contracts-validate.js';
 import generatedValidator from './generated/course-validator.js';
 import type { CourseManifest, LearningPolicy, ValidationIssue, ValidationResult } from './types.js';
 
@@ -170,6 +170,7 @@ export function validateCourse(input: unknown): ValidationResult {
     refs([visual.rendererId], extensions, `/visuals/${i}/rendererId`);
     const renderer = extensions.get(visual.rendererId);
     if (renderer && visual.platforms.some((p) => !renderer.platforms.includes(p))) report('UNSUPPORTED_PLATFORM', `/visuals/${i}`, 'The visual renderer lacks a declared target.');
+    standaloneChecks.visual(visual, `/visuals/${i}`, report);
     let previous = -1;
     for (const [j, cue] of visual.timeline.cues.entries()) {
       if (cue.atMs < previous || cue.atMs > visual.timeline.durationMs) report('INVALID_TIMELINE', `/visuals/${i}/timeline/cues/${j}`, 'Cues must be ordered and lie within the timeline.');

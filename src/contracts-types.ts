@@ -209,7 +209,8 @@ export interface AdminSection {
   audit: 'all_mutations';
 }
 
-export type LearningStepKind = 'explain' | 'predict' | 'manipulate' | 'solve' | 'explain_back' | 'revisit' | 'review' | 'gate' | 'optional_help';
+/** 0.6 adds `pre_test`: a study pre-test whose answers never count as gate evidence. */
+export type LearningStepKind = 'explain' | 'predict' | 'manipulate' | 'solve' | 'explain_back' | 'revisit' | 'review' | 'gate' | 'optional_help' | 'pre_test';
 export type StepStatus = 'required' | 'optional_help' | 'completed' | 'current' | 'locked' | 'under_review' | 'closed_with_gaps';
 export interface LearningStep {
   id: string;
@@ -309,7 +310,9 @@ export interface RendererDefinition {
   targets: PlatformTarget[];
   features: RenderFeature[];
 }
-export type RenderFeature = 'mask' | 'clip' | 'gradient' | 'blend' | 'morph' | 'shader' | '3d' | 'text_layout' | 'equation' | 'path_draw';
+/** 0.6 adds `symbol`, `spring`, `stagger`, `layout_set` and `panes` (Course Core visuals 0.2/0.3). SDK 0.5 hosts reject them. */
+export type RenderFeature = 'mask' | 'clip' | 'gradient' | 'blend' | 'morph' | 'shader' | '3d' | 'text_layout' | 'equation' | 'path_draw'
+  | 'symbol' | 'spring' | 'stagger' | 'layout_set' | 'panes';
 export interface RendererAdapter {
   id: string;
   version: string;
@@ -324,8 +327,98 @@ export interface Scene {
   id: string;
   version: string;
   semanticNodes: { id: string; label: string; role: 'object' | 'value' | 'relation' | 'annotation' }[];
-  layers: { id: string; kind: 'vector' | 'text' | 'image' | 'equation' | 'group'; semanticNodeIds: string[]; assetRef?: string; decorative: boolean }[];
+  layers: SceneLayer[];
   assets: { id: string; url: string; license?: string; sourceRef?: string }[];
+  /** 0.6 (optional): scene-local clips, masks and symbols, referenced by ID only. */
+  defs?: SceneDefs;
+}
+export interface SceneLayer {
+  id: string;
+  /** 0.6 adds `use`: an instance of a `defs.symbols` entry. */
+  kind: 'vector' | 'text' | 'image' | 'equation' | 'group' | 'use';
+  semanticNodeIds: string[];
+  assetRef?: string;
+  decorative: boolean;
+  /** 0.6: the layer's text alternative. Publication requires one on every equation layer. */
+  label?: string;
+  /** 0.6: a `defs.clips` ID. */
+  clip?: string;
+  /** 0.6: a `defs.masks` ID (luminance). */
+  mask?: string;
+  /** 0.6: the `defs.symbols` ID a `use` layer instantiates; only `use` layers name one. */
+  symbol?: string;
+}
+/** 0.6: reusable scene-local definitions. Each lists the scene layers that draw it. */
+export interface SceneDefs {
+  clips?: { id: string; layerIds: string[] }[];
+  masks?: { id: string; layerIds: string[] }[];
+  symbols?: { id: string; width: number; height: number; layerIds: string[] }[];
+}
+
+/** 0.6: the two-layout form (compact/expanded) or, with all three optional entries, the four-layout set.
+ * `expanded` stays the fallback for renderers without the `layout_set` feature. */
+export interface VisualLayouts {
+  compact: Record<string, Json>;
+  expanded: Record<string, Json>;
+  tabletPortrait?: Record<string, Json>;
+  tabletLandscape?: Record<string, Json>;
+  wide?: Record<string, Json>;
+}
+/** 0.6: binds a learner input to one key of the visual's `state` (see `bindData`). */
+export interface DataBinding {
+  state: string;
+  /** A numeric range; the state value must be a number. Exclusive with `values`. */
+  range?: { min: number; max: number; step?: number };
+  /** The discrete values the input can select. Exclusive with `range`. */
+  values?: Json[];
+}
+export type InteractionKind = 'tap' | 'drag' | 'scrub' | 'pinch' | 'pan' | 'hover' | 'keyboard' | 'stylus';
+/** 0.6: a learner input on a visual, bound to visual state. Pointer-only kinds need an accessible alternative. */
+export interface Interaction {
+  id: string;
+  kind: InteractionKind;
+  /** The semantic anchor (node or layer ID) the input acts on. */
+  target: string;
+  label: string;
+  binding: DataBinding;
+  alternative?: { kind: 'keyboard' | 'control'; keys?: string[] };
+}
+/** 0.6: an HTML pane kept in step with the visual (same state, time and computation).
+ * Expressions (`rows` cells, `highlightRow`, `highlightLine`, `values[].value`) are renderer data. */
+export type VisualPane =
+  | { id: string; kind: 'table'; title: string; columns: string[]; rows: Json[][]; highlightRow?: Json }
+  | { id: string; kind: 'code'; title: string; language: string; lines: string[]; highlightLine?: Json }
+  | { id: string; kind: 'formula'; title: string; tex: string; label: string; values?: { symbol: string; value: Json }[] };
+
+/** 0.6: what a study arm changes, as Course Core defines it. */
+export type StudyArmBehaviour = 'fixed' | 'chat_only' | 'supervisor';
+/**
+ * 0.6: evaluation-study instrument sets over the course's own assessment items, and the study arms
+ * the author allows. Hosts build study definitions from them; consent, allocation and export stay host-owned.
+ */
+export interface StudyInstruments {
+  pre: string[];
+  post: string[];
+  transfer?: string[];
+  /** Held-out retention items (`retention.assessmentIds`) only. */
+  delayed?: string[];
+  /** When present, a host offers only these arms for studies of this course. */
+  allowedArms?: { id: string; label: string; behaviour: StudyArmBehaviour }[];
+}
+
+export type ConceptRelation = 'equivalent' | 'prerequisite_of' | 'overlaps';
+/** 0.6: one side of a concept-mapping link: an objective of this course or of the named other course. */
+export interface ConceptMappingEnd { course: 'this' | 'other'; objectiveId: string }
+/**
+ * 0.6 (draft only): a proposed mapping between this course's objectives and another course's.
+ * Hosts apply it only after staff review; it never moves evidence or grants mastery.
+ */
+export interface ConceptMappingDraft {
+  id: string;
+  status: 'draft';
+  otherCourse: { id: string; version?: string };
+  note?: string;
+  links: { relation: ConceptRelation; from: ConceptMappingEnd; to: ConceptMappingEnd }[];
 }
 export interface Timeline {
   id: string;

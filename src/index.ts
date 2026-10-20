@@ -18,6 +18,8 @@ export {
   defineAdminSection, defineLearningStep, defineProgressionGate, defineMediaResource, defineStoryboard, defineResearchTask, definePlacementPolicy,
   defineRenderer, defineEvaluator, defineAgentStrategy, definePlatformAdapter, defineDebugInspector, defineScene, defineTimeline,
   defineRendererAdapter, defineTeachingHypothesis, defineDiagnosticProbe, defineStage,
+  defineCourse, defineVisualExperience, defineExtension, defineInteraction, defineVisualPane, defineStudyInstruments, defineConceptMappingDraft,
+  bindData, responsiveVariant,
 } from './define.js';
 export type { ContractKind, ContractKinds } from './define.js';
 export { RECORD_KINDS, validateRecord } from './records.js';
@@ -39,18 +41,3 @@ export {
   MAX_EVENT_BYTES, MAX_STATE_BYTES, windowClass, targetsForPlatforms,
 } from './contract-constants.js';
 
-import type { CourseManifest, VisualExperience, ExtensionManifest } from './types.js';
-
-/**
- * Typed authoring helpers kept from 0.4: they copy without validating, so existing
- * callers keep their behavior. Use validateCourse or validateContract before publishing.
- */
-export function defineCourse(course: CourseManifest): CourseManifest {
-  return structuredClone(course);
-}
-export function defineVisualExperience(visual: VisualExperience): VisualExperience {
-  return structuredClone(visual);
-}
-export function defineExtension(extension: ExtensionManifest): ExtensionManifest {
-  return structuredClone(extension);
-}

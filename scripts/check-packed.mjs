@@ -18,7 +18,7 @@ const requiredFiles = [
   'package.json', 'README.md', 'LICENSE', 'NOTICE', 'dist/index.js', 'dist/index.d.ts',
   'dist/compiler.js', 'dist/compiler.d.ts', 'dist/cli.js', 'dist/course.schema.json',
   'dist/adaptation.js', 'dist/adaptation.d.ts', 'dist/adaptation.schema.json',
-  'dist/course-package.js', 'dist/course-package.d.ts', 'dist/course-package.schema.json', 'dist/tar.js',
+  'dist/course-package.js', 'dist/course-package.d.ts', 'dist/course-package.schema.json', 'dist/learning-event-export.schema.json', 'dist/tar.js',
   'dist/numerical-recipe.js', 'dist/validator-dependencies.json',
   'dist/research.js', 'dist/research.d.ts', 'dist/research-types.d.ts', 'dist/generated/research-selection-validator.js',
   'dist/episode.js', 'dist/episode.d.ts',
@@ -106,7 +106,7 @@ function auditManifest(manifest, expectedVersion) {
     'Expected a public Apache-2.0 ESM package');
   check(manifest.engines?.node === '>=24', 'Expected engines.node >=24; update the CI matrix if this changes');
   assert.deepEqual([...(manifest.files ?? [])].sort(), ['LICENSE', 'NOTICE', 'README.md', 'dist'], 'Keep the package files allowlist explicit');
-  assert.deepEqual(Object.keys(manifest.exports ?? {}).sort(), ['.', './adaptation-schema', './compiler', './package-schema', './schema'], 'Unexpected public export surface');
+  assert.deepEqual(Object.keys(manifest.exports ?? {}).sort(), ['.', './adaptation-schema', './compiler', './event-export-schema', './package-schema', './schema'], 'Unexpected public export surface');
   for (const [key, stem] of [['.', 'index'], ['./compiler', 'compiler']]) {
     assert.deepEqual(manifest.exports[key], { types: `./dist/${stem}.d.ts`, import: `./dist/${stem}.js` }, `Unexpected ${key} export`);
     check(Object.keys(manifest.exports[key])[0] === 'types', `${key}: put the types condition first`);
@@ -114,6 +114,7 @@ function auditManifest(manifest, expectedVersion) {
   check(manifest.exports['./schema'] === './dist/course.schema.json', 'Missing standalone schema export');
   check(manifest.exports['./adaptation-schema'] === './dist/adaptation.schema.json', 'Missing standalone adaptation schema export');
   check(manifest.exports['./package-schema'] === './dist/course-package.schema.json', 'Missing standalone course-package schema export');
+  check(manifest.exports['./event-export-schema'] === './dist/learning-event-export.schema.json', 'Missing standalone event-export schema export');
   assert.deepEqual(manifest.bin, { course: './dist/cli.js' }, 'Expected the course CLI');
   check(!manifest.workspaces && !manifest.bundleDependencies && !manifest.bundledDependencies && !manifest.overrides,
     'Workspaces, bundled dependencies, and overrides need an explicit package policy review');
@@ -186,7 +187,7 @@ async function auditSource(expectedVersion) {
 }
 
 function allowedFile(name) {
-  if (['package.json', 'README.md', 'LICENSE', 'NOTICE', 'dist/course.schema.json', 'dist/adaptation.schema.json', 'dist/course-package.schema.json', 'dist/validator-dependencies.json'].includes(name)) return true;
+  if (['package.json', 'README.md', 'LICENSE', 'NOTICE', 'dist/course.schema.json', 'dist/adaptation.schema.json', 'dist/course-package.schema.json', 'dist/learning-event-export.schema.json', 'dist/validator-dependencies.json'].includes(name)) return true;
   if (!/^dist\/(?:[a-zA-Z0-9_-]+\/)*[a-zA-Z0-9_-]+\.(?:js|d\.ts)$/.test(name)) return false;
   return !/(?:^|\/)(?:tests?|fixtures?|examples?|data|datasets?|coverage|node_modules|src)(?:[/._-]|$)/i.test(name);
 }
@@ -262,6 +263,7 @@ function auditPackage(entries, manifest, report) {
   JSON.parse(entries.get('dist/course.schema.json').bytes.toString('utf8'));
   JSON.parse(entries.get('dist/adaptation.schema.json').bytes.toString('utf8'));
   JSON.parse(entries.get('dist/course-package.schema.json').bytes.toString('utf8'));
+  check(JSON.parse(entries.get('dist/learning-event-export.schema.json').bytes.toString('utf8')).$ref === '#/$defs/learningEventExport', 'The event-export schema must describe learningEventExport');
   const notice = entries.get('NOTICE').bytes.toString('utf8');
   const inventory = JSON.parse(entries.get('dist/validator-dependencies.json').bytes.toString('utf8'));
   const bundledNames = new Set();
@@ -395,6 +397,8 @@ import { readFileSync } from 'node:fs';
 import { compileCourse, verifyCompiledCourse, compileCourseAdaptation, verifyCompiledCourseAdaptation } from '@course-core/sdk/compiler';
 import schema from '@course-core/sdk/schema' with { type: 'json' };
 import adaptationSchema from '@course-core/sdk/adaptation-schema' with { type: 'json' };
+import eventExportSchema from '@course-core/sdk/event-export-schema' with { type: 'json' };
+assert.equal(eventExportSchema.$ref, '#/$defs/learningEventExport');
 assert.equal(typeof compileCourse, 'function');
 assert.equal(typeof verifyCompiledCourse, 'function');
 assert.equal(typeof schema, 'object');
