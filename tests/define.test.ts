@@ -24,6 +24,8 @@ const samples: Record<ContractKind, unknown> = {
   visualPane: { id: 'periods', kind: 'table', title: 'Periods', columns: ['Length (m)', 'Period (s)'], rows: [[1, 2], [4, { state: 'period' }]], highlightRow: { state: 'row' } },
   studyInstruments: { pre: ['length-choice'], post: ['length-trace'], transfer: ['length-teach'], delayed: ['later-prediction'],
     allowedArms: [{ id: 'fixed', label: 'Fixed path', behaviour: 'fixed' }, { id: 'full', label: 'Full course', behaviour: 'supervisor' }] },
+  visualChecks: { invariants: [{ id: 'period-matches', description: 'The table period equals the formula value.', assert: { op: 'eq', args: [{ state: 'length' }, 1] }, times: [0, 500] }],
+    goldens: [{ atMs: 0, layout: 'compact', digest: `sha256-${'0'.repeat(64)}` }] },
   conceptMappingDraft: { id: 'to-waves', status: 'draft', otherCourse: { id: 'waves-intro', version: '1.0.0' },
     links: [{ relation: 'prerequisite_of', from: { course: 'this', objectiveId: 'measure-period' }, to: { course: 'other', objectiveId: 'wave-period' } }] },
 };
@@ -55,6 +57,7 @@ const semanticBreaks: Partial<Record<ContractKind, [(v: any) => void, string]>> 
   visualPane: [v => { v.rows.push([7]); }, 'INVALID_PANE'],
   studyInstruments: [v => { v.post.push('length-choice'); }, 'STUDY_ITEM_IN_TWO_SETS'],
   conceptMappingDraft: [v => { v.links[0].to.course = 'this'; }, 'CONCEPT_MAPPING_LINK_SCOPE'],
+  visualChecks: [v => { v.goldens.push({ ...v.goldens[0] }); }, 'DUPLICATE_ID'],
 };
 /** The authoring helper of each kind: define<Kind>, or the two named helpers. */
 function helperFor(kind: string): ((v: any) => unknown) | undefined {
@@ -69,7 +72,7 @@ describe('validating define* helpers', () => {
       'defineLearningPolicy', 'defineAdminSection', 'defineLearningStep', 'defineProgressionGate', 'defineMediaResource', 'defineStoryboard', 'defineResearchTask',
       'definePlacementPolicy', 'defineExtension', 'defineRenderer', 'defineEvaluator', 'defineAgentStrategy', 'definePlatformAdapter', 'defineDebugInspector',
       'defineVisualExperience', 'defineScene', 'defineTimeline', 'defineRendererAdapter', 'bindData', 'responsiveVariant', 'defineInteraction', 'defineVisualPane',
-      'defineStudyInstruments', 'defineConceptMappingDraft'];
+      'defineStudyInstruments', 'defineConceptMappingDraft', 'defineVisualChecks'];
     for (const name of design) expect(typeof (sdk as Record<string, unknown>)[name], name).toBe('function');
   });
   it.each(CONTRACT_KINDS)('%s: accepts a valid contract and returns a detached copy', (kind) => {

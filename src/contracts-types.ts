@@ -310,9 +310,10 @@ export interface RendererDefinition {
   targets: PlatformTarget[];
   features: RenderFeature[];
 }
-/** 0.6 adds `symbol`, `spring`, `stagger`, `layout_set` and `panes` (Course Core visuals 0.2/0.3). SDK 0.5 hosts reject them. */
+/** 0.6 adds `symbol`, `spring`, `stagger`, `layout_set` and `panes` (Course Core visuals 0.2/0.3) and `invariants` and `goldens`
+ * (visuals 0.4). SDK 0.5 hosts reject them. */
 export type RenderFeature = 'mask' | 'clip' | 'gradient' | 'blend' | 'morph' | 'shader' | '3d' | 'text_layout' | 'equation' | 'path_draw'
-  | 'symbol' | 'spring' | 'stagger' | 'layout_set' | 'panes';
+  | 'symbol' | 'spring' | 'stagger' | 'layout_set' | 'panes' | 'invariants' | 'goldens';
 export interface RendererAdapter {
   id: string;
   version: string;
@@ -389,6 +390,35 @@ export type VisualPane =
   | { id: string; kind: 'table'; title: string; columns: string[]; rows: Json[][]; highlightRow?: Json }
   | { id: string; kind: 'code'; title: string; language: string; lines: string[]; highlightLine?: Json }
   | { id: string; kind: 'formula'; title: string; tex: string; label: string; values?: { symbol: string; value: Json }[] };
+
+/** 0.6: a visual layout mode: the two-layout form (compact/expanded) or the four-layout set. */
+export type VisualLayoutMode = 'compact' | 'expanded' | 'tabletPortrait' | 'tabletLandscape' | 'wide';
+/**
+ * 0.6: a data-only assertion a host checks at publication, at every layout the visual has, at its
+ * `times` (default: 0, every cue and the duration) and for the initial state plus each `states` override.
+ * `assert` is a renderer probe expression (Course Core visuals 0.4 `Probe`); the SDK checks the pane and
+ * state names it uses.
+ */
+export interface VisualInvariant {
+  id: string;
+  description: string;
+  assert: Json;
+  times?: number[];
+  /** State overrides (state key to number, string or boolean) checked besides the initial state. */
+  states?: Record<string, Json>[];
+}
+/** 0.6: the expected digest of the frame (initial state) at a time and layout; see VISUAL_CHECK_LIMITS. */
+export interface VisualGolden {
+  atMs: number;
+  layout: VisualLayoutMode;
+  /** `sha256-` and 64 lowercase hex digits over the frame with numbers normalized by normalizeDigestNumbers. */
+  digest: string;
+}
+/** 0.6: a visual's publish-time checks (see defineVisualChecks); spread into a VisualExperience. */
+export interface VisualChecks {
+  invariants?: VisualInvariant[];
+  goldens?: VisualGolden[];
+}
 
 /** 0.6: what a study arm changes, as Course Core defines it. */
 export type StudyArmBehaviour = 'fixed' | 'chat_only' | 'supervisor';

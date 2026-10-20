@@ -79,9 +79,9 @@ type Add = (severity: LintFinding['severity'], code: string, path: string, messa
 /** 0.6 advisories: visuals, browser runs, study instruments, pre-tests and concept-mapping drafts. */
 function lint060(course: CourseManifest, add: Add): void {
   for (const [i, visual] of course.visuals.entries()) {
-    const uses = visual.layouts.wide !== undefined || (visual.panes?.length ?? 0) > 0;
+    const uses = visual.layouts.wide !== undefined || [visual.panes, visual.invariants, visual.goldens].some(list => (list?.length ?? 0) > 0);
     if (uses && visual.requiredFeatures === undefined)
-      add('info', 'UNDECLARED_RENDER_FEATURES', `/visuals/${i}`, 'Declare requiredFeatures (layout_set, panes, ...) so a host can refuse a renderer that lacks them.');
+      add('info', 'UNDECLARED_RENDER_FEATURES', `/visuals/${i}`, 'Declare requiredFeatures (layout_set, panes, invariants, goldens, ...) so a host can refuse a renderer that lacks them.');
   }
   // Course Core offers browser runs only on lesson checks; placement and delayed checks never get one.
   const heldOut = new Set([...(course.placement?.assessmentIds ?? []), ...(course.retention?.assessmentIds ?? [])]);

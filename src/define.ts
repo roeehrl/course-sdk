@@ -8,6 +8,7 @@ import type {
   ActivityDefinition, AdaptationPolicy, AdminSection, AgentStrategy, Concept, CourseStage, DebugInspector, DiagnosticProbe, EvaluatorDefinition,
   LearningStep, PlatformAdapter, RendererAdapter, RendererDefinition, ResearchTask, Rubric, Scene, Storyboard, TeachingHypothesisTemplate,
   Timeline, ToolDefinition, VersionedProgressionGate, Interaction, DataBinding, VisualLayouts, VisualPane, StudyInstruments, ConceptMappingDraft,
+  VisualChecks,
 } from './contracts-types.js';
 
 export interface ContractKinds {
@@ -40,6 +41,7 @@ export interface ContractKinds {
   dataBinding: DataBinding;
   visualLayouts: VisualLayouts;
   visualPane: VisualPane;
+  visualChecks: VisualChecks;
   studyInstruments: StudyInstruments;
   conceptMappingDraft: ConceptMappingDraft;
   teachingHypothesis: TeachingHypothesisTemplate;
@@ -51,7 +53,7 @@ export const CONTRACT_KINDS = Object.freeze(['concept', 'episode', 'assessment',
   'adminSection', 'learningStep', 'progressionGate', 'mediaResource', 'storyboard', 'researchTask', 'placementPolicy', 'extension', 'renderer',
   'evaluator', 'agentStrategy', 'platformAdapter', 'debugInspector', 'visualExperience', 'scene', 'timeline', 'rendererAdapter',
   'teachingHypothesis', 'diagnosticProbe', 'stage', 'interaction', 'dataBinding', 'visualLayouts', 'visualPane', 'studyInstruments',
-  'conceptMappingDraft'] as const satisfies readonly ContractKind[]);
+  'conceptMappingDraft', 'visualChecks'] as const satisfies readonly ContractKind[]);
 
 export class ContractValidationError extends Error {
   constructor(public readonly contract: string, public readonly issues: ValidationIssue[]) {
@@ -70,7 +72,7 @@ const semantic: Partial<Record<ContractKind, Check>> = {
   diagnosticProbe: standaloneChecks.probe, extension: standaloneChecks.extension,
   visualExperience: standaloneChecks.visual, interaction: standaloneChecks.interaction, dataBinding: standaloneChecks.dataBinding,
   visualLayouts: standaloneChecks.visualLayouts, visualPane: standaloneChecks.visualPane, studyInstruments: standaloneChecks.studyInstruments,
-  conceptMappingDraft: standaloneChecks.conceptMappingDraft,
+  conceptMappingDraft: standaloneChecks.conceptMappingDraft, visualChecks: standaloneChecks.visualChecks,
   mediaResource: ((value: MediaResource, path, report) => standaloneChecks.mediaSegment(value.segment, `${path}/segment`, report)) as Check,
   learningPolicy: ((value: LearningPolicy, path, report) => { for (const i of learningPolicyIssues(value, path)) report(i.code, i.path, i.message); }) as Check,
 };
@@ -145,6 +147,12 @@ export const defineDiagnosticProbe = (value: DiagnosticProbe) => define('diagnos
 export const defineStage = (value: CourseStage) => define('stage', value);
 export const defineInteraction = (value: Interaction) => define('interaction', value);
 export const defineVisualPane = (value: VisualPane) => define('visualPane', value);
+/**
+ * A visual's publish-time checks (invariants and golden frame digests), validated on their own.
+ * Spread the result into a VisualExperience; validateCourse then checks it against the visual's
+ * state, panes, timeline and layouts and the VISUAL_CHECK_LIMITS frame budget.
+ */
+export const defineVisualChecks = (value: VisualChecks) => define('visualChecks', value);
 export const defineStudyInstruments = (value: StudyInstruments) => define('studyInstruments', value);
 export const defineConceptMappingDraft = (value: ConceptMappingDraft) => define('conceptMappingDraft', value);
 

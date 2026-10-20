@@ -15,7 +15,7 @@ const key = name => (/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(name) ? name : JSON.strin
 const literal = value => JSON.stringify(value);
 const SUPPORTED = new Set(['type', '$ref', 'properties', 'required', 'additionalProperties', 'unevaluatedProperties', 'enum', 'const', 'oneOf', 'items',
   // Validation-only keywords with no TypeScript counterpart.
-  'minItems', 'maxItems', 'uniqueItems', 'minimum', 'maximum', 'exclusiveMinimum', 'minLength', 'maxLength', 'pattern', 'format', 'minProperties', 'default',
+  'minItems', 'maxItems', 'uniqueItems', 'minimum', 'maximum', 'exclusiveMinimum', 'minLength', 'maxLength', 'pattern', 'format', 'minProperties', 'maxProperties', 'default',
   'description', 'title', '$schema', '$id', '$defs']);
 
 function expression(node, path, inheritedRequired = new Set()) {

@@ -81,3 +81,20 @@ export const PLATFORM_CONTRACT = Object.freeze({
 export function platformContract(activity: ActivityDefinition): PlatformContract {
   return structuredClone(Object.fromEntries(REQUIRED_ACTIVITY_FIELDS.map(field => [field, activity[field]]))) as PlatformContract;
 }
+
+/**
+ * 0.6: limits of a visual's publish-time checks, as Course Core visuals 0.4 applies them. A visual's
+ * invariants may evaluate at most `checkFrames` frames (layouts x (1 + distinct state overrides) x
+ * distinct times). Golden digests normalize numbers to `significantDigits` significant digits, and
+ * numbers whose magnitude is below `zeroBelow` to 0.
+ */
+export const VISUAL_CHECK_LIMITS = Object.freeze({ checkFrames: 512, significantDigits: 10, zeroBelow: 1e-9, invariants: 32, goldens: 32 } as const);
+
+/**
+ * The number normalization golden digests use: every number in a JSON text becomes its value to
+ * 10 significant digits (|x| < 1e-9 becomes 0), so platforms agree. Matches Course Core visuals 0.4.
+ */
+export function normalizeDigestNumbers(text: string): string {
+  return text.replace(/-?\d+(?:\.\d+)?(?:e[-+]?\d+)?/g, (n) =>
+    Math.abs(Number(n)) < VISUAL_CHECK_LIMITS.zeroBelow ? '0' : String(Number(Number(n).toPrecision(VISUAL_CHECK_LIMITS.significantDigits))));
+}

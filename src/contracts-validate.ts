@@ -1,13 +1,14 @@
-import type { Assessment, CourseManifest, Episode, ExtensionManifest, LearningPolicy, ProgressionGate, ValidationIssue, VisualExperience } from './types.js';
+import type { Assessment, CourseManifest, Episode, ExtensionManifest, Json, LearningPolicy, ProgressionGate, ValidationIssue, VisualExperience } from './types.js';
 import type {
   ActivityDefinition, AdaptationPolicy, AdminSection, AgentStrategy, DebugInspector, DiagnosticProbe, EvaluatorDefinition,
   PlatformAdapter, RendererAdapter, RendererDefinition, Rubric, Scene, Storyboard, TeachingHypothesisTemplate, Timeline, ToolDefinition,
   VersionedProgressionGate, LearningStep, StateMigration, Interaction, DataBinding, VisualLayouts, VisualPane, StudyInstruments, ConceptMappingDraft,
-  RenderFeature,
+  RenderFeature, VisualChecks,
 } from './contracts-types.js';
 import {
   ADMIN_WRITE_PERMISSIONS, DECLARATIVE_CAPABILITIES, DETERMINISTIC_TYPES, FORBIDDEN_CAPABILITIES, KNOWN_CAPABILITIES, NATIVE_TARGETS,
   PHONE_TARGETS, PRACTICAL_TYPES, RECOGNITION_TYPES, RESERVED_AUTHORITY_WORDS, RUBRIC_PRODUCTION_TYPES, platformOfTarget, targetsForPlatforms,
+  VISUAL_CHECK_LIMITS,
 } from './contract-constants.js';
 
 type Report = (code: string, path: string, message: string) => void;
@@ -120,6 +121,60 @@ function sceneDefsChecks(scene: Scene, path: string, report: Report): void {
       if (seen.has(node)) continue;
       seen.add(node); stack.push(...(edges.get(node) ?? []));
     }
+  }
+}
+
+/** Probe names in an invariant's expression: state keys and pane references (Course Core visuals 0.4 `Probe`). */
+function probeRefs(node: Json, found: { state: string[]; cell: { pane: string; column: number }[]; value: { pane: string; symbol: string }[]; highlight: string[] }): void {
+  if (Array.isArray(node)) { for (const item of node) probeRefs(item, found); return; }
+  if (node === null || typeof node !== 'object') return;
+  if (typeof node.state === 'string') found.state.push(node.state);
+  const cell = node.cell;
+  if (cell && typeof cell === 'object' && !Array.isArray(cell) && typeof cell.pane === 'string' && typeof cell.column === 'number') found.cell.push({ pane: cell.pane, column: cell.column });
+  const value = node.value;
+  if (value && typeof value === 'object' && !Array.isArray(value) && typeof value.pane === 'string' && typeof value.symbol === 'string') found.value.push({ pane: value.pane, symbol: value.symbol });
+  if (typeof node.highlight === 'string') found.highlight.push(node.highlight);
+  for (const child of Object.values(node)) probeRefs(child, found);
+}
+
+/** Checks of a visual's invariants and goldens against its own state, panes, timeline and layouts. */
+function visualCheckContext(visual: VisualExperience, path: string, report: Report): void {
+  const duration = visual.timeline.durationMs;
+  const panes = new Map((visual.panes ?? []).map(p => [p.id, p]));
+  const times = new Set<number>(), states = new Set<string>();
+  const defaults = [0, ...visual.timeline.cues.map(c => c.atMs), duration];
+  for (const [i, invariant] of (visual.invariants ?? []).entries()) {
+    const ip = `${path}/invariants/${i}`;
+    for (const [j, at] of (invariant.times ?? []).entries())
+      if (at > duration) report('INVALID_TIMELINE', `${ip}/times/${j}`, 'Invariant times lie within the timeline.');
+    for (const at of invariant.times ?? defaults) times.add(at);
+    for (const [j, overrides] of (invariant.states ?? []).entries()) {
+      for (const key of Object.keys(overrides))
+        if (!Object.hasOwn(visual.state, key)) report('MISSING_REFERENCE', `${ip}/states/${j}`, `The visual declares no state ${key}.`);
+      states.add(JSON.stringify(overrides));
+    }
+    const found = { state: [] as string[], cell: [] as { pane: string; column: number }[], value: [] as { pane: string; symbol: string }[], highlight: [] as string[] };
+    probeRefs(invariant.assert, found);
+    for (const key of found.state) if (!Object.hasOwn(visual.state, key)) report('MISSING_REFERENCE', `${ip}/assert`, `The invariant reads undeclared state ${key}.`);
+    for (const ref of found.cell) {
+      const pane = panes.get(ref.pane);
+      if (pane?.kind !== 'table' || ref.column >= pane.columns.length) report('MISSING_REFERENCE', `${ip}/assert`, `The invariant reads an unknown table cell in ${ref.pane}.`);
+    }
+    for (const ref of found.value) {
+      const pane = panes.get(ref.pane);
+      if (pane?.kind !== 'formula' || !pane.values?.some(v => v.symbol === ref.symbol)) report('MISSING_REFERENCE', `${ip}/assert`, `The invariant reads an unknown formula value ${ref.symbol}.`);
+    }
+    for (const id of found.highlight) {
+      const pane = panes.get(id);
+      if (!pane || pane.kind === 'formula') report('MISSING_REFERENCE', `${ip}/assert`, `The invariant reads an unknown highlight ${id}.`);
+    }
+  }
+  const modes: string[] = hasLayoutSet(visual.layouts) ? ['compact', 'tabletPortrait', 'tabletLandscape', 'wide'] : ['compact', 'expanded'];
+  if (modes.length * (1 + states.size) * times.size > VISUAL_CHECK_LIMITS.checkFrames)
+    report('TOO_MANY_CHECK_FRAMES', `${path}/invariants`, `Invariants may check at most ${VISUAL_CHECK_LIMITS.checkFrames} frames (layouts x states x times).`);
+  for (const [i, golden] of (visual.goldens ?? []).entries()) {
+    if (!modes.includes(golden.layout)) report('INVALID_GOLDEN', `${path}/goldens/${i}/layout`, `${golden.layout} is not a layout of this visual.`);
+    if (golden.atMs > duration) report('INVALID_TIMELINE', `${path}/goldens/${i}/atMs`, 'Golden times lie within the timeline.');
   }
 }
 
@@ -295,6 +350,19 @@ export const standaloneChecks = {
       };
       needs('layout_set', hasLayoutSet(visual.layouts), 'The four-layout set');
       needs('panes', (visual.panes?.length ?? 0) > 0, 'Synchronized panes');
+      needs('invariants', (visual.invariants?.length ?? 0) > 0, 'Publish-time invariants');
+      needs('goldens', (visual.goldens?.length ?? 0) > 0, 'Golden frame digests');
+    }
+    standaloneChecks.visualChecks(visual, path, report);
+    visualCheckContext(visual, path, report);
+  },
+  visualChecks(checks: VisualChecks, path: string, report: Report) {
+    duplicates((checks.invariants ?? []).map(x => x.id), `${path}/invariants`, report, 'invariant');
+    const seen = new Set<string>();
+    for (const [i, golden] of (checks.goldens ?? []).entries()) {
+      const key = `${golden.layout}@${golden.atMs}`;
+      if (seen.has(key)) report('DUPLICATE_ID', `${path}/goldens/${i}`, `Duplicate golden ${key}.`);
+      seen.add(key);
     }
   },
   visualLayouts(layouts: VisualLayouts, path: string, report: Report) {
