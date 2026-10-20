@@ -10,7 +10,7 @@ const root = new URL('../', import.meta.url);
 const course = JSON.parse(await readFile(new URL('src/course.schema.json', root), 'utf8'));
 const adaptation = JSON.parse(await readFile(new URL('src/adaptation.schema.json', root), 'utf8'));
 const ajv = new Ajv2020({
-  allErrors: true, strict: true, strictRequired: false, ownProperties: true,
+  allErrors: true, strict: true, strictRequired: false, ownProperties: true, inlineRefs: false,
   code: { source: true, formats: _`require("ajv-formats/dist/formats").fullFormats` },
 });
 ajv.addFormat('date-time', fullFormats['date-time']);

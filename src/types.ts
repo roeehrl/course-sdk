@@ -2,7 +2,7 @@ import type { AdaptationAuthoring } from './adaptation-types.js';
 import type { ResearchAuthoring } from './research-types.js';
 import type {
   AssessmentRole, ConceptMappingDraft, ConfidenceCapture, ContractTest, CourseContracts0_5, Interaction, RenderFeature, StateMigration, StudyInstruments,
-  VersionedProgressionGate, VisualLayouts, VisualPane,
+  VersionedProgressionGate, VisualGolden, VisualInvariant, VisualLayouts, VisualPane,
 } from './contracts-types.js';
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 export type Platform = 'web' | 'ios' | 'android';
@@ -194,6 +194,10 @@ export interface VisualExperience {
   interactions?: Interaction[];
   /** 0.6 (optional): synchronized table, code and formula panes. */
   panes?: VisualPane[];
+  /** 0.6 (optional): assertions a host checks at publication (render feature `invariants`). */
+  invariants?: VisualInvariant[];
+  /** 0.6 (optional): expected frame digests a host checks at publication (render feature `goldens`). */
+  goldens?: VisualGolden[];
 }
 
 export interface MediaResource {

@@ -1557,7 +1557,7 @@
         },
         "requiredFeatures": {
           "type": "array",
-          "maxItems": 15,
+          "maxItems": 17,
           "items": {
             "$ref": "#/$defs/renderFeature"
           },
@@ -1576,6 +1576,22 @@
           "maxItems": 8,
           "items": {
             "$ref": "#/$defs/visualPane"
+          }
+        },
+        "invariants": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": {
+            "$ref": "#/$defs/visualInvariant"
+          }
+        },
+        "goldens": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": {
+            "$ref": "#/$defs/visualGolden"
           }
         }
       }
@@ -4210,7 +4226,7 @@
         },
         "features": {
           "type": "array",
-          "maxItems": 15,
+          "maxItems": 17,
           "items": {
             "$ref": "#/$defs/renderFeature"
           },
@@ -4257,7 +4273,7 @@
         },
         "supportedFeatures": {
           "type": "array",
-          "maxItems": 15,
+          "maxItems": 17,
           "items": {
             "$ref": "#/$defs/renderFeature"
           },
@@ -4265,7 +4281,7 @@
         },
         "fallbacks": {
           "type": "array",
-          "maxItems": 15,
+          "maxItems": 17,
           "items": {
             "type": "object",
             "additionalProperties": false,
@@ -7538,7 +7554,9 @@
         "spring",
         "stagger",
         "layout_set",
-        "panes"
+        "panes",
+        "invariants",
+        "goldens"
       ]
     },
     "visualLayouts": {
@@ -8043,6 +8061,110 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "visualInvariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "description",
+        "assert"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 400
+        },
+        "assert": {},
+        "times": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100000
+          }
+        },
+        "states": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "maxProperties": 64,
+            "additionalProperties": {
+              "oneOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string",
+                  "maxLength": 1000
+                },
+                {
+                  "type": "boolean"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "visualGolden": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "atMs",
+        "layout",
+        "digest"
+      ],
+      "properties": {
+        "atMs": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100000
+        },
+        "layout": {
+          "enum": [
+            "compact",
+            "expanded",
+            "tabletPortrait",
+            "tabletLandscape",
+            "wide"
+          ]
+        },
+        "digest": {
+          "type": "string",
+          "pattern": "^sha256-[0-9a-f]{64}$"
+        }
+      }
+    },
+    "visualChecks": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "invariants": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": {
+            "$ref": "#/$defs/visualInvariant"
+          }
+        },
+        "goldens": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": {
+            "$ref": "#/$defs/visualGolden"
           }
         }
       }

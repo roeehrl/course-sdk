@@ -18,7 +18,7 @@ export {
   defineAdminSection, defineLearningStep, defineProgressionGate, defineMediaResource, defineStoryboard, defineResearchTask, definePlacementPolicy,
   defineRenderer, defineEvaluator, defineAgentStrategy, definePlatformAdapter, defineDebugInspector, defineScene, defineTimeline,
   defineRendererAdapter, defineTeachingHypothesis, defineDiagnosticProbe, defineStage,
-  defineCourse, defineVisualExperience, defineExtension, defineInteraction, defineVisualPane, defineStudyInstruments, defineConceptMappingDraft,
+  defineCourse, defineVisualExperience, defineExtension, defineInteraction, defineVisualPane, defineVisualChecks, defineStudyInstruments, defineConceptMappingDraft,
   bindData, responsiveVariant,
 } from './define.js';
 export type { ContractKind, ContractKinds } from './define.js';
@@ -38,6 +38,6 @@ export type { PlatformContract } from './contract-constants.js';
 export {
   REQUIRED_ACTIVITY_FIELDS, PLATFORM_CONTRACT, platformContract,
   DEFAULT_REVIEW_INTERVALS_DAYS, PLATFORM_TARGETS, KNOWN_CAPABILITIES, FORBIDDEN_CAPABILITIES, RECOGNITION_TYPES, LAYOUT_BREAKPOINTS,
-  MAX_EVENT_BYTES, MAX_STATE_BYTES, windowClass, targetsForPlatforms,
+  MAX_EVENT_BYTES, MAX_STATE_BYTES, windowClass, targetsForPlatforms, VISUAL_CHECK_LIMITS, normalizeDigestNumbers,
 } from './contract-constants.js';
 

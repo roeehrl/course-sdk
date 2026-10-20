@@ -54,8 +54,8 @@ never published.
   (64-bit-safe decimal sequences, strictly increasing within the cursor range).
 - TypeScript generated from `course.schema.json`, with a type-level equality test against every public
   contract and record type and `CourseManifest`.
-- Render features `symbol`, `spring`, `stagger`, `layout_set` and `panes` (Course Core visuals 0.2/0.3) for
-  renderer definitions and adapters (up to 15 features each).
+- Render features `symbol`, `spring`, `stagger`, `layout_set` and `panes` (Course Core visuals 0.2/0.3), and
+  `invariants` and `goldens` (visuals 0.4), for renderer definitions and adapters (up to 17 features each).
 - `VisualExperience.requiredFeatures`: checked against the course's `visual` renderer definitions for the
   visual's extension (`UNSUPPORTED_FEATURE`), and must list `layout_set` / `panes` when the visual uses them
   (`MISSING_REQUIRED_FEATURE`).
@@ -68,6 +68,13 @@ never published.
   (`INACCESSIBLE_INTERACTION`).
 - Synchronized panes: `VisualExperience.panes` (`defineVisualPane`), one to eight `table`, `code` or `formula`
   panes. Table rows match the columns (`INVALID_PANE`) and formula panes carry a text alternative.
+- Visual publish-time checks (Course Core visuals 0.4): `VisualExperience.invariants` (data-only assertions over
+  state, time and probes into the frame) and `goldens` (expected `sha256-` frame digests per time and layout),
+  validated alone by `defineVisualChecks`. Probes must name declared state, table cells, formula values and
+  highlights (`MISSING_REFERENCE`), times lie within the timeline (`INVALID_TIMELINE`), goldens name a layout the
+  visual has (`INVALID_GOLDEN`) once per layout and time, and invariants check at most 512 frames, layouts x
+  (1 + distinct state overrides) x distinct times (`TOO_MANY_CHECK_FRAMES`). `VISUAL_CHECK_LIMITS` and
+  `normalizeDigestNumbers` (numbers to 10 significant digits, |x| < 1e-9 as 0) match Core's digests.
 - Scene `defs` (`clips`, `masks`, `symbols`), layer `clip` / `mask` references, the `use` layer kind with
   `symbol`, and layer `label`. References are checked (`MISSING_REFERENCE`, `INVALID_LAYER`) and a definition
   cannot draw itself (`DEFS_CYCLE`).
@@ -91,6 +98,9 @@ never published.
   runtime value or changes its type-parameter count, although a 0.x minor bump would allow it.
 
 ### Changed
+- The generated validators keep shared schema definitions as functions instead of inlining every reference
+  (Ajv `inlineRefs: false`). Validation results are unchanged; the course validator shrinks from about 2.0 MB to
+  1.3 MB, which keeps it under the 2 MiB packed-file limit.
 - `defineCourse`, `defineVisualExperience` and `defineExtension` validate (as `validateCourse` and
   `validateContract`) and throw `ContractValidationError` instead of returning an unchecked copy.
 - Publication (`publicationIssues`, `course lint`, `course pack`) and `defineScene` refuse an equation layer
