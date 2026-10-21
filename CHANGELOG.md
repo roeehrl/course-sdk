@@ -128,6 +128,32 @@ never published.
 - `scripts/api-baseline.json` declares 0.6.0 additive: the API check fails if an export is removed, loses its
   runtime value or changes its type-parameter count, although a 0.x minor bump would allow it.
 
+- TypeScript course modules. Every CLI command that takes a course also takes a `.ts`, `.mts`, `.js` or `.mjs`
+  module (or a course directory with `course.ts`) whose default export is the course; it compiles to the same
+  bytes as the equivalent `course.json`. The module runs in a separate Node process under the permission model
+  (reads inside its project only; no writes, processes, workers, addons or network), with randomness, the clock
+  and string code generation disabled, an empty environment and time, heap and output limits
+  (`loadCourseModule`, `CourseModuleError` codes `MODULE_ACCESS_DENIED`, `MODULE_NONDETERMINISTIC`, ...).
+  `course init --typescript` scaffolds `course.ts`.
+- `course dev`: a live local preview on 127.0.0.1 that rebuilds on save, shows the course in each locale (with
+  right-to-left layout), renders visuals with the released `@course-core/visuals` renderer when the author has
+  installed it, and lists validation, lint, conformance and compatibility problems next to their items
+  (`startDevServer`, `renderPreviewPage`).
+- Policy fixtures: `runPolicyFixtures`, `resolveCoursePolicy`, `policyScopes` and `addCalendarDays` (main export)
+  and `course policy <course> [fixtures.json]` run deadline, work-cap, extension-allowance and admin-setting
+  scenarios against the course's intersected policies with a fixed clock and report each outcome and rule code.
+- `compatibilityReport` and `course compat`: one report across this SDK, the host SDK the course needs, the
+  Core version range and the installed renderers (with render features), extensions, platform adapters and
+  capabilities of a host inventory or the local visuals renderer.
+- `replayGateDecisions` and `course replay`: re-run recorded gate decisions against the current course and
+  report which are reproduced and which fields changed.
+- `ContextCapsule` gains the rest of the design's fields, all optional: `pathRevision`, `activityInstanceId`,
+  `currentStepId`, `semanticAnchor`, `simulationState`, `codeSnapshotHash`, `recentEventCursor`, `historyRefs`,
+  `authorizationScopes`, `resolvedConstraintSnapshot`, `extensionAllowanceRefs`, `pendingGateDecisionRef`,
+  `mediaRef`, `playbackSeconds` and `reviewedSegment` (record rule `INVALID_CAPSULE`). 0.5 capsules are unchanged.
+- Verification: `npm run lint` (unused code, switch fallthrough and repository source rules, including that the
+  portable main entry reaches no Node module) and `npm run docs:examples` (type-checks and runs the README and
+  docs examples against the build) run in CI and `npm run check`.
 ### Changed
 - `locale` is validated against the supported locales (`UNSUPPORTED_LOCALE`). Every known 0.4/0.5 course uses
   `"en"` and is unaffected. A supported language spelled differently (`EN`, `en_US`) fails with a hint, and
