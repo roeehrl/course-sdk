@@ -4,6 +4,7 @@ import { getEpisodeRequirement } from './episode.js';
 import { adaptationAuthoringIssues } from './adaptation-authoring.js';
 import { contractIssues, gateAssessmentIds, gateConversation, gateObjectiveIds, isPortableRelativePath, isVersionedGate, standaloneChecks } from './contracts-validate.js';
 import generatedValidator from './generated/course-validator.js';
+import { localizationIssues } from './localization.js';
 import type { CourseManifest, LearningPolicy, ValidationIssue, ValidationResult } from './types.js';
 
 const validateShape = generatedValidator as ValidateFunction<CourseManifest>;
@@ -214,6 +215,7 @@ export function validateCourse(input: unknown): ValidationResult {
   }
   issues.push(...adaptationAuthoringIssues(course));
   issues.push(...contractIssues(course));
+  issues.push(...localizationIssues(course));
   return issues.length ? { valid: false, issues } : { valid: true, course: structuredClone(course), issues: [] };
 }
 

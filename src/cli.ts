@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { lstat, mkdir, open, readFile, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, open, readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import {
   BUNDLE_FILES, compileCourse, conformanceReport, CourseBundleError, CourseValidationError, diffCourses, importCourse, inspectCourse,
@@ -7,7 +7,10 @@ import {
 } from './compiler.js';
 import { validateCourse } from './validate.js';
 import { lintCourse } from './lint.js';
-import { ContractValidationError } from './define.js';
+import { assembleDraft, ContractValidationError, hasLocalizedText } from './define.js';
+import { canonicalLocale } from './locale.js';
+import { courseTextKeys, localeCoverage } from './localization.js';
+import type { CourseManifest, LocaleBundle } from './types.js';
 import {
   COURSE_PACKAGE_LIMITS, CoursePackageError, coursePackageChecksum, packCoursePackage, verifyCoursePackage, verifyCoursePackageChecksum,
   type PackageFile,
@@ -15,13 +18,14 @@ import {
 
 const MAX_BYTES = 16 * 1024 * 1024;
 const USAGE = `Usage:
-  course init <directory> [--id <id>] [--title <title>]
-  course validate <course.json>
-  course lint <course.json> [--strict]
-  course compile <course.json> <output.json>
-  course inspect <course.json | compiled.json>
-  course test <course.json>
-  course pack <course.json> <output-directory>
+  course init <directory> [--id <id>] [--title <title>] [--locale <tag>] [--locales <tag,tag>]
+  course validate <course.json | course-directory>
+  course lint <course.json | course-directory> [--strict]
+  course compile <course.json | course-directory> <output.json>
+  course inspect <course.json | course-directory | compiled.json>
+  course test <course.json | course-directory>
+  course locales <course.json | course-directory>
+  course pack <course.json | course-directory> <output-directory>
   course pack <course.json | course-directory> --out <file.course.tgz> [--no-learner] [--registry <file>]
       [--host-requirement <file>]... [--licence <file>]... [--other <file>]...
       [--repository <https-url>] [--commit <40-hex>] [--minimum-core-version <semver>]
@@ -31,7 +35,8 @@ const USAGE = `Usage:
   course import <bundle-directory | compiled.json> <output.json>
 `;
 const COMMANDS: Record<string, { args: number | number[]; flags: string[]; valued: string[]; repeated?: string[] }> = {
-  init: { args: 1, flags: [], valued: ['--id', '--title'] }, validate: { args: 1, flags: [], valued: [] }, lint: { args: 1, flags: ['--strict'], valued: [] },
+  init: { args: 1, flags: [], valued: ['--id', '--title', '--locale', '--locales'] }, validate: { args: 1, flags: [], valued: [] },
+  lint: { args: 1, flags: ['--strict'], valued: [] }, locales: { args: 1, flags: [], valued: [] },
   compile: { args: 2, flags: [], valued: [] }, inspect: { args: 1, flags: [], valued: [] }, test: { args: 1, flags: [], valued: [] },
   pack: { args: [1, 2], flags: ['--no-learner'], valued: ['--out', '--registry', '--repository', '--commit', '--minimum-core-version'],
     repeated: ['--host-requirement', '--licence', '--other'] }, verify: { args: 1, flags: [], valued: [] }, diff: { args: 2, flags: [], valued: [] },
@@ -59,6 +64,38 @@ async function readBundleOrJson(target: string): Promise<unknown> {
     if (entry?.isFile()) files[name] = await readText(file);
   }
   return files;
+}
+/**
+ * 0.6: reads a course from a manifest file or a course directory. A directory holds `course.json`
+ * and, optionally, one `locales/<tag>.json` bundle per additional locale; bundles and any inline
+ * LocalizedText are assembled into `translations` (see assembleCourse). Returns the bytes as read
+ * when nothing needed assembly, so packages keep the author's exact manifest.
+ */
+async function readCourse(target: string, packing = false): Promise<{ course: unknown; bytes?: Uint8Array }> {
+  const directory = (await lstat(target)).isDirectory();
+  const file = directory ? path.join(target, 'course.json') : target;
+  // Packing reads regular files only (no links), as it always has; other commands read like readJson.
+  const bytes = packing ? await readBytes(file, COURSE_PACKAGE_LIMITS.memberBytes) : new TextEncoder().encode(await readText(file));
+  const course: unknown = JSON.parse(new TextDecoder('utf-8', { ignoreBOM: true }).decode(bytes));
+  const bundles = directory ? await readLocaleBundles(path.join(target, 'locales')) : {};
+  if (!Object.keys(bundles).length && !hasLocalizedText(course)) return { course, bytes };
+  const assembled = assembleDraft(course, { translations: bundles });
+  if (assembled.issues.length) throw new CourseValidationError(assembled.issues);
+  return { course: assembled.course };
+}
+/** `locales/<tag>.json` files of a course directory (regular files only; other names are ignored). */
+async function readLocaleBundles(directory: string): Promise<Record<string, LocaleBundle>> {
+  const stat = await lstat(directory).catch(() => undefined);
+  if (!stat) return {};
+  if (!stat.isDirectory()) throw new Error(`${directory} must be a directory of <locale>.json bundles.`);
+  const bundles: Record<string, LocaleBundle> = {};
+  for (const name of (await readdir(directory)).sort()) {
+    if (!name.endsWith('.json')) continue;
+    const tag = name.slice(0, -'.json'.length);
+    if (canonicalLocale(tag) !== tag) throw new Error(`${path.join(directory, name)}: name locale bundles <tag>.json with a canonical tag (such as he or en-GB).`);
+    bundles[tag] = JSON.parse(new TextDecoder('utf-8', { ignoreBOM: true }).decode(await readBytes(path.join(directory, name), MAX_BYTES))) as LocaleBundle;
+  }
+  return bundles;
 }
 // Exclusive creation prevents accidentally replacing an existing artifact.
 const writeNew = (file: string, content: string) => writeFile(file, content, { flag: 'wx', mode: 0o600 });
@@ -94,13 +131,14 @@ const packageFiles = async (files: string[] | undefined): Promise<PackageFile[]>
   Promise.all((files ?? []).map(async file => ({ name: path.basename(file), bytes: await readBytes(file, COURSE_PACKAGE_LIMITS.memberBytes) })));
 
 async function packPackage(source: string, values: Map<string, string>, lists: Map<string, string[]>, flags: Set<string>): Promise<number> {
-  const manifestFile = (await lstat(source)).isDirectory() ? path.join(source, 'course.json') : source;
+  const read = await readCourse(source, true);
   const output = values.get('--out')!;
   const checksumFile = `${output}.sha256`;
   for (const file of [output, checksumFile]) if (await lstat(file).catch(() => undefined)) throw new Error(`${file} already exists.`);
   const source_ = { ...(values.has('--repository') ? { repository: values.get('--repository')! } : {}), ...(values.has('--commit') ? { commit: values.get('--commit')! } : {}) };
   const bytes = packCoursePackage({
-    manifest: await readBytes(manifestFile, COURSE_PACKAGE_LIMITS.memberBytes),
+    // As read, or the assembled manifest (with every locale's bundle) for a directory with locales/.
+    manifest: read.bytes ?? read.course,
     learner: !flags.has('--no-learner'),
     ...(values.has('--registry') ? { adaptationRegistry: await readBytes(values.get('--registry')!, COURSE_PACKAGE_LIMITS.memberBytes) } : {}),
     hostRequirements: await packageFiles(lists.get('--host-requirement')),
@@ -164,44 +202,67 @@ async function run(argv: string[]): Promise<number> {
   const [first, second] = args as [string, string | undefined];
   switch (command) {
     case 'init': {
-      await mkdir(first); // refuses an existing directory
-      const course = scaffoldCourse({ ...(values.has('--id') ? { id: values.get('--id')! } : {}), ...(values.has('--title') ? { title: values.get('--title')! } : {}) });
+      const locales = values.get('--locales')?.split(',').map(tag => tag.trim()).filter(Boolean);
+      const course = scaffoldCourse({ ...(values.has('--id') ? { id: values.get('--id')! } : {}), ...(values.has('--title') ? { title: values.get('--title')! } : {}),
+        ...(values.has('--locale') ? { locale: values.get('--locale')! } : {}), ...(locales ? { locales } : {}) });
       const result = validateCourse(course);
       if (!result.valid) throw new CourseValidationError(result.issues);
-      await writeNew(path.join(first, 'course.json'), json(course));
-      out({ created: path.join(first, 'course.json'), id: course.id });
+      await mkdir(first); // refuses an existing directory
+      // Additional locales are written as parallel bundles: course.json keeps the source text.
+      const { translations, ...manifest } = course;
+      await writeNew(path.join(first, 'course.json'), json(manifest));
+      const created = [path.join(first, 'course.json')];
+      if (translations) {
+        await mkdir(path.join(first, 'locales'));
+        for (const [tag, bundle] of Object.entries(translations)) {
+          await writeNew(path.join(first, 'locales', `${tag}.json`), json(bundle));
+          created.push(path.join(first, 'locales', `${tag}.json`));
+        }
+      }
+      out({ created, id: course.id, locale: course.locale, locales: course.locales ?? [] });
       return 0;
     }
     case 'validate': {
-      const result = validateCourse(await readJson(first));
+      const result = validateCourse((await readCourse(first)).course);
       out({ valid: result.valid, issues: result.issues });
       return result.valid ? 0 : 1;
     }
+    case 'locales': {
+      const course = (await readCourse(first)).course;
+      const result = validateCourse(course);
+      // Coverage of a schema-invalid course would be meaningless; report the issues instead.
+      const shaped = result.valid || result.issues.every(issue => issue.code !== 'SCHEMA' && issue.code !== 'NOT_JSON' && issue.code !== 'JSON_LIMIT');
+      const texts = courseTextKeys(course);
+      const coverage = shaped ? localeCoverage(course as CourseManifest).map(entry => ({ ...entry,
+        missing: entry.missing.map(key => ({ key, source: texts.get(key)!.path, text: texts.get(key)!.text })) })) : [];
+      out({ valid: result.valid, locale: shaped ? (course as CourseManifest).locale : null, locales: coverage, issues: result.issues });
+      return result.valid ? 0 : 1;
+    }
     case 'lint': {
-      const findings = lintCourse(await readJson(first));
+      const findings = lintCourse((await readCourse(first)).course);
       const failing = findings.filter(f => f.severity === 'error' || (flags.has('--strict') && f.severity === 'warning'));
       out({ ok: failing.length === 0, findings });
       return failing.length ? 1 : 0;
     }
     case 'compile': {
-      const compiled = compileCourse(await readJson(first));
+      const compiled = compileCourse((await readCourse(first)).course);
       await writeNew(second!, json(compiled));
       out({ digest: compiled.digest, output: second });
       return 0;
     }
     case 'inspect': {
-      const summary = inspectCourse(await readJson(first));
+      const summary = inspectCourse((await readCourse(first)).course);
       out(summary);
       return summary.valid ? 0 : 1;
     }
     case 'test': {
-      const report = conformanceReport(await readJson(first));
+      const report = conformanceReport((await readCourse(first)).course);
       out(report);
       return report.status === 'failed' ? 1 : 0;
     }
     case 'pack': {
       if (values.has('--out')) return packPackage(first, values, lists, flags);
-      const files = packCourse(await readJson(first));
+      const files = packCourse((await readCourse(first)).course);
       await mkdir(second!); // refuses an existing directory
       for (const [name, content] of Object.entries(files)) await writeNew(path.join(second!, name), content);
       out({ output: second, files: Object.keys(files), manifest: JSON.parse(files['manifest.json']!) });
@@ -220,7 +281,7 @@ async function run(argv: string[]): Promise<number> {
       return valid ? 0 : 1;
     }
     case 'diff': {
-      out(diffCourses(await readJson(first), await readJson(second!)));
+      out(diffCourses((await readCourse(first)).course, (await readCourse(second!)).course));
       return 0;
     }
     case 'migrate': {

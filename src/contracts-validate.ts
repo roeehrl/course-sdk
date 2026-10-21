@@ -377,6 +377,9 @@ export const standaloneChecks = {
       if (!(min < max)) report('INVALID_BINDING', `${path}/range`, 'The range minimum must be below its maximum.');
       else if (step !== undefined && step > max - min) report('INVALID_BINDING', `${path}/range/step`, 'The step cannot exceed the range.');
     }
+    if (binding.labels && binding.labels.length !== (binding.values?.length ?? -1))
+      report('INVALID_BINDING', `${path}/labels`, 'Labels name discrete values: give one label per entry of values.');
+    if (binding.labels?.some(label => label.trim() === '')) report('MISSING_TEXT_ALTERNATIVE', `${path}/labels`, 'Value labels must not be blank.');
   },
   interaction(interaction: Interaction, path: string, report: Report) {
     standaloneChecks.dataBinding(interaction.binding, `${path}/binding`, report);

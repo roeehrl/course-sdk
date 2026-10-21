@@ -372,6 +372,8 @@ export interface DataBinding {
   range?: { min: number; max: number; step?: number };
   /** The discrete values the input can select. Exclusive with `range`. */
   values?: Json[];
+  /** 0.6: the learner-visible label of each of `values`, in the same order (localizable). */
+  labels?: string[];
 }
 export type InteractionKind = 'tap' | 'drag' | 'scrub' | 'pinch' | 'pan' | 'hover' | 'keyboard' | 'stylus';
 /** 0.6: a learner input on a visual, bound to visual state. Pointer-only kinds need an accessible alternative. */
@@ -405,7 +407,7 @@ export interface VisualInvariant {
   assert: Json;
   times?: number[];
   /** State overrides (state key to number, string or boolean) checked besides the initial state. */
-  states?: Record<string, Json>[];
+  states?: Record<string, number | string | boolean>[];
 }
 /** 0.6: the expected digest of the frame (initial state) at a time and layout; see VISUAL_CHECK_LIMITS. */
 export interface VisualGolden {

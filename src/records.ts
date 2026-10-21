@@ -1,3 +1,4 @@
+import { isSupportedLocale } from './locale.js';
 import type { ValidateFunction } from 'ajv';
 import validators from './generated/records-validator.js';
 import { shapeIssues } from './adaptation-shape.js';
@@ -17,6 +18,7 @@ const GRANTING_OUTCOMES = new Set(['ready', 'demonstrated', 'exempted', 'granted
 const rules: { [K in RecordKind]?: (value: RecordKinds[K], report: Report) => void } = {
   attempt(a, report) {
     if (a.reattemptOf === a.attemptId) report('INVALID_ATTEMPT', '/reattemptOf', 'An attempt cannot retry itself.');
+    if (a.locale !== undefined && !isSupportedLocale(a.locale)) report('UNSUPPORTED_LOCALE', '/locale', `"${a.locale}" is not a supported locale.`);
   },
   evidence(e, report) {
     if (e.author !== 'learner' && e.independence !== 'synthetic')

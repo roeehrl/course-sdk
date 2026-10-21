@@ -19,8 +19,21 @@ export {
   defineRenderer, defineEvaluator, defineAgentStrategy, definePlatformAdapter, defineDebugInspector, defineScene, defineTimeline,
   defineRendererAdapter, defineTeachingHypothesis, defineDiagnosticProbe, defineStage,
   defineCourse, defineVisualExperience, defineExtension, defineInteraction, defineVisualPane, defineVisualChecks, defineStudyInstruments, defineConceptMappingDraft,
-  bindData, responsiveVariant,
+  bindData, responsiveVariant, defineLocaleBundle, assembleCourse,
 } from './define.js';
+export {
+  SUPPORTED_LANGUAGES, SUPPORTED_LOCALES, DEFAULT_COURSE_LOCALE, isSupportedLocale, canonicalLocale, localeLanguage, localeDirection, negotiateLocale,
+} from './locale.js';
+export type { SupportedLanguage, TextDirection } from './locale.js';
+export {
+  courseTextKeys, courseLocales, courseText, localeCoverage, localizeCourse, forEachTextSite, textStructure, structureDifferences, isLocalizedText,
+} from './localization.js';
+export type {
+  LocalizedText, TextInput, TextSite, TextStructure, LocaleCoverage, LocalizableCourse, LocalizedCourse, CourseDraft, DataBindingInput, InteractionInput,
+  VisualPaneInput, SceneInput, SceneLayerInput, VisualExperienceInput, ExtensionManifestInput,
+} from './localization.js';
+export { SDK_MESSAGES, SDK_MESSAGE_IDS, formatSdkMessage, formatSdkMessages, sdkMessageLanguage, sdkMessage } from './messages.js';
+export type { SdkMessageId, SdkMessageParam } from './messages.js';
 export type { ContractKind, ContractKinds } from './define.js';
 export { RECORD_KINDS, validateRecord } from './records.js';
 export { decideGate, checkGateDecision } from './gate-decision.js';

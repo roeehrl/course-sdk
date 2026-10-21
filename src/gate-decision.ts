@@ -3,9 +3,11 @@ import { validateRecord } from './records.js';
 import { isVersionedGate } from './contracts-validate.js';
 import { RECOGNITION_TYPES } from './contract-constants.js';
 import { SDK_VERSION } from './version.js';
+import { formatSdkMessage, formatSdkMessages, sdkMessage } from './messages.js';
 import type { Assessment, CourseManifest, ValidationIssue } from './types.js';
 import type { ReadinessCriterion, VersionedProgressionGate } from './contracts-types.js';
-import type { Evidence, GateDecision, GateDecisionStatus, NextAction } from './record-types.js';
+import type { Evidence, GateDecision, GateDecisionStatus, NextAction, NextActionKind, SdkMessageRef } from './record-types.js';
+import type { SdkMessageId } from './messages.js';
 
 export interface GateDecisionContext {
   decisionId: string;
@@ -18,6 +20,11 @@ export interface GateDecisionContext {
   supersedes?: string | null;
   /** Unsuccessful relevant attempts since the last success that suggest help (default 2). */
   helpThreshold?: number;
+  /**
+   * 0.6: the learner's locale for the rendered reasons and action labels (default: the course's
+   * source locale). The decision also carries the message IDs, so a host can render them again.
+   */
+  locale?: string;
 }
 export type GateDecisionResult = { valid: true; decision: GateDecision; issues: [] } | { valid: false; issues: ValidationIssue[] };
 
@@ -79,36 +86,36 @@ function evaluate(course: CourseManifest, gate: VersionedProgressionGate, eviden
   });
   const pending = (objectives: string[]) => covering(byTime.filter(e => relevant(e) && e.outcome === 'pending_review'), objectives);
 
+  const locale = context.locale ?? course.locale;
+  const outcome = (kind: ReadinessCriterion['kind'], met: boolean, params?: Record<string, string | number | string[]>) =>
+    sdkMessage(`gate.criterion.${kind}.${met ? 'met' : 'unmet'}` as SdkMessageId, met ? undefined : params);
   const results = gate.readinessCriteria.map((criterion: ReadinessCriterion) => {
     const objectives = criterion.objectiveIds.length ? criterion.objectiveIds : gate.requiredObjectives;
-    let met = false; let refs: Evidence[] = []; let reason = '';
+    let met = false; let refs: Evidence[] = []; let params: Record<string, string | number | string[]> | undefined;
     if (criterion.kind === 'independent_success') {
       refs = covering(counted, objectives);
       const short = objectives.filter(o => new Set(refs.filter(e => e.objectiveIds.includes(o)).map(e => e.familyId)).size < gate.minimumIndependentEvidence.families);
       met = short.length === 0;
-      reason = met ? 'Independent success in the required item families.' : `Needs independent success in ${gate.minimumIndependentEvidence.families} item families for ${short.join(', ')}.`;
+      params = { families: gate.minimumIndependentEvidence.families, objectives: short };
     } else if (criterion.kind === 'transfer_success') {
       refs = covering(counted, objectives).filter(isTransfer);
       met = refs.length >= gate.minimumIndependentEvidence.transferItems;
-      reason = met ? 'Independent transfer evidence recorded.' : 'Needs independent success on a new transfer task.';
     } else if (criterion.kind === 'no_critical_misconception') {
       const open = unresolved(objectives);
       met = open.length === 0;
       refs = counted.filter(e => critical(objectives).some(m => targets(assessments.get(e.assessmentId), m)));
-      reason = met ? 'No unresolved critical misconception.' : `A later independent check must resolve ${open.join(', ')}.`;
+      params = { misconceptions: open };
     } else if (criterion.kind === 'rubric_criteria') {
       refs = covering(counted, objectives).filter(isConversation);
       met = refs.length > 0;
-      reason = met ? 'Rubric criteria met with cited learner evidence.' : 'Needs a rubric-backed explanation citing the learner.';
     } else {
       const practical = new Set(gate.practicalTaskRefs ?? []);
       refs = covering(counted, objectives).filter(e => practical.has(e.assessmentId));
       met = refs.length > 0;
-      reason = met ? 'Verified practical task passed.' : 'Needs a verified practical task.';
     }
     const state: boolean | 'pending' = !met && pending(objectives).length > 0 ? 'pending' : met;
-    if (state === 'pending') reason = `${reason} Evidence is awaiting review.`;
-    return { criterionId: criterion.id, met: state, evidenceRefs: sorted(refs.map(e => e.id)), reason };
+    const reasonMessages: SdkMessageRef[] = [outcome(criterion.kind, met, params), ...(state === 'pending' ? [sdkMessage('gate.criterion.pending')] : [])];
+    return { criterionId: criterion.id, met: state, evidenceRefs: sorted(refs.map(e => e.id)), reason: formatSdkMessages(reasonMessages, locale), reasonMessages };
   });
   const missingObjectiveIds = sorted(gate.requiredObjectives.filter(o => !counted.some(e => e.objectiveIds.includes(o))));
   const unresolvedMisconceptionIds = sorted(unresolved(gate.requiredObjectives));
@@ -124,32 +131,35 @@ function evaluate(course: CourseManifest, gate: VersionedProgressionGate, eviden
 
   const counts = new Set(counted.map(e => e.assessmentId));
   const nextItem = [...eligibleItems].find(id => !counts.has(id) && assessments.get(id)?.role === 'transfer') ?? [...eligibleItems].find(id => !counts.has(id));
-  const attempt: NextAction = nextItem ? { kind: 'attempt_check', label: 'Try a new check', targetId: nextItem } : { kind: 'attempt_check', label: 'Explain your reasoning to the companion' };
-  const help: NextAction = { kind: 'request_help', label: 'Ask for help or another explanation' };
-  const review: NextAction = { kind: 'review_material', label: 'Review the lesson' };
+  const action = (kind: NextActionKind, messageId: SdkMessageId, targetId?: string | null): NextAction =>
+    ({ kind, label: formatSdkMessage(messageId, locale), ...(targetId ? { targetId } : {}), messageId });
+  const attempt = nextItem ? action('attempt_check', 'gate.action.attempt_check', nextItem) : action('attempt_check', 'gate.action.explain_to_companion');
+  const help = action('request_help', 'gate.action.request_help');
+  const review = action('review_material', 'gate.action.review_material');
   const actions: Record<GateDecisionStatus, NextAction[]> = {
-    ready: [gate.nextActivityId ? { kind: 'continue', label: 'Continue', targetId: gate.nextActivityId } : { kind: 'continue', label: 'Continue' }],
+    ready: [action('continue', 'gate.action.continue', gate.nextActivityId)],
     needs_evidence: [attempt, help, review],
     needs_help: [help, review, attempt],
-    under_review: [{ kind: 'await_review', label: 'Wait for review of your answer' }, help],
-    closed_with_gaps: [{ kind: 'view_gaps', label: 'See what remains unproven' },
-      ...(gate.appealPolicy.allowed ? [{ kind: 'appeal', label: 'Request a review of this decision' } as NextAction] : []),
-      ...(course.policy.extensions?.enabled ? [{ kind: 'consider_extension', label: 'Consider an available extension' } as NextAction] : [])],
+    under_review: [action('await_review', 'gate.action.await_review'), help],
+    closed_with_gaps: [action('view_gaps', 'gate.action.view_gaps'),
+      ...(gate.appealPolicy.allowed ? [action('appeal', 'gate.action.appeal')] : []),
+      ...(course.policy.extensions?.enabled ? [action('consider_extension', 'gate.action.consider_extension')] : [])],
   };
-  const unmet = results.filter(r => r.met !== true).map(r => r.reason);
-  const reasons: Record<GateDecisionStatus, string> = {
-    ready: 'All readiness criteria are met with independent evidence.',
-    needs_evidence: unmet.join(' ') || 'More independent evidence is needed.',
-    needs_help: `Recent attempts did not succeed. ${unmet.join(' ')}`.trim(),
-    under_review: 'Some evidence is awaiting review; nothing is counted against you meanwhile.',
-    closed_with_gaps: `The course limit was reached before readiness. ${unmet.join(' ')}`.trim(),
+  const unmet = results.filter(r => r.met !== true).flatMap(r => r.reasonMessages);
+  const reasons: Record<GateDecisionStatus, SdkMessageRef[]> = {
+    ready: [sdkMessage('gate.reason.ready')],
+    needs_evidence: unmet.length ? unmet : [sdkMessage('gate.reason.needs_evidence')],
+    needs_help: [sdkMessage('gate.reason.needs_help'), ...unmet],
+    under_review: [sdkMessage('gate.reason.under_review')],
+    closed_with_gaps: [sdkMessage('gate.reason.closed_with_gaps'), ...unmet],
   };
   return {
     decisionId: context.decisionId, enrollmentId: context.enrollmentId, gateId: gate.id, gateVersion: gate.version,
     courseDigest: context.courseDigest, policyRevision: context.policyRevision, status, criterionResults: results,
     missingObjectiveIds, unresolvedMisconceptionIds, evidenceRefs: sorted(results.flatMap(r => r.evidenceRefs)),
     evaluator: { kind: 'sdk_reference', id: 'course-sdk.gate-reference', version: SDK_VERSION },
-    learnerVisibleReason: reasons[status], nextActions: actions[status], nextActivityId: status === 'ready' ? gate.nextActivityId : null,
+    learnerVisibleReason: formatSdkMessages(reasons[status], locale), learnerVisibleReasonMessages: reasons[status], locale,
+    nextActions: actions[status], nextActivityId: status === 'ready' ? gate.nextActivityId : null,
     decidedAt: context.decidedAt, supersedes: context.supersedes ?? null,
   };
 }

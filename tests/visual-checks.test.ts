@@ -99,7 +99,8 @@ describe('visual checks: invariants and golden digests (Course Core visuals 0.4)
     }
     for (const mutate of [
       (v: VisualInvariant) => { v.description = ''; }, (v: VisualInvariant) => { v.times = []; },
-      (v: VisualInvariant) => { v.states = [{ length: [1] }]; }, (v: VisualInvariant) => { v.states = [{ length: null }]; },
+      // Invalid on purpose: state overrides hold numbers, strings or booleans only.
+      (v: VisualInvariant) => { v.states = [{ length: [1] }] as never; }, (v: VisualInvariant) => { v.states = [{ length: null }] as never; },
     ]) {
       const course = checkedCourse(); mutate(course.visuals[0]!.invariants![0]!);
       expect(issues(course).map(i => i.code)).toContain('SCHEMA');

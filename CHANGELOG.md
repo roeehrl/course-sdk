@@ -11,6 +11,37 @@ judged by a model-assisted evaluator with `humanConfirmation: "on_uncertain"`, w
 never published.
 
 ### Added
+- Multi-locale courses. `locale` is the source locale and must be a supported BCP 47 tag (`en`, `he`,
+  optionally with a region; `SUPPORTED_LOCALES`). The new optional `locales` lists additional shipped locales
+  and `translations` holds one bundle per locale (`{ texts, fallback? }`, `LocaleBundle`) keyed by stable text
+  keys built from author IDs (`episode:<id>#title`, `assessment:<id>/option:<id>#text`, ...; `courseTextKeys`).
+  Direction is derived (`localeDirection`), never authored. Validation reports `UNSUPPORTED_LOCALE`,
+  `DUPLICATE_LOCALE`, `MISSING_TRANSLATIONS`, `UNDECLARED_LOCALE`, `MISSING_TRANSLATION`, `UNKNOWN_TEXT_KEY`,
+  `BLANK_TRANSLATION`, `TRANSLATION_FALLBACK_CONFLICT`, `PLACEHOLDER_MISMATCH`, `STRUCTURE_MISMATCH` and
+  `LOCALE_SPECIFIC_ID`. An untranslated key must be listed in the bundle's `fallback`. Fallbacks are reported by
+  `localeCoverage`, `course locales`, lint (`TRANSLATION_FALLBACK`) and the new `locales` conformance check.
+  The compiler digest covers every locale. The learner projection carries bundles filtered to learner-visible
+  text, so prompts, options and feedback stay server-side in every locale. `localizeCourse`, `courseText`,
+  `courseLocales` and `negotiateLocale` give hosts a display copy; grading always uses the original course.
+  See `docs/multi-locale-courses.md`.
+- `assembleCourse(draft, { translations })` builds a course from a draft whose text fields may hold
+  `LocalizedText` (`{ en, he }`) plus separate bundles. The CLI assembles a course directory's
+  `locales/<tag>.json` files for `validate`, `lint`, `test`, `compile`, `inspect`, `diff` and `pack`. The new
+  `course locales` command prints coverage with each missing key's source text. `course init` takes `--locale`
+  and `--locales`. `defineLocaleBundle` and the `localeBundle` contract kind validate a bundle alone.
+- The visual helpers accept `LocalizedText` for labels and text alternatives and validate once per locale:
+  `defineInteraction`, `defineVisualPane`, `defineVisualExperience`, `defineScene`, `defineExtension` and
+  `bindData`, whose new `labels` (`DataBinding.labels`) name each discrete value for learners. `defineCourse`
+  refuses unassembled text (`UNASSEMBLED_LOCALIZED_TEXT`).
+- SDK message catalog: text the SDK generates comes from `SDK_MESSAGES` (`en`, `he`) by message ID
+  (`formatSdkMessage`, `formatSdkMessages`, `SDK_MESSAGE_IDS`). Gate decisions take `context.locale` (default:
+  the course locale) and record `locale`, `learnerVisibleReasonMessages`, each criterion's `reasonMessages` and
+  each action's `messageId`. In RTL locales parameters are wrapped in Unicode isolates. `course init` and
+  `course migrate` write their default text from the catalog in the course's locales. Validation and CLI
+  errors stay English with stable codes.
+- `Attempt.locale` (optional): the locale an item was shown in, for graders of free-text answers.
+- Lint warns about bidirectional embedding and override characters in course text (`BIDI_OVERRIDE`).
+- `examples/mean-starter`: the starter course in English and Hebrew (`locales/he.json`).
 - course-package v1: `packCoursePackage` and `verifyCoursePackage` (from `@course-core/sdk/compiler`) build
   and verify a deterministic `<courseId>-<version>.course.tgz` (strict top-level ustar, no dependency) listed
   by `course-package.json`, whose JSON Schema is published as `@course-core/sdk/package-schema`. Verification
@@ -98,6 +129,12 @@ never published.
   runtime value or changes its type-parameter count, although a 0.x minor bump would allow it.
 
 ### Changed
+- `locale` is validated against the supported locales (`UNSUPPORTED_LOCALE`). Every known 0.4/0.5 course uses
+  `"en"` and is unaffected. A supported language spelled differently (`EN`, `en_US`) fails with a hint, and
+  `course migrate` rewrites it. A course in a language the SDK doesn't support yet must wait for that language.
+- TypeScript only: `VisualInvariant.states` is `Record<string, number | string | boolean>[]`, as the schema
+  already required. The type generator now types JSON Schema maps (`additionalProperties` with a schema).
+- Bundle `manifest.json` lists the course's `locales` when it declares any.
 - The generated validators keep shared schema definitions as functions instead of inlining every reference
   (Ajv `inlineRefs: false`). Validation results are unchanged; the course validator shrinks from about 2.0 MB to
   1.3 MB, which keeps it under the 2 MiB packed-file limit.

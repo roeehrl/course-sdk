@@ -28,6 +28,7 @@ const samples: Record<ContractKind, unknown> = {
     goldens: [{ atMs: 0, layout: 'compact', digest: `sha256-${'0'.repeat(64)}` }] },
   conceptMappingDraft: { id: 'to-waves', status: 'draft', otherCourse: { id: 'waves-intro', version: '1.0.0' },
     links: [{ relation: 'prerequisite_of', from: { course: 'this', objectiveId: 'measure-period' }, to: { course: 'other', objectiveId: 'wave-period' } }] },
+  localeBundle: { texts: { 'course#title': 'תזמון מטוטלת' }, fallback: ['source:primer#title'] },
 };
 /** A context-free semantic violation for each kind with standalone rules. */
 const semanticBreaks: Partial<Record<ContractKind, [(v: any) => void, string]>> = {
@@ -58,6 +59,7 @@ const semanticBreaks: Partial<Record<ContractKind, [(v: any) => void, string]>> 
   studyInstruments: [v => { v.post.push('length-choice'); }, 'STUDY_ITEM_IN_TWO_SETS'],
   conceptMappingDraft: [v => { v.links[0].to.course = 'this'; }, 'CONCEPT_MAPPING_LINK_SCOPE'],
   visualChecks: [v => { v.goldens.push({ ...v.goldens[0] }); }, 'DUPLICATE_ID'],
+  localeBundle: [v => { v.texts['course#title'] = '  '; }, 'BLANK_TRANSLATION'],
 };
 /** The authoring helper of each kind: define<Kind>, or the two named helpers. */
 function helperFor(kind: string): ((v: any) => unknown) | undefined {
