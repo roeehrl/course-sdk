@@ -23,7 +23,7 @@ import {
 } from './course-package.js';
 
 const MAX_BYTES = 16 * 1024 * 1024;
-const USAGE = `Usage (a course is a course.json file, a course directory, or a TypeScript/JavaScript course module):
+const USAGE = `Usage:
   course init <directory> [--id <id>] [--title <title>] [--locale <tag>] [--locales <tag,tag>] [--typescript]
   course dev <course> [--port <number>] [--visuals <package-directory>]
   course validate <course.json | course-directory>
@@ -43,6 +43,8 @@ const USAGE = `Usage (a course is a course.json file, a course directory, or a T
   course policy <course> [fixtures.json]
   course compat <course> [--host <inventory.json>] [--minimum-core-version <semver>] [--visuals <package-directory>]
   course replay <course> <decisions.json>
+A course is a course.json file, a course directory (course.json or course.ts, with optional locales/<tag>.json)
+or a TypeScript/JavaScript course module (.ts, .mts, .js, .mjs) whose default export is the course.
 `;
 const COMMANDS: Record<string, { args: number | number[]; flags: string[]; valued: string[]; repeated?: string[] }> = {
   init: { args: 1, flags: ['--typescript'], valued: ['--id', '--title', '--locale', '--locales'] }, validate: { args: 1, flags: [], valued: [] },

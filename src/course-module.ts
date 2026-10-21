@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { lstat } from 'node:fs/promises';
+import { lstat, realpath } from 'node:fs/promises';
 import path from 'node:path';
 
 /**
@@ -49,7 +49,7 @@ const { pathToFileURL } = await import('node:url');
 const { syncBuiltinESMExports } = await import('node:module');
 const out = process.stdout.write.bind(process.stdout);
 const deny = (code, what) => function denied() { const e = new Error('Course modules cannot use ' + what + ' while compiling.'); e.code = code; throw e; };
-const lock = (target, key, value) => { try { Object.defineProperty(target, key, { value, writable: false, configurable: false, enumerable: false }); } catch {} };
+const lock = (target, key, value) => { try { Object.defineProperty(target, key, { value, writable: false, configurable: false, enumerable: true }); } catch {} };
 const network = deny('MODULE_ACCESS_DENIED', 'the network');
 const networkApis = { 'node:net': ['connect', 'createConnection', 'createServer'], 'node:tls': ['connect', 'createServer', 'createSecureContext'],
   'node:dgram': ['createSocket'], 'node:http': ['request', 'get', 'createServer'], 'node:https': ['request', 'get', 'createServer'],
@@ -123,13 +123,14 @@ async function projectRoot(file: string): Promise<string> {
 
 /** Evaluates a course module in a sandboxed child process and returns its exported course data. */
 export async function loadCourseModule(file: string, options: CourseModuleOptions = {}): Promise<LoadedCourseModule> {
-  const target = path.resolve(file);
+  // The permission model compares real paths, so links (such as macOS /var -> /private/var) are resolved first.
+  const target = await realpath(path.resolve(file)).catch(() => path.resolve(file));
   if (!isCourseModulePath(target)) throw new CourseModuleError('MODULE_UNSUPPORTED', `Course modules end in ${COURSE_MODULE_EXTENSIONS.join(', ')}.`);
   const stat = await lstat(target);
   if (!stat.isFile()) throw new CourseModuleError('MODULE_UNSUPPORTED', `${file} must be a regular file.`);
   const [major] = process.versions.node.split('.').map(Number);
   if (major! < 24) throw new CourseModuleError('MODULE_UNSUPPORTED', 'Course modules need Node.js 24 or newer (permission model and TypeScript type stripping).');
-  const root = path.resolve(options.root ?? await projectRoot(target));
+  const root = await realpath(path.resolve(options.root ?? await projectRoot(target)));
   if (path.relative(root, target).startsWith('..') || path.isAbsolute(path.relative(root, target)))
     throw new CourseModuleError('MODULE_UNSUPPORTED', 'The course module must be inside its project directory.');
   const sentinel = `@@course-module-${randomBytes(16).toString('hex')}@@`;
