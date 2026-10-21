@@ -46,6 +46,10 @@ export { buildConceptGraph, resolveRetentionIntervals } from './concepts.js';
 export { adminSettingsSchema, adminSettingDefaults, checkAdminSettingChange } from './admin.js';
 export type { AdminSettingChange } from './admin.js';
 export { courseRoadmap } from './roadmap.js';
+export { POLICY_FIXTURE_LIMITS, addCalendarDays, policyScopes, resolveCoursePolicy, runPolicyFixtures } from './policy-fixtures.js';
+export type {
+  PolicyAnchor, PolicyFixture, PolicyFixtureFile, PolicyFixtureOutcome, PolicyFixtureReport, PolicyFixtureStep, PolicyStepOutcome, PolicyWorkField, ResolvedCoursePolicy,
+} from './policy-fixtures.js';
 export type { Roadmap, RoadmapChapter, RoadmapGroup } from './roadmap.js';
 export type { PlatformContract } from './contract-constants.js';
 export {

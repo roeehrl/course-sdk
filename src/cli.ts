@@ -11,14 +11,21 @@ import { assembleDraft, ContractValidationError, hasLocalizedText } from './defi
 import { canonicalLocale } from './locale.js';
 import { courseTextKeys, localeCoverage } from './localization.js';
 import type { CourseManifest, LocaleBundle } from './types.js';
+import { CourseModuleError, isCourseModulePath, loadCourseModule } from './course-module.js';
+import { runPolicyFixtures, policyScopes, resolveCoursePolicy } from './policy-fixtures.js';
+import { compatibilityReport } from './compat.js';
+import { replayGateDecisions } from './replay.js';
+import { findVisualsPackage, loadVisualsRenderer, type VisualsRenderer } from './local-renderer.js';
+import { startDevServer } from './dev-server.js';
 import {
   COURSE_PACKAGE_LIMITS, CoursePackageError, coursePackageChecksum, packCoursePackage, verifyCoursePackage, verifyCoursePackageChecksum,
   type PackageFile,
 } from './course-package.js';
 
 const MAX_BYTES = 16 * 1024 * 1024;
-const USAGE = `Usage:
-  course init <directory> [--id <id>] [--title <title>] [--locale <tag>] [--locales <tag,tag>]
+const USAGE = `Usage (a course is a course.json file, a course directory, or a TypeScript/JavaScript course module):
+  course init <directory> [--id <id>] [--title <title>] [--locale <tag>] [--locales <tag,tag>] [--typescript]
+  course dev <course> [--port <number>] [--visuals <package-directory>]
   course validate <course.json | course-directory>
   course lint <course.json | course-directory> [--strict]
   course compile <course.json | course-directory> <output.json>
@@ -33,9 +40,14 @@ const USAGE = `Usage:
   course diff <from.json> <to.json>
   course migrate <course.json> <output.json>
   course import <bundle-directory | compiled.json> <output.json>
+  course policy <course> [fixtures.json]
+  course compat <course> [--host <inventory.json>] [--minimum-core-version <semver>] [--visuals <package-directory>]
+  course replay <course> <decisions.json>
 `;
 const COMMANDS: Record<string, { args: number | number[]; flags: string[]; valued: string[]; repeated?: string[] }> = {
-  init: { args: 1, flags: [], valued: ['--id', '--title', '--locale', '--locales'] }, validate: { args: 1, flags: [], valued: [] },
+  init: { args: 1, flags: ['--typescript'], valued: ['--id', '--title', '--locale', '--locales'] }, validate: { args: 1, flags: [], valued: [] },
+  dev: { args: 1, flags: [], valued: ['--port', '--visuals'] }, policy: { args: [1, 2], flags: [], valued: [] },
+  compat: { args: 1, flags: [], valued: ['--host', '--minimum-core-version', '--visuals'] }, replay: { args: 2, flags: [], valued: [] },
   lint: { args: 1, flags: ['--strict'], valued: [] }, locales: { args: 1, flags: [], valued: [] },
   compile: { args: 2, flags: [], valued: [] }, inspect: { args: 1, flags: [], valued: [] }, test: { args: 1, flags: [], valued: [] },
   pack: { args: [1, 2], flags: ['--no-learner'], valued: ['--out', '--registry', '--repository', '--commit', '--minimum-core-version'],
@@ -71,17 +83,32 @@ async function readBundleOrJson(target: string): Promise<unknown> {
  * LocalizedText are assembled into `translations` (see assembleCourse). Returns the bytes as read
  * when nothing needed assembly, so packages keep the author's exact manifest.
  */
-async function readCourse(target: string, packing = false): Promise<{ course: unknown; bytes?: Uint8Array }> {
+async function readCourse(target: string, packing = false, quiet = false): Promise<{ course: unknown; bytes?: Uint8Array; logs?: string }> {
   const directory = (await lstat(target)).isDirectory();
-  const file = directory ? path.join(target, 'course.json') : target;
-  // Packing reads regular files only (no links), as it always has; other commands read like readJson.
-  const bytes = packing ? await readBytes(file, COURSE_PACKAGE_LIMITS.memberBytes) : new TextEncoder().encode(await readText(file));
-  const course: unknown = JSON.parse(new TextDecoder('utf-8', { ignoreBOM: true }).decode(bytes));
+  const file = directory ? await courseFileIn(target) : target;
+  let course: unknown, bytes: Uint8Array | undefined, logs: string | undefined;
+  if (isCourseModulePath(file)) {
+    // 0.6: a TypeScript or JavaScript course module, evaluated in a sandboxed child process.
+    ({ course, logs } = await loadCourseModule(file));
+    if (logs && !quiet) process.stderr.write(logs);
+  } else {
+    // Packing reads regular files only (no links), as it always has; other commands read like readJson.
+    bytes = packing ? await readBytes(file, COURSE_PACKAGE_LIMITS.memberBytes) : new TextEncoder().encode(await readText(file));
+    course = JSON.parse(new TextDecoder('utf-8', { ignoreBOM: true }).decode(bytes));
+  }
   const bundles = directory ? await readLocaleBundles(path.join(target, 'locales')) : {};
-  if (!Object.keys(bundles).length && !hasLocalizedText(course)) return { course, bytes };
+  if (!Object.keys(bundles).length && !hasLocalizedText(course)) return { course, ...(bytes ? { bytes } : {}), ...(logs ? { logs } : {}) };
   const assembled = assembleDraft(course, { translations: bundles });
   if (assembled.issues.length) throw new CourseValidationError(assembled.issues);
-  return { course: assembled.course };
+  return { course: assembled.course, ...(logs ? { logs } : {}) };
+}
+/** course.json, else the first course module (course.ts, course.mts, course.js, course.mjs) of a course directory. */
+async function courseFileIn(directory: string): Promise<string> {
+  for (const name of ['course.json', 'course.ts', 'course.mts', 'course.js', 'course.mjs']) {
+    const file = path.join(directory, name);
+    if ((await lstat(file).catch(() => undefined))?.isFile()) return file;
+  }
+  return path.join(directory, 'course.json');
 }
 /** `locales/<tag>.json` files of a course directory (regular files only; other names are ignored). */
 async function readLocaleBundles(directory: string): Promise<Record<string, LocaleBundle>> {
@@ -194,6 +221,48 @@ async function isGzipFile(target: string): Promise<boolean> {
   } finally { await handle.close(); }
 }
 
+/** A TypeScript course module equivalent to a scaffolded course.json (types only; no runtime SDK import). */
+function courseModuleSource(manifest: object): string {
+  return `import type { CourseManifest } from '@course-core/sdk';
+
+// A course module: \`course validate|test|pack|dev\` evaluate it in a sandbox (no network,
+// file writes, randomness or clock) and use its default export as the course data.
+// Import other files with their .ts extension; use erasable TypeScript only (no enums or namespaces).
+const course = ${JSON.stringify(manifest, null, 2)} satisfies CourseManifest;
+
+export default course;
+`;
+}
+
+/** The released visuals renderer installed for this course, if any (never required). */
+async function localRenderer(source: string, explicit: string | undefined): Promise<{ renderer: VisualsRenderer | null; note?: string }> {
+  const from = (await lstat(source)).isDirectory() ? source : path.dirname(source);
+  const directory = await findVisualsPackage(from, explicit);
+  if (!directory) return { renderer: null, note: 'No @course-core/visuals package found; install the course-core-visuals tarball from a Course Core release, or pass --visuals.' };
+  try { return { renderer: await loadVisualsRenderer(directory) }; }
+  catch (error) {
+    if (explicit) throw error;
+    return { renderer: null, note: error instanceof Error ? error.message : 'The visuals renderer could not be loaded.' };
+  }
+}
+
+async function dev(source: string, values: Map<string, string>): Promise<number> {
+  const portText = values.get('--port');
+  const port = portText === undefined ? 4321 : Number(portText);
+  if (!Number.isInteger(port) || port < 0 || port > 65535) throw new UsageError('--port takes a port number from 0 to 65535.');
+  const local = await localRenderer(source, values.get('--visuals'));
+  const stat = await lstat(source);
+  const server = await startDevServer({
+    load: () => readCourse(source, false, true), watch: [stat.isDirectory() ? source : path.dirname(source)], port, renderer: local.renderer,
+    ...(local.note ? { rendererNote: local.note } : {}),
+    onBuild: build => process.stderr.write(`build ${build.revision}: ${build.ok ? `ok (conformance ${build.conformance!.status})` : `${build.loadError ? 'unreadable' : `${build.issues.length} problem(s)`}`}\n`),
+  });
+  out({ url: server.url, watching: stat.isDirectory() ? source : path.dirname(source), renderer: local.renderer?.source ?? null, ...(local.note ? { rendererNote: local.note } : {}) });
+  await new Promise<void>(resolve => { process.once('SIGINT', resolve); process.once('SIGTERM', resolve); });
+  await server.close();
+  return 0;
+}
+
 async function run(argv: string[]): Promise<number> {
   const { command, args, flags, values, lists } = parse(argv);
   const packageOptions = [...values.keys(), ...lists.keys(), ...flags].filter(option => option !== '--strict');
@@ -208,10 +277,12 @@ async function run(argv: string[]): Promise<number> {
       const result = validateCourse(course);
       if (!result.valid) throw new CourseValidationError(result.issues);
       await mkdir(first); // refuses an existing directory
-      // Additional locales are written as parallel bundles: course.json keeps the source text.
+      // Additional locales are written as parallel bundles: course.json (or course.ts) keeps the source text.
       const { translations, ...manifest } = course;
-      await writeNew(path.join(first, 'course.json'), json(manifest));
-      const created = [path.join(first, 'course.json')];
+      const typescript = flags.has('--typescript');
+      const main = path.join(first, typescript ? 'course.ts' : 'course.json');
+      await writeNew(main, typescript ? courseModuleSource(manifest) : json(manifest));
+      const created = [main];
       if (translations) {
         await mkdir(path.join(first, 'locales'));
         for (const [tag, bundle] of Object.entries(translations)) {
@@ -221,6 +292,36 @@ async function run(argv: string[]): Promise<number> {
       }
       out({ created, id: course.id, locale: course.locale, locales: course.locales ?? [] });
       return 0;
+    }
+    case 'dev': return dev(first, values);
+    case 'policy': {
+      const course = (await readCourse(first)).course;
+      if (second === undefined) {
+        // Without fixtures: the resolved policy of every scope, for writing fixtures against.
+        const result = validateCourse(course);
+        if (!result.valid) throw new CourseValidationError(result.issues);
+        out({ course: { id: result.course.id, version: result.course.version }, scopes: policyScopes(result.course).map(scope => resolveCoursePolicy(result.course, scope)) });
+        return 0;
+      }
+      const report = runPolicyFixtures(course, await readJson(second));
+      out(report);
+      return report.status === 'passed' ? 0 : 1;
+    }
+    case 'compat': {
+      const course = (await readCourse(first)).course;
+      const local = await localRenderer(first, values.get('--visuals'));
+      const report = compatibilityReport(course, {
+        ...(values.has('--host') ? { host: await readJson(values.get('--host')!) } : {}),
+        ...(values.has('--minimum-core-version') ? { minimumCoreVersion: values.get('--minimum-core-version')! } : {}),
+        localRenderers: local.renderer ? [{ rendererId: local.renderer.rendererId, version: local.renderer.version, features: local.renderer.features, source: local.renderer.source }] : [],
+      });
+      out(local.note ? { ...report, localNote: local.note } : report);
+      return report.status === 'incompatible' ? 1 : 0;
+    }
+    case 'replay': {
+      const report = replayGateDecisions((await readCourse(first)).course, await readJson(second!));
+      out(report);
+      return report.status === 'reproduced' ? 0 : 1;
     }
     case 'validate': {
       const result = validateCourse((await readCourse(first)).course);
@@ -307,7 +408,8 @@ try {
     process.stderr.write(`${error.message}\n${USAGE}`);
     process.exitCode = 2;
   } else {
-    const code = error instanceof CoursePackageError ? { code: error.code, ...(error.member ? { member: error.member } : {}) } : {};
+    const code: Record<string, string> = error instanceof CoursePackageError ? { code: error.code, ...(error.member ? { member: error.member } : {}) } : {};
+    if (error instanceof CourseModuleError) code.code = error.code;
     const issues = error instanceof CoursePackageError ? error.issues : error instanceof CourseValidationError || error instanceof CourseBundleError || error instanceof ContractValidationError ? error.issues : undefined;
     process.stderr.write(`${JSON.stringify({ error: error instanceof Error ? error.message : 'Course operation failed.', ...code, ...(issues ? { issues } : {}) })}\n`);
     process.exitCode = 1;
