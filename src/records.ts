@@ -30,6 +30,16 @@ const rules: { [K in RecordKind]?: (value: RecordKinds[K], report: Report) => vo
     if (e.mode === 'rubric_conversation' && (e.outcome === 'correct' || e.outcome === 'partial') && (!e.citedSpans?.length || !e.rubricRevision))
       report('UNCITED_JUDGMENT', '/citedSpans', 'A conversational judgment must cite the learner and bind a rubric revision.');
   },
+  contextCapsule(c, report) {
+    const anchor = c.semanticAnchor;
+    if (anchor?.kind === 'code_line' && anchor.lineEnd < anchor.lineStart) report('INVALID_CAPSULE', '/semanticAnchor/lineEnd', 'A code selection cannot end before it starts.');
+    if (anchor?.kind === 'code_line' && c.codeSnapshotHash !== undefined && anchor.codeSnapshotHash !== c.codeSnapshotHash)
+      report('INVALID_CAPSULE', '/semanticAnchor/codeSnapshotHash', 'A code selection must belong to the capsule\'s code snapshot.');
+    if (c.reviewedSegment && c.reviewedSegment.endSeconds <= c.reviewedSegment.startSeconds) report('INVALID_CAPSULE', '/reviewedSegment', 'A reviewed segment must end after it starts.');
+    if ((c.playbackSeconds !== undefined || c.reviewedSegment) && !c.mediaRef) report('INVALID_CAPSULE', '/mediaRef', 'A playback position or reviewed segment needs the media it belongs to.');
+    if (c.resolvedConstraintSnapshot && c.resolvedConstraintSnapshot.policyRevision !== c.policyRevision)
+      report('INVALID_CAPSULE', '/resolvedConstraintSnapshot/policyRevision', 'The constraint snapshot must be for the capsule\'s policy revision.');
+  },
   gateDecision(d, report) {
     const all = new Set(d.evidenceRefs);
     for (const [i, c] of d.criterionResults.entries()) {

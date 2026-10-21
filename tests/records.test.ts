@@ -63,6 +63,18 @@ const samples: Record<RecordKind, Record<string, unknown>> = {
     ] },
 };
 samples.mediaCandidate = structuredClone(samples.researchResult);
+/** 0.6: every optional design field of a capsule, as Course Core fills them. */
+const fullCapsule = () => ({
+  pathRevision: 4, activityInstanceId: 'challenge-7', currentStepId: 'predict', codeSnapshotHash: 'b'.repeat(64), recentEventCursor: '1042',
+  semanticAnchor: { kind: 'code_line', assessmentId: 'length-code', lineStart: 3, lineEnd: 5, excerpt: 'period = 2 * pi', codeSnapshotHash: 'b'.repeat(64) },
+  simulationState: { blockId: 'swing', visualId: 'pendulum', settings: [{ key: 'length', label: 'Length (m)', value: 2 }] },
+  historyRefs: [{ messageId: 'msg-1', role: 'learner', eventId: 'e-1' }, { messageId: 'msg-2', role: 'assistant', eventId: null }],
+  authorizationScopes: ['lesson:read', 'tool:hint'], extensionAllowanceRefs: ['grant-1'],
+  resolvedConstraintSnapshot: { digest, policyRevision: 2, deadline: later, expansionAllowed: true, independentAssessmentActive: false },
+  pendingGateDecisionRef: { decisionId: 'gd-1', status: 'not_ready' },
+  mediaRef: { mediaId: 'swing-video', blockId: 'video' }, playbackSeconds: 42.5, reviewedSegment: { startSeconds: 30, endSeconds: 60 },
+});
+
 const breaks: [RecordKind, string, (v: any) => void, string][] = [
   ['rubricRevision', 'uncited conversational criteria', v => { v.criteria[0].evidence = 'observation'; }, 'UNCITED_CONVERSATIONAL_RUBRIC'],
   ['learningEventExport', 'out-of-order events', v => { v.events.reverse(); }, 'INVALID_CURSOR'],
@@ -73,6 +85,14 @@ const breaks: [RecordKind, string, (v: any) => void, string][] = [
   ['learningEventExport', 'a leading-zero sequence', v => { v.events[0].sequence = '01'; }, 'SCHEMA'],
   ['contextCapsule', 'an unknown assessment mode', v => { v.assessmentMode = 'graded'; }, 'SCHEMA'],
   ['contextCapsule', 'extra learner fields', v => { v.learnerEmail = 'x'; }, 'SCHEMA'],
+  ['contextCapsule', 'a reversed code selection', v => { Object.assign(v, fullCapsule()); v.semanticAnchor.lineEnd = 1; }, 'INVALID_CAPSULE'],
+  ['contextCapsule', 'a code selection from another snapshot', v => { Object.assign(v, fullCapsule()); v.codeSnapshotHash = 'c'.repeat(64); }, 'INVALID_CAPSULE'],
+  ['contextCapsule', 'an empty reviewed segment', v => { Object.assign(v, fullCapsule()); v.reviewedSegment = { startSeconds: 30, endSeconds: 30 }; }, 'INVALID_CAPSULE'],
+  ['contextCapsule', 'a playback position without media', v => { Object.assign(v, fullCapsule()); delete v.mediaRef; }, 'INVALID_CAPSULE'],
+  ['contextCapsule', 'a snapshot for another policy revision', v => { Object.assign(v, fullCapsule()); v.resolvedConstraintSnapshot.policyRevision = 9; }, 'INVALID_CAPSULE'],
+  ['contextCapsule', 'an unknown anchor kind', v => { Object.assign(v, fullCapsule()); v.semanticAnchor.kind = 'screen'; }, 'SCHEMA'],
+  ['contextCapsule', 'more than 20 simulation settings', v => { Object.assign(v, fullCapsule());
+    v.simulationState.settings = Array.from({ length: 21 }, (_, i) => ({ key: `k${i}`, label: 'Length', value: i })); }, 'SCHEMA'],
   ['mediaCandidate', 'metadata-only claims', v => { v.inspectedEvidence.kind = 'metadata_only'; }, 'METADATA_ONLY_REVIEW'],
   ['attempt', 'retrying itself', v => { v.reattemptOf = v.attemptId; }, 'INVALID_ATTEMPT'],
   ['evidence', 'agent-authored answers marked independent', v => { v.author = 'agent'; }, 'AGENT_AUTHORED_EVIDENCE'],
@@ -115,6 +135,15 @@ describe('runtime record contracts', () => {
   it('has a sample for every record kind', () => expect(Object.keys(samples).sort()).toEqual([...RECORD_KINDS].sort()));
   it.each(RECORD_KINDS)('%s: accepts a valid record', (kind) => {
     expect(validateRecord(kind, structuredClone(samples[kind])).issues).toEqual([]);
+  });
+  it('contextCapsule: accepts every design field, and the 0.5 subset unchanged', () => {
+    const full = { ...structuredClone(samples.contextCapsule), ...fullCapsule() };
+    expect(validateRecord('contextCapsule', full).issues).toEqual([]);
+    for (const anchor of [{ kind: 'text', blockId: 'intro', excerpt: 'The period grows.' }, { kind: 'log_entry', attemptId: 'att-1', assessmentId: 'q1', excerpt: 'NaN at step 3' },
+      { kind: 'visual_node', blockId: 'swing', visualId: 'pendulum', nodeId: 'bob' }])
+      expect(validateRecord('contextCapsule', { ...full, semanticAnchor: anchor }).issues).toEqual([]);
+    expect(validateRecord('contextCapsule', { ...full, currentStepId: null, pendingGateDecisionRef: null }).issues).toEqual([]);
+    expect(validateRecord('contextCapsule', structuredClone(samples.contextCapsule)).issues).toEqual([]);
   });
   it.each(RECORD_KINDS)('%s: rejects unknown fields', (kind) => {
     expect(validateRecord(kind, { ...structuredClone(samples[kind]), extra: 1 }).valid).toBe(false);
@@ -167,6 +196,12 @@ const HOST_ID_FIELDS: Field[] = [
   ['decisionRecord', '/decidedBy/id', false], ['decisionRecord', '/inputEvidenceRefs', true],
   ['contextCapsule', '/enrollmentId', false], ['contextCapsule', '/attemptId', false], ['contextCapsule', '/evidenceRefs', true],
   ['contextCapsule', '/artifactRefs/0/id', false, v => { v.artifactRefs = [{ id: 'artifact-1', digest }]; }],
+  ['contextCapsule', '/activityInstanceId', false, v => { v.activityInstanceId = 'challenge-7'; }],
+  ['contextCapsule', '/extensionAllowanceRefs', true, v => { v.extensionAllowanceRefs = ['grant-1']; }],
+  ['contextCapsule', '/historyRefs/0/messageId', false, v => { v.historyRefs = [{ messageId: 'm-1', role: 'learner', eventId: null }]; }],
+  ['contextCapsule', '/historyRefs/0/eventId', false, v => { v.historyRefs = [{ messageId: 'm-1', role: 'learner', eventId: 'e-1' }]; }],
+  ['contextCapsule', '/pendingGateDecisionRef/decisionId', false, v => { v.pendingGateDecisionRef = { decisionId: 'gd-1', status: 'not_ready' }; }],
+  ['contextCapsule', '/semanticAnchor/attemptId', false, v => { v.semanticAnchor = { kind: 'log_entry', attemptId: 'a-1', assessmentId: 'q1', excerpt: 'x' }; }],
   ['learningEventExport', '/enrollmentRef', false], ['learningEventExport', '/events/0/eventId', false],
 ];
 // Author-defined course identifiers: a digit-leading UUID is still not a course ID.
