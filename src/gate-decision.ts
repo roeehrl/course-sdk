@@ -87,11 +87,11 @@ function evaluate(course: CourseManifest, gate: VersionedProgressionGate, eviden
   const pending = (objectives: string[]) => covering(byTime.filter(e => relevant(e) && e.outcome === 'pending_review'), objectives);
 
   const locale = context.locale ?? course.locale;
-  const outcome = (kind: ReadinessCriterion['kind'], met: boolean, params?: Record<string, string | number | string[]>) =>
-    sdkMessage(`gate.criterion.${kind}.${met ? 'met' : 'unmet'}` as SdkMessageId, met ? undefined : params);
+  const outcome = (kind: ReadinessCriterion['kind'], met: boolean, params?: Record<string, string | number | string[]>, unmetId?: SdkMessageId) =>
+    met ? sdkMessage(`gate.criterion.${kind}.met` as SdkMessageId) : sdkMessage(unmetId ?? `gate.criterion.${kind}.unmet` as SdkMessageId, params);
   const results = gate.readinessCriteria.map((criterion: ReadinessCriterion) => {
     const objectives = criterion.objectiveIds.length ? criterion.objectiveIds : gate.requiredObjectives;
-    let met = false; let refs: Evidence[] = []; let params: Record<string, string | number | string[]> | undefined;
+    let met = false; let refs: Evidence[] = []; let params: Record<string, string | number | string[]> | undefined; let unmetId: SdkMessageId | undefined;
     if (criterion.kind === 'independent_success') {
       refs = covering(counted, objectives);
       const short = objectives.filter(o => new Set(refs.filter(e => e.objectiveIds.includes(o)).map(e => e.familyId)).size < gate.minimumIndependentEvidence.families);
@@ -101,10 +101,13 @@ function evaluate(course: CourseManifest, gate: VersionedProgressionGate, eviden
       refs = covering(counted, objectives).filter(isTransfer);
       met = refs.length >= gate.minimumIndependentEvidence.transferItems;
     } else if (criterion.kind === 'no_critical_misconception') {
+      // "None remains" is claimed only on independent evidence for these objectives, which the
+      // criterion cites. Without any, the criterion is unmet (a met criterion must cite evidence).
       const open = unresolved(objectives);
-      met = open.length === 0;
-      refs = counted.filter(e => critical(objectives).some(m => targets(assessments.get(e.assessmentId), m)));
-      params = { misconceptions: open };
+      refs = covering(counted, objectives);
+      met = open.length === 0 && refs.length > 0;
+      if (open.length > 0) params = { misconceptions: open };
+      else { params = { objectives: sorted(objectives) }; unmetId = 'gate.criterion.no_critical_misconception.no_evidence'; }
     } else if (criterion.kind === 'rubric_criteria') {
       refs = covering(counted, objectives).filter(isConversation);
       met = refs.length > 0;
@@ -114,7 +117,7 @@ function evaluate(course: CourseManifest, gate: VersionedProgressionGate, eviden
       met = refs.length > 0;
     }
     const state: boolean | 'pending' = !met && pending(objectives).length > 0 ? 'pending' : met;
-    const reasonMessages: SdkMessageRef[] = [outcome(criterion.kind, met, params), ...(state === 'pending' ? [sdkMessage('gate.criterion.pending')] : [])];
+    const reasonMessages: SdkMessageRef[] = [outcome(criterion.kind, met, params, unmetId), ...(state === 'pending' ? [sdkMessage('gate.criterion.pending')] : [])];
     return { criterionId: criterion.id, met: state, evidenceRefs: sorted(refs.map(e => e.id)), reason: formatSdkMessages(reasonMessages, locale), reasonMessages };
   });
   const missingObjectiveIds = sorted(gate.requiredObjectives.filter(o => !counted.some(e => e.objectiveIds.includes(o))));

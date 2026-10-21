@@ -297,9 +297,8 @@ describe('SDK-generated text goes through message IDs', () => {
     expect(he.decision.nextActions.map(a => a.messageId)).toEqual(en.decision.nextActions.map(a => a.messageId));
     expect(he.decision.nextActions.map(a => formatSdkMessage(a.messageId!, 'en'))).toEqual(en.decision.nextActions.map(a => a.label));
     for (const [i, result] of he.decision.criterionResults.entries()) expect(formatSdkMessages(result.reasonMessages!, 'en')).toBe(en.decision.criterionResults[i]!.reason);
-    // The message fields are part of the record schema. (With no evidence at all, the reference
-    // evaluator's met misconception criterion cites none, which validateRecord reports separately.)
-    expect(validateRecord('gateDecision', he.decision).issues.filter(i => i.code === 'SCHEMA')).toEqual([]);
+    // The message fields are part of the record schema, and a decision on no evidence is a valid record.
+    expect(validateRecord('gateDecision', he.decision)).toMatchObject({ valid: true, issues: [] });
   });
   it('scaffolds and migrates in the course locales', () => {
     const he = scaffoldCourse({ locale: 'he', locales: ['en'] });
