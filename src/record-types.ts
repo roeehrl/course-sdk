@@ -20,6 +20,11 @@ export interface Attempt {
   assessmentId: string;
   courseDigest: string;
   response: { kind: 'answer'; value: Json } | { kind: 'abstain' };
+  /**
+   * 0.6: the course locale the item was shown in (one of the course's shipped locales). Graders and
+   * reviewers of free-text answers read the response in this locale; keyed grading ignores it.
+   */
+  locale?: string;
   /** Optional self-rating on the item's declared scale; it never passes or fails anything alone. */
   confidence: number | null;
   assistance: Assistance;
@@ -60,7 +65,13 @@ export interface Evidence {
 
 export type GateDecisionStatus = 'ready' | 'needs_evidence' | 'needs_help' | 'under_review' | 'closed_with_gaps';
 export type NextActionKind = 'continue' | 'attempt_check' | 'request_help' | 'review_material' | 'await_review' | 'appeal' | 'consider_extension' | 'view_gaps';
-export interface NextAction { kind: NextActionKind; label: string; targetId?: string }
+/**
+ * 0.6: a message the SDK generated, by stable ID and parameters (see `formatSdkMessage`), so a host
+ * can render it in the learner's locale. IDs are listed in SDK_MESSAGE_IDS.
+ */
+export interface SdkMessageRef { id: string; params?: Record<string, string | number | string[]> }
+/** `label` is rendered in the decision's `locale`; 0.6 adds the `messageId` it was rendered from. */
+export interface NextAction { kind: NextActionKind; label: string; targetId?: string; messageId?: string }
 export interface GateDecision {
   decisionId: string;
   enrollmentId: string;
@@ -69,12 +80,17 @@ export interface GateDecision {
   courseDigest: string;
   policyRevision: number;
   status: GateDecisionStatus;
-  criterionResults: { criterionId: string; met: boolean | 'pending'; evidenceRefs: string[]; reason: string }[];
+  /** `reason` is rendered from 0.6 `reasonMessages` (joined by a space) when the SDK decided. */
+  criterionResults: { criterionId: string; met: boolean | 'pending'; evidenceRefs: string[]; reason: string; reasonMessages?: SdkMessageRef[] }[];
   missingObjectiveIds: string[];
   unresolvedMisconceptionIds: string[];
   evidenceRefs: string[];
   evaluator: { kind: 'sdk_reference' | 'host_policy' | 'staff_review'; id: string; version: string };
   learnerVisibleReason: string;
+  /** 0.6: the messages `learnerVisibleReason` was rendered from, joined by a space. */
+  learnerVisibleReasonMessages?: SdkMessageRef[];
+  /** 0.6: the locale the learner-visible text was rendered in. */
+  locale?: string;
   nextActions: NextAction[];
   nextActivityId: string | null;
   decidedAt: string;

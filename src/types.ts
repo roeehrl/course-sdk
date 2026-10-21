@@ -219,7 +219,19 @@ export interface CourseManifest extends CourseContracts0_5 {
   version: string;
   title: string;
   summary: string;
+  /**
+   * The source (default) locale every text field is written in: a supported BCP 47 tag such as
+   * `en` or `he` (see SUPPORTED_LOCALES). 0.6 validates it (`UNSUPPORTED_LOCALE`). Text direction
+   * is derived from it (`localeDirection`), never authored.
+   */
   locale: string;
+  /** 0.6 (optional): the additional locales this course ships, each with a bundle in `translations`. */
+  locales?: string[];
+  /**
+   * 0.6 (optional): one bundle per entry of `locales`, keyed by stable text keys (see `courseTextKeys`).
+   * Every key is translated or listed in the bundle's `fallback` (shown in the source locale).
+   */
+  translations?: Record<string, LocaleBundle>;
   platforms: Platform[];
   objectives: Objective[];
   chapters: Chapter[];
@@ -243,6 +255,16 @@ export interface CourseManifest extends CourseContracts0_5 {
   studyInstruments?: StudyInstruments;
   /** 0.6 (optional, server-only): cross-course concept-mapping drafts, applied by a host only after staff review. */
   conceptMappingDrafts?: ConceptMappingDraft[];
+}
+
+/**
+ * 0.6: one locale's text for a course. `texts` maps a stable text key (`episode:intro#title`,
+ * `assessment:q1/option:a#text`, ...) to the translated text. Keys in `fallback` deliberately show
+ * the source-locale text; they are reported by `localeCoverage`, `course lint` and `course test`.
+ */
+export interface LocaleBundle {
+  texts: Record<string, string>;
+  fallback?: string[];
 }
 
 export interface ValidationIssue {

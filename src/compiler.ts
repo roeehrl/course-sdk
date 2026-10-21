@@ -11,6 +11,7 @@ import type { ActivityDefinition, PlatformAdapter, RendererDefinition } from './
 import type { LearnerVersionedGate } from './record-types.js';
 import { isVersionedGate } from './contracts-validate.js';
 import { DEFAULT_REVIEW_INTERVALS_DAYS } from './contract-constants.js';
+import { filterTranslations } from './localization.js';
 
 export class CourseValidationError extends Error {
   constructor(public readonly issues: ValidationIssue[]) {
@@ -26,7 +27,12 @@ type ServerOnlySection = typeof SERVER_ONLY_SECTIONS[number];
 export type LearnerLegacyGate = { id: string; objectiveIds: string[]; minimumIndependentFamilies: number; requireAllObjectives: boolean };
 export type LearnerActivity = Omit<ActivityDefinition, 'evaluatorRef'>;
 export type LearnerCourse = Omit<CourseManifest, 'assessments' | 'gates' | 'placement' | 'retention' | 'extensions' | 'adaptation' | 'research'
-  | ServerOnlySection | 'activities' | 'renderers' | 'platformAdapters'> & {
+  | ServerOnlySection | 'activities' | 'renderers' | 'platformAdapters' | 'translations'> & {
+  /**
+   * 0.6: the course's bundles restricted to texts this projection contains. Assessment prompts,
+   * options, feedback and server-only sections stay server-side in every locale.
+   */
+  translations?: CourseManifest['translations'];
   assessments: { id: string; type: string; objectiveIds: string[] }[];
   gates: (LearnerLegacyGate | LearnerVersionedGate)[];
   placement?: { enabled: boolean; learnerMayDecline: true; objectiveIds: string[]; maxItems: number };
@@ -52,7 +58,7 @@ export function compileCourse(input: unknown): CompiledCourse {
   const server = result.course;
   const digest = createHash('sha256').update(canonicalJson(server)).digest('hex');
   const { assessments, gates, placement, retention, extensions, adaptation: _authoring, research: _research,
-    activities, renderers, platformAdapters, ...withServerSections } = structuredClone(server);
+    activities, renderers, platformAdapters, translations, ...withServerSections } = structuredClone(server);
   const rest = Object.fromEntries(Object.entries(withServerSections).filter(([key]) => !(SERVER_ONLY_SECTIONS as readonly string[]).includes(key))) as Omit<typeof withServerSections, ServerOnlySection>;
   const learner: LearnerCourse = {
     ...rest,
@@ -79,6 +85,8 @@ export function compileCourse(input: unknown): CompiledCourse {
   if (placement) {
     learner.placement = { enabled: placement.enabled, learnerMayDecline: true, objectiveIds: placement.objectiveIds, maxItems: placement.maxItems };
   }
+  // Last, so the filter sees exactly the projected texts.
+  if (translations) learner.translations = filterTranslations(translations, learner);
   return { formatVersion: 1, digest, server, learner };
 }
 

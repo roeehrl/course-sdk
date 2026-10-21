@@ -7,7 +7,10 @@ import { publicationRefusals } from './publication.js';
 import { gateConversation, isVersionedGate } from './contracts-validate.js';
 import { DETERMINISTIC_TYPES, PRACTICAL_TYPES, targetsForPlatforms } from './contract-constants.js';
 import { SDK_VERSION } from './version.js';
-import type { CourseManifest, ValidationIssue } from './types.js';
+import { formatSdkMessage, type SdkMessageId } from './messages.js';
+import { courseTextKeys, localeCoverage } from './localization.js';
+import { canonicalLocale, DEFAULT_COURSE_LOCALE, isSupportedLocale, localeDirection } from './locale.js';
+import type { CourseManifest, LocaleBundle, ValidationIssue } from './types.js';
 import type { AdaptationPolicy, ReadinessCriterion, VersionedProgressionGate } from './contracts-types.js';
 
 const SDK_NAME = '@course-core/sdk';
@@ -110,7 +113,15 @@ export function conformanceReport(input: unknown): ConformanceReport {
   const leaks = [...LEAK_MARKERS.filter(m => learner.includes(m)), ...SERVER_ONLY_SECTIONS.filter(s => s in compiled.learner),
     ...course.assessments.filter(a => learner.includes(JSON.stringify(a.prompt))).map(a => `prompt:${a.id}`),
     ...(course.retention?.assessmentIds ?? []).filter(id => compiled.learner.assessments.some(a => a.id === id)).map(id => `held-out:${id}`)];
+  // Translated prompts, options and feedback are as private as the source text.
+  for (const [tag, bundle] of Object.entries(course.translations ?? {}))
+    for (const [key, text] of Object.entries(bundle.texts))
+      if (key.startsWith('assessment:') && learner.includes(JSON.stringify(text))) leaks.push(`${tag}:${key}`);
   add('learner-projection-private', leaks.length ? 'failed' : 'passed', leaks.length ? `Learner projection exposes ${leaks.join(', ')}.` : 'No keys, prompts, rubrics or server sections reach learners.');
+  const coverage = localeCoverage(course).filter(entry => !entry.source);
+  const fallbacks = coverage.filter(entry => entry.fallback.length > 0);
+  add('locales', fallbacks.length ? 'warning' : 'passed', [`${course.locale} (source, ${localeDirection(course.locale)})`,
+    ...coverage.map(entry => `${entry.locale} (${entry.direction}): ${entry.translated}/${entry.texts} translated${entry.fallback.length ? `, ${entry.fallback.length} shown in ${course.locale}` : ''}`)].join('; ') + '.');
   const legacy = course.gates.filter(g => !isVersionedGate(g)).map(g => g.id);
   add('gates-require-transfer', legacy.length ? 'warning' : 'passed', legacy.length ? `Unversioned gates cannot require transfer: ${legacy.join(', ')}.` : 'Every gate requires independent transfer evidence.');
   const refusals = publicationRefusals(course);
@@ -131,7 +142,8 @@ export const BUNDLE_FILES = Object.freeze(['capabilities.json', 'conformance.jso
 export interface BundleManifest {
   bundleFormat: 1;
   sdk: { name: string; version: string };
-  course: { id: string; version: string; schemaVersion: 1; title: string; locale: string; platforms: string[] };
+  /** `locales` (0.6) is present only when the course ships additional locales. */
+  course: { id: string; version: string; schemaVersion: 1; title: string; locale: string; locales?: string[]; platforms: string[] };
   compiledDigest: string;
   contents: string[];
 }
@@ -165,7 +177,8 @@ function bundleFiles(compiled: CompiledCourse, report: ConformanceReport): Recor
   };
   const manifest: BundleManifest = {
     bundleFormat: 1, sdk: { name: SDK_NAME, version: SDK_VERSION },
-    course: { id: course.id, version: course.version, schemaVersion: course.schemaVersion, title: course.title, locale: course.locale, platforms: [...course.platforms] },
+    course: { id: course.id, version: course.version, schemaVersion: course.schemaVersion, title: course.title, locale: course.locale,
+      ...(course.locales?.length ? { locales: [...course.locales] } : {}), platforms: [...course.platforms] },
     compiledDigest: compiled.digest, contents: Object.keys(files).sort(),
   };
   files['manifest.json'] = text(manifest);
@@ -227,6 +240,8 @@ export function inspectCourse(input: unknown): Record<string, unknown> {
     gates: c.gates.map(g => isVersionedGate(g) ? { id: g.id, versioned: true, version: g.version, evidence: g.eligibleEvidenceKinds } : { id: g.id, versioned: false }),
     serverOnlySections: SERVER_ONLY_SECTIONS.filter(s => s in c), learnerSections: Object.keys(compiled.learner).sort(),
     capabilities: requiredCapabilities(c).capabilities.map(x => x.capability),
+    locales: localeCoverage(c).map(({ locale, direction, source, texts, translated, fallback, missing }) =>
+      ({ locale, direction, source, texts, translated, fallback: fallback.length, missing: missing.length })),
   };
 }
 
@@ -248,9 +263,12 @@ export function diffCourses(fromInput: unknown, toInput: unknown): CourseDiff {
       map.set(key, new Map(value.map(v => [(v as { id: string }).id, v])));
     map.set('episodes', new Map(c.chapters.flatMap(ch => ch.episodes).map(e => [e.id, e])));
     const singles = new Map<string, unknown>();
-    for (const key of ['policy', 'placement', 'retention', 'adaptation', 'research', 'title', 'summary', 'locale', 'platforms', 'chapterLabel'] as const)
+    for (const key of ['policy', 'placement', 'retention', 'adaptation', 'research', 'title', 'summary', 'locale', 'locales', 'platforms', 'chapterLabel'] as const)
       if (c[key] !== undefined) singles.set(key, c[key]);
     map.set('course', singles);
+    // 0.6: each locale's texts by text key, so a changed translation shows up like changed content.
+    for (const [tag, bundle] of Object.entries(c.translations ?? {}))
+      map.set(`translations:${tag}`, new Map([...Object.entries(bundle.texts), ...(bundle.fallback ?? []).map(key => [key, null] as const)]));
     return map;
   };
   const left = collections(from), right = collections(to);
@@ -285,9 +303,19 @@ export interface MigrationResult { course: CourseManifest; changes: string[]; ma
  * mark items as transfer tasks or write rubrics, so the result usually lists manual steps.
  */
 export function migrateCourse(input: unknown): MigrationResult {
+  const changes: string[] = [], manualSteps: string[] = [];
+  // 0.6 validates locale tags; a supported language spelled another way (EN, en_US) is canonicalized.
+  const raw = input !== null && typeof input === 'object' && !Array.isArray(input) ? input as Record<string, unknown> : undefined;
+  if (raw && typeof raw.locale === 'string' && !isSupportedLocale(raw.locale)) {
+    const canonical = canonicalLocale(raw.locale);
+    if (canonical !== undefined && isSupportedLocale(canonical)) {
+      changes.push(`Rewrote locale ${JSON.stringify(raw.locale)} as ${canonical}.`);
+      input = { ...raw, locale: canonical };
+    }
+  }
   const checked = validateCourse(input);
   if (!checked.valid) throw new CourseBundleError(checked.issues);
-  const course = checked.course, changes: string[] = [], manualSteps: string[] = [];
+  const course = checked.course;
   const legacy = course.gates.filter(g => !isVersionedGate(g));
   if (!legacy.length) return { course, changes, manualSteps, issues: [] };
   const episodes = course.chapters.flatMap(c => c.episodes.map(e => ({ chapter: c, episode: e })));
@@ -311,12 +339,19 @@ export function migrateCourse(input: unknown): MigrationResult {
     const lastIndex = Math.max(-1, ...users.map(u => episodes.indexOf(u)));
     const interactive = gate.assessmentIds.filter(id => DETERMINISTIC_TYPES.has(assessments.get(id)!.type));
     const practical = gate.assessmentIds.filter(id => PRACTICAL_TYPES.has(assessments.get(id)!.type));
+    const criterion = (id: string, kind: ReadinessCriterion['kind'], message: SdkMessageId): ReadinessCriterion => {
+      for (const tag of course.locales ?? []) {
+        const bundle = course.translations?.[tag];
+        if (bundle) bundle.texts[`gate:${gate.id}/criterion:${id}#description`] = formatSdkMessage(message, tag);
+      }
+      return { id, kind, description: formatSdkMessage(message, course.locale), objectiveIds: [] };
+    };
     const criteria: ReadinessCriterion[] = [
-      { id: 'independent', kind: 'independent_success', description: 'Independent success in the required item families.', objectiveIds: [] },
-      { id: 'transfer', kind: 'transfer_success', description: 'Independent success on a new transfer task.', objectiveIds: [] },
+      criterion('independent', 'independent_success', 'migrate.criterion.independent'),
+      criterion('transfer', 'transfer_success', 'migrate.criterion.transfer'),
     ];
     if ((course.hypotheses ?? []).some(h => h.critical && h.objectiveIds.some(o => gate.objectiveIds.includes(o))))
-      criteria.push({ id: 'misconceptions', kind: 'no_critical_misconception', description: 'No unresolved critical misconception.', objectiveIds: [] });
+      criteria.push(criterion('misconceptions', 'no_critical_misconception', 'migrate.criterion.misconceptions'));
     const migrated: VersionedProgressionGate = {
       id: gate.id, version: '1.0.0', scope, requiredObjectives: [...gate.objectiveIds], readinessCriteria: criteria,
       eligibleEvidenceKinds: [...(interactive.length ? ['deterministic_interactive_check' as const] : []), ...(practical.length ? ['verified_practical_task' as const] : [])],
@@ -346,35 +381,59 @@ export function migrateCourse(input: unknown): MigrationResult {
   return { course, changes, manualSteps, issues: result.valid ? [] : result.issues };
 }
 
-/** A small, valid, domain-neutral 0.5 course for `course init`. */
-export function scaffoldCourse(options: { id?: string; title?: string } = {}): CourseManifest {
+/**
+ * A small, valid, domain-neutral course for `course init`. 0.6: its text comes from the SDK message
+ * catalog in `locale` (default `en`); each of `locales` gets a complete bundle from the same catalog.
+ * A given `title` is author text in the source locale, so other locales show it (listed in fallback).
+ */
+export function scaffoldCourse(options: { id?: string; title?: string; locale?: string; locales?: string[] } = {}): CourseManifest {
+  const source = options.locale ?? DEFAULT_COURSE_LOCALE;
+  const course = scaffoldIn(source, options);
+  const extra = (options.locales ?? []).filter(tag => tag !== source);
+  if (extra.length) {
+    course.locales = extra;
+    course.translations = Object.fromEntries(extra.map(tag => [tag, translationsFrom(course, scaffoldIn(tag, options), options.title !== undefined ? ['course#title'] : [])]));
+  }
+  return course;
+}
+
+/** The bundle that turns `source`'s texts into `localized`'s (same IDs, other text), minus `fallback` keys. */
+function translationsFrom(source: CourseManifest, localized: CourseManifest, fallback: string[]): LocaleBundle {
+  const target = courseTextKeys(localized);
+  const texts: Record<string, string> = {};
+  for (const key of courseTextKeys(source).keys()) if (!fallback.includes(key) && target.has(key)) texts[key] = target.get(key)!.text;
+  return fallback.length ? { texts, fallback } : { texts };
+}
+
+function scaffoldIn(locale: string, options: { id?: string; title?: string }): CourseManifest {
+  const t = (id: SdkMessageId) => formatSdkMessage(id, locale);
   const id = options.id ?? 'example-course';
   return {
-    schemaVersion: 1, id, version: '0.1.0', title: options.title ?? 'Example course', summary: 'A starter course created by course init.',
-    locale: 'en', platforms: ['web'],
-    objectives: [{ id: 'estimate-mean', description: 'Estimate the mean of a short list of numbers.', prerequisites: [] }],
-    chapters: [{ id: 'basics', title: 'Basics', episodes: [{
-      id: 'mean', title: 'The mean', objectiveIds: ['estimate-mean'], gateId: 'mean-ready',
+    schemaVersion: 1, id, version: '0.1.0', title: options.title ?? t('scaffold.course.title'), summary: t('scaffold.course.summary'),
+    locale, platforms: ['web'],
+    objectives: [{ id: 'estimate-mean', description: t('scaffold.objective.description'), prerequisites: [] }],
+    chapters: [{ id: 'basics', title: t('scaffold.chapter.title'), episodes: [{
+      id: 'mean', title: t('scaffold.episode.title'), objectiveIds: ['estimate-mean'], gateId: 'mean-ready',
       blocks: [
-        { id: 'explain', type: 'text', markdown: 'The mean adds the values and divides by how many there are.' },
+        { id: 'explain', type: 'text', markdown: t('scaffold.block.explain') },
         { id: 'check-sum', type: 'assessment', assessmentId: 'mean-choice' },
         { id: 'check-transfer', type: 'assessment', assessmentId: 'mean-transfer' },
       ],
     }] }],
     assessments: [
-      { id: 'mean-choice', type: 'choice', objectiveIds: ['estimate-mean'], familyId: 'mean-recognize', role: 'recognition', prompt: 'What is the mean of 2, 4 and 6?',
-        options: [{ id: 'four', text: '4' }, { id: 'twelve', text: '12', misconceptionId: 'mean-is-sum' }], grading: { correctOptionId: 'four', explanation: '12 divided by 3 is 4.' } },
+      { id: 'mean-choice', type: 'choice', objectiveIds: ['estimate-mean'], familyId: 'mean-recognize', role: 'recognition', prompt: t('scaffold.choice.prompt'),
+        options: [{ id: 'four', text: '4' }, { id: 'twelve', text: '12', misconceptionId: 'mean-is-sum' }], grading: { correctOptionId: 'four', explanation: t('scaffold.choice.explanation') } },
       { id: 'mean-transfer', type: 'numeric', objectiveIds: ['estimate-mean'], familyId: 'mean-apply', role: 'transfer', misconceptionIds: ['mean-is-sum'],
-        prompt: 'Three readings are 10, 20 and 60. What reading would make the mean of four readings equal 30?', grading: { expected: 30, absoluteTolerance: 0, explanation: 'Four readings totalling 120 need 30 more.' } },
-      { id: 'mean-probe', type: 'choice', objectiveIds: ['estimate-mean'], familyId: 'mean-probe', role: 'diagnostic_probe', prompt: 'Is the mean of 5 and 5 equal to 10?',
-        options: [{ id: 'yes', text: 'Yes' }, { id: 'no', text: 'No' }], grading: { correctOptionId: 'no', explanation: 'The mean of 5 and 5 is 5.' } },
+        prompt: t('scaffold.transfer.prompt'), grading: { expected: 30, absoluteTolerance: 0, explanation: t('scaffold.transfer.explanation') } },
+      { id: 'mean-probe', type: 'choice', objectiveIds: ['estimate-mean'], familyId: 'mean-probe', role: 'diagnostic_probe', prompt: t('scaffold.probe.prompt'),
+        options: [{ id: 'yes', text: t('scaffold.probe.yes') }, { id: 'no', text: t('scaffold.probe.no') }], grading: { correctOptionId: 'no', explanation: t('scaffold.probe.explanation') } },
     ],
     gates: [{
       id: 'mean-ready', version: '1.0.0', scope: { kind: 'episode', episodeId: 'mean' }, requiredObjectives: ['estimate-mean'],
       readinessCriteria: [
-        { id: 'independent', kind: 'independent_success', description: 'Two independent item families.', objectiveIds: [] },
-        { id: 'transfer', kind: 'transfer_success', description: 'Solve a new transfer task.', objectiveIds: [] },
-        { id: 'misconceptions', kind: 'no_critical_misconception', description: 'The mean is not confused with the sum.', objectiveIds: [] },
+        { id: 'independent', kind: 'independent_success', description: t('scaffold.criterion.independent'), objectiveIds: [] },
+        { id: 'transfer', kind: 'transfer_success', description: t('scaffold.criterion.transfer'), objectiveIds: [] },
+        { id: 'misconceptions', kind: 'no_critical_misconception', description: t('scaffold.criterion.misconceptions'), objectiveIds: [] },
       ],
       eligibleEvidenceKinds: ['deterministic_interactive_check'], minimumIndependentEvidence: { families: 2, transferItems: 1 },
       interactiveCheckRefs: ['mean-choice', 'mean-transfer'],
@@ -382,8 +441,8 @@ export function scaffoldCourse(options: { id?: string; title?: string } = {}): C
       nextActivityId: null, remediationPolicyRef: 'remediation', capPolicyRef: 'course', appealPolicy: { allowed: true, windowDays: 14, reviewer: 'staff' },
     }],
     hypotheses: [
-      { id: 'mean-is-sum', kind: 'misconception', statement: 'The mean is the total rather than the total divided by the count.', objectiveIds: ['estimate-mean'], critical: true },
-      { id: 'arithmetic-slip', kind: 'slip', statement: 'A one-off arithmetic slip.', objectiveIds: ['estimate-mean'] },
+      { id: 'mean-is-sum', kind: 'misconception', statement: t('scaffold.hypothesis.mean_is_sum'), objectiveIds: ['estimate-mean'], critical: true },
+      { id: 'arithmetic-slip', kind: 'slip', statement: t('scaffold.hypothesis.slip'), objectiveIds: ['estimate-mean'] },
     ],
     probes: [{ id: 'sum-or-slip', objectiveId: 'estimate-mean', assessmentId: 'mean-probe', distinguishes: ['mean-is-sum', 'arithmetic-slip'],
       signals: [{ hypothesisId: 'mean-is-sum', optionIds: ['yes'] }, { hypothesisId: 'arithmetic-slip', outcome: 'correct' }] }],

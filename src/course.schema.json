@@ -42,6 +42,28 @@
       "minLength": 2,
       "maxLength": 64
     },
+    "locales": {
+      "type": "array",
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 2,
+        "maxLength": 64
+      }
+    },
+    "translations": {
+      "type": "object",
+      "maxProperties": 32,
+      "propertyNames": {
+        "type": "string",
+        "minLength": 2,
+        "maxLength": 64
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/localeBundle"
+      }
+    },
     "platforms": {
       "$ref": "#/$defs/platforms"
     },
@@ -4611,6 +4633,11 @@
             }
           ]
         },
+        "locale": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 64
+        },
         "confidence": {
           "oneOf": [
             {
@@ -4900,6 +4927,9 @@
               },
               "reason": {
                 "$ref": "#/$defs/text"
+              },
+              "reasonMessages": {
+                "$ref": "#/$defs/sdkMessageRefs"
               }
             }
           }
@@ -4940,6 +4970,14 @@
         "learnerVisibleReason": {
           "$ref": "#/$defs/text"
         },
+        "learnerVisibleReasonMessages": {
+          "$ref": "#/$defs/sdkMessageRefs"
+        },
+        "locale": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 64
+        },
         "nextActions": {
           "type": "array",
           "minItems": 1,
@@ -4969,6 +5007,9 @@
               },
               "targetId": {
                 "$ref": "#/$defs/id"
+              },
+              "messageId": {
+                "$ref": "#/$defs/sdkMessageId"
               }
             }
           }
@@ -7623,6 +7664,14 @@
           "minItems": 1,
           "maxItems": 100,
           "items": {}
+        },
+        "labels": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100,
+          "items": {
+            "$ref": "#/$defs/shortText"
+          }
         }
       }
     },
@@ -8168,6 +8217,90 @@
           }
         }
       }
+    },
+    "localeBundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "texts"
+      ],
+      "properties": {
+        "texts": {
+          "type": "object",
+          "maxProperties": 20000,
+          "propertyNames": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 400
+          },
+          "additionalProperties": {
+            "type": "string",
+            "maxLength": 100000
+          }
+        },
+        "fallback": {
+          "type": "array",
+          "maxItems": 20000,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 400
+          }
+        }
+      }
+    },
+    "sdkMessageRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/sdkMessageId"
+        },
+        "params": {
+          "type": "object",
+          "maxProperties": 20,
+          "propertyNames": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_]{0,63}$"
+          },
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "array",
+                "maxItems": 100,
+                "items": {
+                  "type": "string",
+                  "maxLength": 300
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    "sdkMessageRefs": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 60,
+      "items": {
+        "$ref": "#/$defs/sdkMessageRef"
+      }
+    },
+    "sdkMessageId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)*$",
+      "maxLength": 128
     }
   }
 }

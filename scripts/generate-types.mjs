@@ -16,6 +16,7 @@ const literal = value => JSON.stringify(value);
 const SUPPORTED = new Set(['type', '$ref', 'properties', 'required', 'additionalProperties', 'unevaluatedProperties', 'enum', 'const', 'oneOf', 'items',
   // Validation-only keywords with no TypeScript counterpart.
   'minItems', 'maxItems', 'uniqueItems', 'minimum', 'maximum', 'exclusiveMinimum', 'minLength', 'maxLength', 'pattern', 'format', 'minProperties', 'maxProperties', 'default',
+  'propertyNames',
   'description', 'title', '$schema', '$id', '$defs']);
 
 function expression(node, path, inheritedRequired = new Set()) {
@@ -54,7 +55,11 @@ function objectOrScalar(node, path, inheritedRequired) {
 function objectType(node, path, inheritedRequired = new Set()) {
   const properties = node.properties ?? {};
   const required = new Set([...(node.required ?? []), ...[...inheritedRequired].filter(name => name in properties)]);
-  if (!Object.keys(properties).length && !required.size) return '{ [key: string]: Json }';
+  // A map: no named properties and a schema for every value.
+  if (!Object.keys(properties).length && !required.size) {
+    const values = node.additionalProperties;
+    return values && typeof values === 'object' && Object.keys(values).length ? `{ [key: string]: ${expression(values, `${path}/additionalProperties`)} }` : '{ [key: string]: Json }';
+  }
   const members = Object.entries(properties).map(([name, value]) =>
     `${key(name)}${required.has(name) ? '' : '?'}: ${expression(value, `${path}/properties/${name}`)};`);
   // Required names declared without a property schema are constrained by the variants.

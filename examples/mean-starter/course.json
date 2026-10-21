@@ -1,0 +1,217 @@
+{
+  "schemaVersion": 1,
+  "id": "mean-starter",
+  "version": "1.0.0",
+  "title": "Finding the mean",
+  "summary": "A short public example course: what the mean is, how to compute it, and how one reading moves it.",
+  "locale": "en",
+  "locales": ["he"],
+  "platforms": ["web"],
+  "chapterLabel": "Unit",
+  "stages": [
+    { "id": "averages", "title": "Averages", "subtitle": "One number that summarizes many" }
+  ],
+  "objectives": [
+    { "id": "estimate-mean", "description": "Estimate the mean of a short list of numbers.", "prerequisites": [] }
+  ],
+  "chapters": [
+    {
+      "id": "basics",
+      "title": "Basics",
+      "summary": "Add the values, then divide by how many there are.",
+      "stageId": "averages",
+      "episodes": [
+        {
+          "id": "mean",
+          "title": "The mean",
+          "objectiveIds": ["estimate-mean"],
+          "gateId": "mean-ready",
+          "blocks": [
+            {
+              "id": "explain",
+              "type": "text",
+              "markdown": "## Adding and dividing\n\nThe mean adds the values and divides by how many there are. For readings $x_1, \\dots, x_n$ it is $\\bar{x} = \\frac{x_1 + \\dots + x_n}{n}$.\n\nIn Python, `sum(values) / len(values)` computes it:\n\n```python\nvalues = [2, 4, 6]\nprint(sum(values) / len(values))  # 4.0\n```\n"
+            },
+            { "id": "plot", "type": "visual", "visualId": "dot-plot" },
+            { "id": "check-sum", "type": "assessment", "assessmentId": "mean-choice" },
+            { "id": "check-transfer", "type": "assessment", "assessmentId": "mean-transfer" },
+            { "id": "explain-back", "type": "assessment", "assessmentId": "mean-teach" }
+          ]
+        }
+      ]
+    }
+  ],
+  "assessments": [
+    {
+      "id": "mean-choice",
+      "type": "choice",
+      "objectiveIds": ["estimate-mean"],
+      "familyId": "mean-recognize",
+      "role": "recognition",
+      "prompt": "What is the mean of 2, 4 and 6?",
+      "options": [
+        { "id": "four", "text": "4" },
+        { "id": "twelve", "text": "12", "misconceptionId": "mean-is-sum" }
+      ],
+      "grading": { "correctOptionId": "four", "explanation": "The values add up to 12, and 12 divided by 3 is 4." }
+    },
+    {
+      "id": "mean-transfer",
+      "type": "numeric",
+      "objectiveIds": ["estimate-mean"],
+      "familyId": "mean-apply",
+      "role": "transfer",
+      "misconceptionIds": ["mean-is-sum"],
+      "prompt": "Three readings are 10, 20 and 60. What fourth reading would make the mean of all four readings equal 30?",
+      "grading": { "expected": 30, "absoluteTolerance": 0, "explanation": "A mean of 30 over four readings needs a total of 120. The first three add up to 90, so the fourth must be 30." }
+    },
+    {
+      "id": "mean-probe",
+      "type": "choice",
+      "objectiveIds": ["estimate-mean"],
+      "familyId": "mean-probe",
+      "role": "diagnostic_probe",
+      "prompt": "Is the mean of 5 and 5 equal to 10?",
+      "options": [
+        { "id": "yes", "text": "Yes" },
+        { "id": "no", "text": "No" }
+      ],
+      "grading": { "correctOptionId": "no", "explanation": "The mean of 5 and 5 is 5: their sum, 10, divided by 2." }
+    },
+    {
+      "id": "mean-teach",
+      "type": "teach_back",
+      "objectiveIds": ["estimate-mean"],
+      "familyId": "mean-explain",
+      "role": "application",
+      "prompt": "Explain to a friend why the mean of 2, 4 and 6 is 4 and not 12.",
+      "grading": { "evaluatorId": "explain-evaluator", "rubricId": "explain-rubric" }
+    }
+  ],
+  "gates": [
+    {
+      "id": "mean-ready",
+      "version": "1.0.0",
+      "scope": { "kind": "episode", "episodeId": "mean" },
+      "requiredObjectives": ["estimate-mean"],
+      "readinessCriteria": [
+        { "id": "independent", "kind": "independent_success", "description": "Succeed on your own in two different kinds of question.", "objectiveIds": [] },
+        { "id": "transfer", "kind": "transfer_success", "description": "Solve a new problem you have not seen before.", "objectiveIds": [] },
+        { "id": "misconceptions", "kind": "no_critical_misconception", "description": "Show that you do not confuse the mean with the sum.", "objectiveIds": [] }
+      ],
+      "eligibleEvidenceKinds": ["deterministic_interactive_check"],
+      "minimumIndependentEvidence": { "families": 2, "transferItems": 1 },
+      "interactiveCheckRefs": ["mean-choice", "mean-transfer"],
+      "assistancePolicy": { "assistedEvidence": "recorded_not_counted", "revealRequiresFreshEvidence": true, "agentAuthoredAnswers": "rejected", "reattemptsOfSameItem": "not_independent" },
+      "nextActivityId": null,
+      "remediationPolicyRef": "remediation",
+      "capPolicyRef": "course",
+      "appealPolicy": { "allowed": true, "windowDays": 14, "reviewer": "staff" }
+    }
+  ],
+  "hypotheses": [
+    { "id": "mean-is-sum", "kind": "misconception", "statement": "The mean is the total rather than the total divided by the count.", "objectiveIds": ["estimate-mean"], "critical": true },
+    { "id": "arithmetic-slip", "kind": "slip", "statement": "A one-off arithmetic slip.", "objectiveIds": ["estimate-mean"] }
+  ],
+  "probes": [
+    {
+      "id": "sum-or-slip",
+      "objectiveId": "estimate-mean",
+      "assessmentId": "mean-probe",
+      "distinguishes": ["mean-is-sum", "arithmetic-slip"],
+      "signals": [{ "hypothesisId": "mean-is-sum", "optionIds": ["yes"] }, { "hypothesisId": "arithmetic-slip", "outcome": "correct" }]
+    }
+  ],
+  "rubrics": [
+    {
+      "id": "explain-rubric",
+      "version": "1.0.0",
+      "title": "Explains what the mean measures",
+      "criteria": [
+        { "id": "divide", "description": "Says that the total is divided by the number of values.", "required": true, "evidence": "cited_learner_span" },
+        { "id": "not-sum", "description": "Explains why the total alone, 12, is not the mean.", "required": true, "evidence": "cited_learner_span" }
+      ],
+      "requiresCitedEvidence": true,
+      "uncertain": "pending_review"
+    }
+  ],
+  "evaluators": [
+    {
+      "id": "explain-evaluator",
+      "version": "1.0.0",
+      "extensionId": "staff-review",
+      "method": "human",
+      "itemTypes": ["teach_back"],
+      "rubricIds": ["explain-rubric"],
+      "humanConfirmation": "required",
+      "outputs": { "uncertainty": true, "provenance": true },
+      "tests": { "fixtureRef": "fixtures/explain-v1", "acceptsValidVariants": true, "rejectsMisconceptions": true }
+    }
+  ],
+  "adaptationPolicies": [
+    { "id": "remediation", "version": "1.0.0", "maxCyclesPerConcept": 2, "strategies": ["contrast_case", "worked_example"], "onExhausted": "close_with_gaps", "autoApply": "verified_only", "learnerUndo": true }
+  ],
+  "extensions": [
+    {
+      "id": "dot-plot-renderer",
+      "version": "1.0.0",
+      "platforms": ["web"],
+      "execution": "sandboxed_web",
+      "capabilities": ["state.patch"],
+      "entrypoint": "renderers/dot-plot.js",
+      "integrity": "sha256-0000000000000000000000000000000000000000000000000000000000000000",
+      "accessibility": { "keyboard": true, "reducedMotion": true, "textAlternative": "Every reading and the mean are also listed in the table next to the plot." },
+      "license": "Apache-2.0"
+    },
+    {
+      "id": "staff-review",
+      "version": "1.0.0",
+      "platforms": ["web"],
+      "execution": "server",
+      "capabilities": ["assessment.evaluate"],
+      "entrypoint": "evaluators/staff-review.js",
+      "integrity": "sha256-0000000000000000000000000000000000000000000000000000000000000000",
+      "accessibility": { "keyboard": true, "reducedMotion": true, "textAlternative": "A staff member reads the explanation and confirms each finding." },
+      "license": "Apache-2.0"
+    }
+  ],
+  "visuals": [
+    {
+      "id": "dot-plot",
+      "rendererId": "dot-plot-renderer",
+      "platforms": ["web"],
+      "state": { "fourth": 30, "show": "mean" },
+      "scene": {},
+      "layouts": { "compact": { "stack": true }, "expanded": { "columns": 2 } },
+      "timeline": { "durationMs": 1000, "seekable": false, "cues": [] },
+      "accessibility": { "description": "A number line from 0 to 100 with a dot for each reading and a marker at their mean. Moving the fourth reading moves the mean a quarter as far.", "reducedMotion": {} },
+      "referenceChecks": [],
+      "requiredFeatures": ["panes"],
+      "interactions": [
+        {
+          "id": "move-fourth",
+          "kind": "drag",
+          "target": "fourth-dot",
+          "label": "Drag the fourth reading",
+          "binding": { "state": "fourth", "range": { "min": 0, "max": 100, "step": 5 } },
+          "alternative": { "kind": "keyboard", "keys": ["ArrowLeft", "ArrowRight"] }
+        },
+        {
+          "id": "choose-marker",
+          "kind": "tap",
+          "target": "marker",
+          "label": "Choose what to mark",
+          "binding": { "state": "show", "values": ["mean", "sum"], "labels": ["Mark the mean", "Mark the sum"] },
+          "alternative": { "kind": "control" }
+        }
+      ],
+      "panes": [
+        { "id": "readings", "kind": "table", "title": "Readings", "columns": ["Reading", "Value"], "rows": [[1, 10], [2, 20], [3, 60], [4, { "state": "fourth" }]] },
+        { "id": "mean-formula", "kind": "formula", "title": "The mean", "tex": "\\bar{x} = \\frac{x_1 + x_2 + x_3 + x_4}{4}", "label": "x bar equals the sum of the four readings divided by 4" }
+      ]
+    }
+  ],
+  "media": [],
+  "sources": [],
+  "policy": { "mode": "bounded", "work": { "additionalEpisodes": 3, "remediationCyclesPerConcept": 2 }, "existingMaterialAccess": "read_only" }
+}

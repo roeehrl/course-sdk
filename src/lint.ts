@@ -3,6 +3,7 @@ import { validateCourse } from './validate.js';
 import { publicationRefusals } from './publication.js';
 import { gateAssessmentIds, isVersionedGate } from './contracts-validate.js';
 import { FORBIDDEN_CAPABILITIES, KNOWN_CAPABILITIES, RECOGNITION_TYPES } from './contract-constants.js';
+import { courseTextKeys, localeCoverage, pointerSegment } from './localization.js';
 
 export interface LintFinding {
   code: string;
@@ -71,7 +72,24 @@ export function lintCourse(input: unknown): LintFinding[] {
   for (const [i, media] of course.media.entries()) if ((media.type === 'video' || media.type === 'youtube') && media.captions === undefined)
     add('info', 'MEDIA_CAPTIONS_UNDECLARED', `/media/${i}`, 'Declare caption or transcript availability for accessible review.');
   lint060(course, add);
+  lintLocales(course, add);
   return findings;
+}
+
+/** 0.6 locale advisories: reported fallbacks and bidirectional override characters. */
+function lintLocales(course: CourseManifest, add: Add): void {
+  for (const entry of localeCoverage(course)) if (entry.fallback.length) {
+    const shown = entry.fallback.slice(0, 10).join(', ') + (entry.fallback.length > 10 ? `, and ${entry.fallback.length - 10} more` : '');
+    add('info', 'TRANSLATION_FALLBACK', `/translations/${pointerSegment(entry.locale)}/fallback`,
+      `${entry.fallback.length} of ${entry.texts} text(s) show in ${course.locale} for ${entry.locale} learners: ${shown}.`);
+  }
+  // Embeddings and overrides (U+202A..U+202E) can make text display differently from its logical order.
+  // Isolates (U+2066..U+2069) are the safe way to set direction and are not reported.
+  const overrides = /[\u202A-\u202E]/;
+  for (const [key, { path, text }] of courseTextKeys(course)) if (overrides.test(text))
+    add('warning', 'BIDI_OVERRIDE', path, `${key} contains a bidirectional embedding or override character; use isolates (U+2066..U+2069) or none.`);
+  for (const [tag, bundle] of Object.entries(course.translations ?? {})) for (const [key, text] of Object.entries(bundle.texts)) if (overrides.test(text))
+    add('warning', 'BIDI_OVERRIDE', `/translations/${pointerSegment(tag)}/texts/${pointerSegment(key)}`, `${key} (${tag}) contains a bidirectional embedding or override character; use isolates (U+2066..U+2069) or none.`);
 }
 
 type Add = (severity: LintFinding['severity'], code: string, path: string, message: string) => void;

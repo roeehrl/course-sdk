@@ -79,7 +79,9 @@ After installation, use the local CLI with a JSON course file:
 
 ```sh
 npx --no-install course init my-course            # scaffold a valid 0.5 course (refuses an existing directory)
-npx --no-install course validate course.json
+npx --no-install course init my-course --locales he   # 0.6: plus locales/he.json (--locale sets the source locale)
+npx --no-install course validate course.json       # or a course directory (course.json + locales/<tag>.json)
+npx --no-install course locales my-course          # 0.6: per-locale coverage, fallbacks and missing keys
 npx --no-install course lint course.json --strict  # errors always fail; warnings fail with --strict
 npx --no-install course test course.json           # offline conformance report
 npx --no-install course compile course.json compiled.json
@@ -282,6 +284,33 @@ their item, rubric or policy references.
 TypeScript note: `ProgressionGate` is now `LegacyProgressionGate | VersionedProgressionGate`,
 the activity block is a union, and `RetentionPolicy.intervalsDays` is optional. Narrow with
 `isVersionedGate` or `'extensionId' in block`. Data and compiled output are unaffected.
+
+## Multi-locale courses (0.6)
+
+A course names its source locale in `locale` (a supported BCP 47 tag: `en` or `he`, optionally with a
+region) and may ship more in `locales`, each with a bundle in `translations` that maps stable **text
+keys** to text: `{ "texts": { "episode:intro#title": "…" }, "fallback": [ … ] }`. Keys come from author
+IDs (`assessment:q1/option:a#text`, `visual:plot/interaction:drag#label`), so a translation can never add
+items, change answer keys or reorder anything. Text direction is derived from the locale
+(`localeDirection('he') === 'rtl'`), not authored. A 0.4/0.5 course in `"en"` (every published fixture and Course Core example) stays valid and
+compiles byte for byte; 0.6 rejects a tag the SDK does not support (`UNSUPPORTED_LOCALE`) and
+`course migrate` canonicalizes spellings such as `EN` or `en_US`.
+
+`validateCourse` requires every declared locale to be complete or to list each untranslated key in
+`fallback` (reported by `localeCoverage`, `course locales`, `course lint` and `course test`), and requires
+placeholders, code, math, images, links and headings to match the source. `localizeCourse(course,
+learnerLocales)` returns a display copy for the best shipped locale; hosts grade against the original.
+The learner projection carries bundles filtered to learner-visible texts, and the compiler digest (and
+so a package's `courseDigest`) covers every locale. A course directory with `locales/<tag>.json` files is
+assembled by the CLI and by `assembleCourse`, and the visual helpers (`defineInteraction`, `bindData`
+value `labels`, `defineVisualPane`, `defineVisualExperience`, `defineScene`, `defineExtension`) accept
+`{ en, he }` text for labels and text alternatives. Text the SDK generates (gate decisions, `course init`,
+`course migrate`) comes from the `SDK_MESSAGES` catalog by message ID; validation errors stay English
+with stable codes.
+
+See [docs/multi-locale-courses.md](docs/multi-locale-courses.md) for the authoring guide (design, key
+reference, validation codes, grading and RTL authoring tips) and [examples/mean-starter](examples/mean-starter)
+for an English and Hebrew course.
 
 ## SDK 0.6 contract additions
 

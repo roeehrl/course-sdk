@@ -27,7 +27,7 @@ describe('gate decisions (reference evaluator)', () => {
     const d = decide([recognition(), transfer()]);
     expect(d.status).toBe('ready');
     expect(d.gateVersion).toBe('1.0.0');
-    expect(d.nextActions).toEqual([{ kind: 'continue', label: 'Continue' }]);
+    expect(d.nextActions).toEqual([{ kind: 'continue', label: 'Continue', messageId: 'gate.action.continue' }]);
     expect(validateRecord('gateDecision', d).valid).toBe(true);
     expect(checkGateDecision(richCourse(), d)).toEqual({ valid: true, issues: [] });
   });
