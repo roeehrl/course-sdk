@@ -266,8 +266,10 @@ documentation.
 `decideGate(course, gateId, evidence, context)` is a transparent, deterministic reference
 evaluator. It returns a `GateDecision` with one of `ready`, `needs_evidence`, `needs_help`,
 `under_review` or `closed_with_gaps`, together with the criterion results, linked evidence and
-concrete `nextActions`. `checkGateDecision` rejects stale or unlinked decisions. Hosts must
-still authenticate evidence and recheck versions at commit time.
+concrete `nextActions`. A criterion is met only with evidence it cites: `no_critical_misconception`
+needs independent evidence on its objectives as well as no open critical misconception, so every
+decision it produces is a valid `gateDecision` record. `checkGateDecision` rejects stale or unlinked
+decisions. Hosts must still authenticate evidence and recheck versions at commit time.
 
 Retention `intervalsDays` may now be omitted. `resolveRetentionIntervals` and the learner
 projection then use the product default `DEFAULT_REVIEW_INTERVALS_DAYS` (1, 3, 7, 21).

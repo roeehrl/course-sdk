@@ -158,6 +158,14 @@ never published.
   so UUIDs from `randomUUID()` validate even when they start with a digit. Author-defined course IDs
   (objectives, assessments, gates, episodes, activities, rubrics, tools, pools and scopes) keep the
   course-ID pattern. Every value valid before stays valid.
+- `decideGate` no longer reports `no_critical_misconception` as met without evidence. The criterion is
+  met only when no critical misconception is open and independent counted evidence covers its
+  objectives, and it cites that evidence. Without any it is unmet with the new message
+  `gate.criterion.no_critical_misconception.no_evidence` (`{objectives}`), so a decision on no or only
+  assisted evidence now passes `validateRecord('gateDecision', …)` instead of failing with
+  `UNLINKED_DECISION` ("A met criterion must cite evidence."). Statuses are unchanged: such a decision
+  was never `ready`. This matches Course Core's own gate evaluator. Property tests check that every
+  decision `decideGate` produces passes `validateRecord` and `checkGateDecision`.
 
 ## 0.5.0
 
