@@ -529,6 +529,16 @@ void privateSelection;
   check(verifiedPackage.valid === true && verifiedPackage.checksum === 'verified', 'Installed CLI must verify its course package');
   await writeFile(path.join(consumer, 'starter-again.course.tgz.sha256'), `${'0'.repeat(64)}  starter-again.course.tgz\n`);
   mustFail(['verify', 'starter-again.course.tgz'], 'A package with a wrong .sha256 must fail verification');
+  // 0.6: a TypeScript course module, evaluated by the installed CLI's sandbox, compiles to the JSON course's bytes.
+  run(cli, ['init', 'starter-ts', '--typescript'], { cwd: consumer, env });
+  run(cli, ['compile', 'starter-ts', 'from-ts.json'], { cwd: consumer, env });
+  run(cli, ['compile', 'starter/course.json', 'from-json.json'], { cwd: consumer, env });
+  assert.deepEqual(await readFile(path.join(consumer, 'from-ts.json')), await readFile(path.join(consumer, 'from-json.json')), 'A TypeScript course module must compile like its JSON course');
+  await writeFile(path.join(consumer, 'networked.ts'), "await fetch('https://example.invalid/');\nexport default {};\n");
+  mustFail(['validate', 'networked.ts'], 'A course module must not reach the network');
+  const policy = JSON.parse(run(cli, ['policy', 'starter'], { cwd: consumer, env }));
+  check(policy.scopes.length === 3, 'Installed CLI must resolve the starter course policy');
+  check(JSON.parse(run(cli, ['compat', 'starter'], { cwd: consumer, env })).status === 'unknown', 'Installed CLI must report compatibility');
 }
 
 async function selfTest() {

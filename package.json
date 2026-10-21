@@ -35,7 +35,9 @@
     "typecheck": "npm run generate && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "npm run typecheck && npm test && npm run build",
+    "lint": "npm run generate && tsc -p tsconfig.lint.json && node scripts/lint-source.mjs --self-test && node scripts/lint-source.mjs",
+    "docs:examples": "node scripts/docs-examples.mjs",
+    "check": "npm run typecheck && npm run lint && npm test && npm run build && npm run docs:examples",
     "prepack": "npm run build",
     "generate": "node scripts/generate-validator.mjs && node scripts/generate-types.mjs",
     "pretest": "npm run generate"

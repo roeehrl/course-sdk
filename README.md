@@ -65,6 +65,7 @@ if (!result.valid) {
 
 `defineCourse` validates the whole course (as `validateCourse` does) and returns a detached copy; it throws `ContractValidationError` (contract `course`) with every issue. Before 0.6 it copied without checking. Publication rules (`publicationIssues`) are separate. Keep compiler imports in Node tooling:
 
+<!-- docs-example: continue -->
 ```ts
 import { compileCourse, verifyCompiledCourse } from '@course-core/sdk/compiler';
 
@@ -75,7 +76,7 @@ if (!verifyCompiledCourse(compiled)) throw new Error('Invalid compiled artifact'
 
 The server projection retains the full course. The learner projection omits complete assessment prompts, answer keys, and hidden bank references; applications serve items only for authorized attempts. A valid digest establishes integrity, not author trust or runtime authorization.
 
-After installation, use the local CLI with a JSON course file:
+After installation, use the local CLI with a course: a JSON file, a course directory, or (0.6) a TypeScript course module:
 
 ```sh
 npx --no-install course init my-course            # scaffold a valid 0.5 course (refuses an existing directory)
@@ -93,9 +94,79 @@ npx --no-install course verify my-course-1.0.0.course.tgz
 npx --no-install course diff old.json new.json
 npx --no-install course migrate old.json new.json  # upgrade 0.4 gates; lists manual steps
 npx --no-install course import bundle course.json  # recover a verified manifest
+npx --no-install course init my-course --typescript   # 0.6: course.ts instead of course.json
+npx --no-install course dev my-course              # 0.6: live local preview on http://127.0.0.1:4321/
+npx --no-install course policy my-course fixtures.json   # 0.6: run cap, allowance, deadline and admin scenarios
+npx --no-install course compat my-course --host host.json # 0.6: SDK, Core and installed-adapter compatibility
+npx --no-install course replay my-course decisions.json   # 0.6: replay recorded gate decisions
 ```
 
-Every command is offline and deterministic, prints JSON, and exits 0 on success, 1 on a failed check and 2 on a usage error. Commands that write refuse to overwrite an existing file or directory. Using `--no-install` avoids silently downloading a different command if the package is missing. The design's `course dev` live preview is not part of the SDK, because preview needs a host renderer.
+Every command is offline and deterministic, prints JSON, and exits 0 on success, 1 on a failed check and 2 on a usage error (`course dev` runs until stopped and serves only 127.0.0.1). Commands that write refuse to overwrite an existing file or directory. Using `--no-install` avoids silently downloading a different command if the package is missing.
+
+### TypeScript course modules (0.6)
+
+Every command that takes a course also takes a TypeScript or JavaScript course module (`.ts`, `.mts`, `.js`, `.mjs`), or a course directory holding `course.ts` instead of `course.json` (its `locales/<tag>.json` bundles are merged the same way). The module's default export (or a `course` export) is the course data, usually built with `defineCourse`/`assembleCourse`; it compiles to exactly the bundle the equivalent `course.json` gives. `course init --typescript` scaffolds one.
+
+The CLI evaluates the module in a separate Node process, so a course module is source code, never a plugin:
+
+- Node's permission model lets it read files only inside its project (the nearest directory with a `package.json`) and refuses file writes, child processes, workers, native addons and the inspector.
+- Network APIs (`fetch`, sockets, HTTP, DNS, WebSocket) are replaced with functions that throw `MODULE_ACCESS_DENIED` (Node 26 also denies the network in the permission model itself).
+- `Math.random`, crypto randomness, `Date.now()` and `new Date()` throw `MODULE_NONDETERMINISTIC`, so the same source always builds the same course; `eval` and `new Function` are disabled.
+- It runs with an empty environment (`TZ=UTC`), a 20-second limit, a 256 MiB heap and a 16 MiB output limit. Its console output goes to stderr.
+
+TypeScript runs through Node's type stripping (Node 24 or newer), so use erasable syntax (no `enum` or `namespace`) and import other files with their `.ts` extension. Type-only imports of `@course-core/sdk` need nothing installed; value imports such as `defineCourse` need the SDK in the project. From Node, `loadCourseModule(file)` in `@course-core/sdk/compiler` returns the exported data.
+
+### Live preview: `course dev` (0.6)
+
+`course dev <course> [--port 4321] [--visuals <dir>]` watches the course (JSON, directory or module), rebuilds on every save and serves a preview at `http://127.0.0.1:4321/` that reloads itself. The page shows the course outline in any of its locales (right-to-left locales are laid out right to left), every validation problem, lint finding, failing conformance check and compatibility problem next to the item it is about, and the module's console output. `/build.json` and `/compiled.json` return the current build.
+
+Visuals are drawn with the released Course Core renderer: install `course-core-visuals-<version>.tgz` from a Course Core release into the course project (`npm install ./course-core-visuals-0.4.0.tgz`; 0.4.0 or later), or pass `--visuals <package-directory>`. The SDK does not depend on it; without it, each visual shows its text alternative. The server answers only `127.0.0.1`/`localhost` host names, serves reads only, sends a strict Content Security Policy, and writes nothing.
+
+### Policy fixtures (0.6)
+
+`course policy <course>` prints the resolved learning policy of every scope (course, chapters, episodes). `course policy <course> fixtures.json` (or `runPolicyFixtures(course, fixtures)` from the main export) runs scenarios against it with a fixed clock and exits 1 when an outcome differs from the expectation. A scope's policy is the intersection of the course, chapter and episode policies, as Course Core resolves it: the earliest deadline binds, each work cap is the smallest declared value (zero is a real cap), extension allowances take the smallest limits, closed material access wins, and deadlines are exclusive. Calendar windows count whole local days in their time zone from the anchor the fixture gives. The report is the author's reference; Core's policy service stays authoritative for real enrollments.
+
+```ts
+import { runPolicyFixtures } from '@course-core/sdk';
+
+const course = {
+  schemaVersion: 1, id: 'fixture-demo', version: '1.0.0', title: 'Fixtures', summary: 'Synthetic.', locale: 'en', platforms: ['web'],
+  objectives: [{ id: 'start', description: 'Read.', prerequisites: [] }],
+  chapters: [{ id: 'one', title: 'One', episodes: [{ id: 'read', title: 'Read', objectiveIds: ['start'], blocks: [{ id: 't', type: 'text', markdown: 'Hi.' }] }] }],
+  assessments: [], gates: [], extensions: [], visuals: [], media: [], sources: [],
+  policy: { mode: 'bounded', window: { calendarDays: 14, timeZone: 'Asia/Jerusalem', anchor: 'enrollment_started', pauseRule: 'never' },
+    work: { additionalEpisodes: 2 }, extensions: { enabled: true, calendarDays: 7, maxGrants: 1, maxDaysPerGrant: 7, learnerAcceptanceRequired: true },
+    existingMaterialAccess: 'read_only' },
+};
+const report = runPolicyFixtures(course, { policyFixturesFormat: 1, fixtures: [{
+  id: 'two-weeks', scope: 'episode:read', anchors: { enrollment_started: '2026-03-01T08:00:00Z' },
+  steps: [
+    { kind: 'action', action: 'submit', at: '2026-03-15T07:59:59Z', expect: 'allowed' },
+    { kind: 'action', action: 'submit', at: '2026-03-15T08:00:00Z', expect: 'denied', reason: 'DEADLINE_PASSED' },
+    { kind: 'action', action: 'read', at: '2026-04-01T00:00:00Z', expect: 'allowed' },
+    { kind: 'work', use: { additionalEpisodes: 3 }, expect: 'denied', reason: 'WORK_CAP_EXCEEDED' },
+    { kind: 'extension', days: 7, expect: 'granted' },
+    { kind: 'extension', days: 1, expect: 'denied', reason: 'EXTENSION_GRANTS_EXHAUSTED' },
+  ],
+}] });
+if (report.status !== 'passed') throw new Error(JSON.stringify(report.fixtures, null, 2));
+```
+
+Steps are `action` (`progress`, `submit` or `read` at an instant), `work` (additional episodes, minutes or remediation cycles, cumulative), `extension` (a grant of whole days, which moves the deadline) and `admin` (a setting change with the actor's permissions, checked by `checkAdminSettingChange`). Each outcome gives the rule code that denied it (`DEADLINE_PASSED`, `MATERIAL_CLOSED`, `WORK_CAP_EXCEEDED`, `EXTENSIONS_DISABLED`, `EXTENSION_TOO_LONG`, `EXTENSION_GRANTS_EXHAUSTED`, `EXTENSION_ALLOWANCE_EXHAUSTED`, `ADMIN_PERMISSION_DENIED`, …) and a plain explanation. A fixture with a malformed step, an unknown scope or a missing window anchor is reported as invalid.
+
+### Compatibility report (0.6)
+
+`course compat <course> [--host inventory.json] [--minimum-core-version x.y.z]` (or `compatibilityReport` from `@course-core/sdk/compiler`) puts everything that decides whether a host can run the course in one report, with the same rules as Course Core's package install preview:
+
+- **SDK**: this SDK's version, the host SDK the course needs (0.6.0 when it uses multi-locale text, 0.6 render features, visual checks or the other 0.6 additions, with the reasons), and the host's accepted SDK range (`supported`, `older`, `newer` or `unsupported`).
+- **Core**: the minimum Core version the package will declare against the host's version.
+- **Adapters**: every renderer a visual needs (with its render features and declared version), every extension (version and integrity), platform adapter and required capability, each `satisfied`, `missing`, `version_mismatch`, `feature_missing` or `unknown`.
+
+A host inventory is `{ "hostInventoryFormat": 1, "coreVersion": "0.1.50", "sdk": { "version": "0.6.0", "supported": { "min": "0.5.0", "maxExclusive": "0.7.0" } }, "renderers": [...], "extensions": [...], "platformAdapters": [...], "capabilities": [...] }`. Without one the report lists what the course needs, checks the locally installed visuals renderer (problems with it are warnings: the preview may differ from what learners see) and its status is `unknown`. The command exits 1 only when something is incompatible.
+
+### Replaying gate decisions (0.6)
+
+`course replay <course> decisions.json` (or `replayGateDecisions`) runs the SDK reference gate evaluator again on recorded decisions (`{ "gateReplayFormat": 1, "decisions": [{ gateId, evidence, context, decision }] }`) against the current, possibly edited, course and reports each as `reproduced`, `changed` (with the decision fields that differ) or `invalid`. It is pure: it writes nothing, grants nothing and never replaces a recorded decision, so it is safe on exported records.
 
 Data validity and publishability are separate. `validateCourse` and `course compile` keep accepting every
 0.4/0.5 manifest, but `publicationIssues(course)` lists what a host refuses to publish, and `course lint`
@@ -175,6 +246,7 @@ with `{ "valid": false, "code": "PACKAGE_…" }` on any refusal. The two-argumen
 
 From Node (`@course-core/sdk/compiler`):
 
+<!-- docs-example: skip -->
 ```ts
 import { packCoursePackage, verifyCoursePackage, verifyCoursePackageChecksum, CoursePackageError } from '@course-core/sdk/compiler';
 
@@ -483,6 +555,7 @@ SDK validates data only; hosts authenticate proofs, enforce caps and apply it.
 `retention` declares delayed independent checks that can show an objective is
 *retained*, not only demonstrated:
 
+<!-- docs-example: skip -->
 ```ts
 retention: {
   intervalsDays: [1, 3, 7, 21],     // strictly increasing whole days, 1–365, at most 8
@@ -570,6 +643,7 @@ assignment records are example **claims**, not authenticated verification or liv
 records. The same contracts accept a nonnumerical language creator plugin; no subject or
 provider branch is built into the SDK.
 
+<!-- docs-example: typecheck -->
 ```ts
 import {
   validateCourseAdaptation, validateAssignmentDecisions,
@@ -641,6 +715,7 @@ would defeat cross-request accounting. The SDK does not load or lock a database.
 
 The Node compiler offers `compileCourseAdaptation` and `verifyCompiledCourseAdaptation`:
 
+<!-- docs-example: continue -->
 ```ts
 import { compileCourseAdaptation } from '@course-core/sdk/compiler';
 const candidate = await compileCourseAdaptation(proposal, context);
@@ -733,6 +808,7 @@ unique. Unknown fields, duplicate/missing objectives and malformed domains fail 
 validation. Existing schema-1 courses without research remain valid and cannot resolve
 any research topic. The authoring schema is included in `@course-core/sdk/schema`.
 
+<!-- docs-example: skip -->
 ```ts
 import { resolvePublicResearchRequest, type ResearchAuthoring } from '@course-core/sdk';
 

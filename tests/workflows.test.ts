@@ -54,6 +54,16 @@ describe('workflow policy', () => {
     expect(workflows['ci.yml']).not.toMatch(/release\.yml|id-token/);
   });
 
+  it('verifies pull requests with types, lint, tests (including property tests), build, docs examples, API compatibility and the packed install', () => {
+    const steps = [...workflows['verify.yml']!.matchAll(/^\s+run: (.+)$/gm)].map((m) => m[1]!.trim());
+    const order = ['npm run typecheck', 'npm run lint', 'npm test', 'npm run build', 'npm run docs:examples', 'node scripts/api-compat.mjs',
+      'node scripts/check-packed.mjs --output-dir "$RUNNER_TEMP/verified-sdk"'].map((step) => steps.indexOf(step));
+    expect(order.every((at) => at >= 0), JSON.stringify(steps)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+    expect(readdirSync(new URL('./', import.meta.url))).toEqual(expect.arrayContaining(['properties.test.ts', 'api-compat.test.ts']));
+    expect(workflows['ci.yml']).toMatch(/pull_request:/);
+  });
+
   it('runs dependency scans only on a schedule or by dispatch, failing on findings', () => {
     const nightly = workflows['nightly.yml']!;
     const on = header(nightly).slice(header(nightly).indexOf('\non:\n'));

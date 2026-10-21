@@ -148,3 +148,16 @@ export type {
   CoursePackageErrorCode, CoursePackageLimits, CoursePackageManifest, CoursePackageMember, CoursePackageRole, PackageFile, PackageFileContent,
   PackCoursePackageInput, VerifiedCoursePackage, VerifiedCoursePackageMember, VerifyCoursePackageOptions,
 } from './course-package.js';
+// 0.6: author tooling for TypeScript course modules, compatibility, gate replay and the live preview.
+export { COURSE_MODULE_EXTENSIONS, COURSE_MODULE_LIMITS, CourseModuleError, isCourseModulePath, loadCourseModule } from './course-module.js';
+export type { CourseModuleErrorCode, CourseModuleOptions, LoadedCourseModule } from './course-module.js';
+export { compareSemver, compatibilityReport, sdk06Reasons } from './compat.js';
+export type {
+  CompatibilityItem, CompatibilityOptions, CompatibilityProblem, CompatibilityReport, CompatibilityStatus, HostInventory, LocalRenderer,
+} from './compat.js';
+export { GATE_REPLAY_LIMITS, replayGateDecisions } from './replay.js';
+export type { GateReplayEntry, GateReplayFile, GateReplayOutcome, GateReplayReport } from './replay.js';
+export { MINIMUM_VISUALS_VERSION, VISUALS_PACKAGE, findVisualsPackage, loadVisualsRenderer } from './local-renderer.js';
+export type { VisualsRenderer } from './local-renderer.js';
+export { renderPreviewPage, startDevServer } from './dev-server.js';
+export type { DevBuild, DevServer, DevServerOptions } from './dev-server.js';

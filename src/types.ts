@@ -297,4 +297,50 @@ export interface ContextCapsule {
   evidenceRefs: string[];
   sourceRefs: string[];
   assessmentMode: 'practice' | 'independent' | 'placement';
+  // 0.6 (all optional): the rest of the design's capsule, as Course Core builds it for each companion
+  // turn. `profileRevision` is the design's learnerProfileRevision and `historyRefs` its relevantHistoryRefs.
+  /** Revision of the learner's personal path (sequence and inserted episodes). */
+  pathRevision?: number;
+  /** The issued activity or check instance the learner has open. */
+  activityInstanceId?: string;
+  /** The learning step in progress, or null between steps. */
+  currentStepId?: string | null;
+  /** The structured focus resolved against the current course; `selectedAnchor` stays a short label. */
+  semanticAnchor?: CapsuleAnchor;
+  /** Learner-visible simulation settings of the visual in focus (at most 20). */
+  simulationState?: { blockId: string; visualId: string; settings: { key: string; label: string; value: Json }[] };
+  /** SHA-256 of the learner's code snapshot the question refers to. */
+  codeSnapshotHash?: string;
+  /** Opaque host cursor of the newest event the capsule reflects (`eventCursor` is the numeric form). */
+  recentEventCursor?: string;
+  /** References to the retrieved conversation turns; the text itself is fetched by authorized retrieval. */
+  historyRefs?: { messageId: string; role: 'learner' | 'assistant'; eventId: string | null }[];
+  /** Scopes the turn was authorized for, for example `lesson:read` or `tool:hint`. */
+  authorizationScopes?: string[];
+  /** The resolved caps and deadline the turn ran under, by digest. */
+  resolvedConstraintSnapshot?: CapsuleConstraintRef;
+  /** Extension grants and allowances in force for the learner. */
+  extensionAllowanceRefs?: string[];
+  /** The newest undecided or current gate decision for the episode, or null. */
+  pendingGateDecisionRef?: { decisionId: string; status: string } | null;
+  /** Course media in focus, with the playback position and a reviewed segment. */
+  mediaRef?: { mediaId: string; blockId: string };
+  playbackSeconds?: number;
+  reviewedSegment?: { startSeconds: number; endSeconds: number };
+}
+
+/** 0.6: what a learner's question points at, resolved by the host against the current course version. */
+export type CapsuleAnchor =
+  | { kind: 'text' | 'formula'; blockId: string; excerpt: string }
+  | { kind: 'log_entry'; attemptId: string; assessmentId: string; excerpt: string }
+  | { kind: 'code_line'; assessmentId: string; lineStart: number; lineEnd: number; excerpt: string; codeSnapshotHash: string }
+  | { kind: 'visual_node'; blockId: string; visualId: string; nodeId: string };
+
+/** 0.6: the resolved constraint snapshot a capsule was built under (the full snapshot is a separate record). */
+export interface CapsuleConstraintRef {
+  digest: string;
+  policyRevision: number;
+  deadline: string | null;
+  expansionAllowed: boolean;
+  independentAssessmentActive: boolean;
 }

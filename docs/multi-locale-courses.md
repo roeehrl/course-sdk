@@ -181,6 +181,7 @@ bundles by `locales` and sorts keys, so the order of keys in `locales/he.json` d
 
 The visual helpers accept `LocalizedText` for every learner-visible label and text alternative:
 
+<!-- docs-example: skip -->
 ```ts
 const pick = defineInteraction({
   id: 'pick', kind: 'tap', target: 'marker', alternative: { kind: 'control' },

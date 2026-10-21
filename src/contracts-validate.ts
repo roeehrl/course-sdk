@@ -1,13 +1,13 @@
 import type { Assessment, CourseManifest, Episode, ExtensionManifest, Json, LearningPolicy, ProgressionGate, ValidationIssue, VisualExperience } from './types.js';
 import type {
-  ActivityDefinition, AdaptationPolicy, AdminSection, AgentStrategy, DebugInspector, DiagnosticProbe, EvaluatorDefinition,
+  ActivityDefinition, AdminSection, AgentStrategy, DebugInspector, DiagnosticProbe, EvaluatorDefinition,
   PlatformAdapter, RendererAdapter, RendererDefinition, Rubric, Scene, Storyboard, TeachingHypothesisTemplate, Timeline, ToolDefinition,
   VersionedProgressionGate, LearningStep, StateMigration, Interaction, DataBinding, VisualLayouts, VisualPane, StudyInstruments, ConceptMappingDraft,
   RenderFeature, VisualChecks,
 } from './contracts-types.js';
 import {
   ADMIN_WRITE_PERMISSIONS, DECLARATIVE_CAPABILITIES, DETERMINISTIC_TYPES, FORBIDDEN_CAPABILITIES, KNOWN_CAPABILITIES, NATIVE_TARGETS,
-  PHONE_TARGETS, PRACTICAL_TYPES, RECOGNITION_TYPES, RESERVED_AUTHORITY_WORDS, RUBRIC_PRODUCTION_TYPES, platformOfTarget, targetsForPlatforms,
+  PHONE_TARGETS, PRACTICAL_TYPES, RECOGNITION_TYPES, RESERVED_AUTHORITY_WORDS, platformOfTarget, targetsForPlatforms,
   VISUAL_CHECK_LIMITS,
 } from './contract-constants.js';
 
@@ -505,7 +505,7 @@ export function contractIssues(course: CourseManifest): ValidationIssue[] {
   const stages = byId(course.stages, '/stages');
   const concepts = byId(course.concepts, '/concepts');
   const hypotheses = byId(course.hypotheses, '/hypotheses');
-  const probes = byId(course.probes, '/probes');
+  byId(course.probes, '/probes');
   const rubrics = byId(course.rubrics, '/rubrics');
   const evaluators = byId(course.evaluators, '/evaluators');
   const tools = byId(course.tools, '/tools');
@@ -516,7 +516,7 @@ export function contractIssues(course: CourseManifest): ValidationIssue[] {
   byId(course.researchTasks, '/researchTasks');
   byId(course.storyboards, '/storyboards');
   const strategies = byId(course.agentStrategies, '/agentStrategies');
-  const platformAdapters = byId(course.platformAdapters, '/platformAdapters');
+  byId(course.platformAdapters, '/platformAdapters');
   byId(course.debugInspectors, '/debugInspectors');
   const renderers = byId(course.renderers, '/renderers');
   byId(course.rendererAdapters, '/rendererAdapters');
