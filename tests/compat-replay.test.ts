@@ -7,7 +7,6 @@ import { courseTextKeys, decideGate, lintCourse, SDK_VERSION } from '../src/inde
 import type { CourseManifest, Evidence, VisualExperience } from '../src/index.js';
 import { richCourse } from './contracts-fixture.js';
 
-const sha = `sha256-${'a'.repeat(64)}`;
 /** A host that has everything richCourse needs. */
 function host(): HostInventory {
   return {

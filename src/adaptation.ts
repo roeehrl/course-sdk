@@ -7,7 +7,6 @@ import { canonicalJson } from './json.js';
 import { digestAdaptationProposal, digestJson, digestTeachingArtifact } from './integrity.js';
 import { evaluateNumericalRecipe } from './numerical-recipe.js';
 import { AdaptationDataError, sameIds, shapeIssues } from './adaptation-shape.js';
-import type { ValidationIssue } from './types.js';
 import type { ActivityAssignmentDecision, AdaptationValidationContext, AdaptationValidationResult, CourseAdaptation, TeachingArtifact } from './adaptation-types.js';
 
 /** Data validation only. Registry inputs must be loaded by the host, not the model. */

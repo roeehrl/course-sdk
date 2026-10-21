@@ -62,10 +62,14 @@ jobs:
         run: npm ci --ignore-scripts --registry=https://registry.npmjs.org/ --no-audit --no-fund
       - name: Typecheck
         run: npm run typecheck
+      - name: Lint (unused code, switch fallthrough, source rules, portable-entry imports)
+        run: npm run lint
       - name: Test contracts, adversarial adaptations, CSP and bundled licenses
         run: npm test
       - name: Build
         run: npm run build
+      - name: Type-check and run the documentation examples against the build
+        run: npm run docs:examples
       - name: Compare the public API with the last release (breaking changes need a major, or 0.x minor, bump)
         run: node scripts/api-compat.mjs
       - name: Inspect tarball, license notices and isolated course/adaptation consumers
