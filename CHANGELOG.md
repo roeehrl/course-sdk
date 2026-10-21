@@ -155,6 +155,13 @@ never published.
   portable main entry reaches no Node module) and `npm run docs:examples` (type-checks and runs the README and
   docs examples against the build) run in CI and `npm run check`.
 ### Changed
+- `compatibilityReport` and `course compat` refuse a course built with an SDK newer than the host accepts.
+  At or above the host inventory's `sdk.supported.maxExclusive` (a newer patch, minor or major, or a pre-release
+  of that bound) the report has the blocking problem `SDK_UNSUPPORTED`, status `incompatible`, and
+  `course compat` exits 1; it used to be the warning `SDK_NEWER_THAN_CORE` for a host on the same SDK major.
+  An SDK below the host's range is still the warning `SDK_OLDER_THAN_CORE`. `report.sdk.status` is now
+  `supported`, `older`, `unsupported` or `unknown` (no `newer`). The new `sdkSupport` (compiler export) gives
+  the classification on its own.
 - `locale` is validated against the supported locales (`UNSUPPORTED_LOCALE`). Every known 0.4/0.5 course uses
   `"en"` and is unaffected. A supported language spelled differently (`EN`, `en_US`) fails with a hint, and
   `course migrate` rewrites it. A course in a language the SDK doesn't support yet must wait for that language.

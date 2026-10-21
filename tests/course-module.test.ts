@@ -154,6 +154,19 @@ describe('policy, compatibility and replay commands (K07, K12)', () => {
     expect(run('compat', 'starter', '--visuals', path.join(root, 'nowhere')).status).toBe(1);
   });
 
+  it('exits 1 when the host only accepts SDKs older than this one, and 0 when it accepts this one', () => {
+    const inventory = (supported: { min: string; maxExclusive: string }) => JSON.stringify({ hostInventoryFormat: 1, coreVersion: '0.1.50',
+      sdk: { version: supported.min, supported }, extensions: [], renderers: [], platformAdapters: [], capabilities: [] });
+    write('older-host.json', inventory({ min: '0.5.0', maxExclusive: '0.6.0' }));
+    const refused = run('compat', 'starter', '--host', 'older-host.json', '--minimum-core-version', '0.0.9');
+    expect(refused.status).toBe(1);
+    const report = json(refused.stdout);
+    expect(report).toMatchObject({ status: 'incompatible', sdk: { status: 'unsupported' } });
+    expect(report.problems).toContainEqual(expect.objectContaining({ code: 'SDK_UNSUPPORTED', severity: 'blocking', detail: expect.stringContaining('the host supports 0.5.0 to below 0.6.0') }));
+    write('current-host.json', inventory({ min: '0.6.0', maxExclusive: '0.7.0' }));
+    expect(run('compat', 'starter', '--host', 'current-host.json', '--minimum-core-version', '0.0.9').status).toBe(0);
+  });
+
   it('replays a recorded decision file', () => {
     write('replay.json', JSON.stringify({ gateReplayFormat: 1, decisions: [] }));
     const result = run('replay', 'starter', 'replay.json');
