@@ -42,7 +42,7 @@ export interface CompatibilityReport {
   compatibilityFormat: 1;
   course: { id: string; version: string } | null;
   sdk: { version: string; requiresHostSdk: string; reasons: string[]; host: string | null; hostSupported: { min: string; maxExclusive: string } | null;
-    status: 'supported' | 'older' | 'newer' | 'unsupported' | 'unknown' };
+    status: SdkSupportStatus | 'unknown' };
   core: { minimumVersion: string; hostVersion: string | null; status: 'satisfied' | 'too_old' | 'unknown' };
   adapters: CompatibilityItem[];
   local: LocalRenderer[];
@@ -71,6 +71,23 @@ export function compareSemver(a: string, b: string): number {
   return 0;
 }
 const isSemver = (value: unknown): value is string => typeof value === 'string' && SEMVER.test(value);
+
+/** Where an SDK version falls in a host's accepted SDK range. */
+export type SdkSupportStatus = 'supported' | 'older' | 'unsupported';
+/**
+ * Classifies the SDK a course is built with against a host's accepted range (`min` inclusive, `maxExclusive`
+ * exclusive). Below `min` is `older` (a warning: the host revalidates the course with its own SDK). At or above
+ * `maxExclusive` is `unsupported`, whether the newer version differs by patch, minor or major: an older host
+ * cannot know what a newer SDK's data means, so the package is refused (`SDK_UNSUPPORTED`). A pre-release of the
+ * bound itself (`0.7.0-rc.1` against a `maxExclusive` of `0.7.0`) already carries that version's data, so it is
+ * refused too, as npm ranges do; a bound that is itself a pre-release (`0.7.0-0`) uses plain semantic-version order.
+ */
+export function sdkSupport(sdkVersion: string, supported: { min: string; maxExclusive: string }): SdkSupportStatus {
+  if (compareSemver(sdkVersion, supported.min) < 0) return 'older';
+  const release = (v: string) => v.replace(/[-+].*$/, '');
+  const bound = supported.maxExclusive.includes('-') ? sdkVersion : release(sdkVersion);
+  return compareSemver(bound, supported.maxExclusive) < 0 ? 'supported' : 'unsupported';
+}
 
 const SDK_06_FEATURES: ReadonlySet<string> = new Set(['symbol', 'spring', 'stagger', 'layout_set', 'panes', 'invariants', 'goldens']);
 /** Data that a host on SDK 0.5 rejects, so the course needs a host on SDK 0.6 or later. */
@@ -143,14 +160,14 @@ export function compatibilityReport(courseInput: unknown, options: Compatibility
   const reasons = sdk06Reasons(course);
   const requiresHostSdk = reasons.length ? '0.6.0' : '0.5.0';
 
-  // SDK: the same classification as Core's package preview, plus the course's own needs.
+  // SDK: Core's supported range decides. A newer SDK than the host accepts is refused, like an unsupported one.
   const range = host?.sdk?.supported ?? null;
   let sdkStatus: CompatibilityReport['sdk']['status'] = 'unknown';
   if (range) {
-    sdkStatus = compareSemver(SDK_VERSION, range.min) < 0 ? 'older' : compareSemver(SDK_VERSION, range.maxExclusive) < 0 ? 'supported'
-      : SDK_VERSION.split('.')[0] === host!.sdk!.version.split('.')[0] ? 'newer' : 'unsupported';
-    if (sdkStatus === 'unsupported') problems.push({ code: 'SDK_UNSUPPORTED', severity: 'blocking', detail: `Built with SDK ${SDK_VERSION}; the host supports ${range.min} to below ${range.maxExclusive}.` });
-    else if (sdkStatus !== 'supported') problems.push({ code: sdkStatus === 'newer' ? 'SDK_NEWER_THAN_CORE' : 'SDK_OLDER_THAN_CORE', severity: 'warning',
+    sdkStatus = sdkSupport(SDK_VERSION, range);
+    if (sdkStatus === 'unsupported') problems.push({ code: 'SDK_UNSUPPORTED', severity: 'blocking',
+      detail: `Built with SDK ${SDK_VERSION}; the host supports ${range.min} to below ${range.maxExclusive}. Build the course with a supported SDK or upgrade the host.` });
+    else if (sdkStatus === 'older') problems.push({ code: 'SDK_OLDER_THAN_CORE', severity: 'warning',
       detail: `Built with SDK ${SDK_VERSION}; the host validates with SDK ${host!.sdk!.version} and accepts ${range.min} to below ${range.maxExclusive}.` });
   }
   if (host?.sdk && compareSemver(host.sdk.version, requiresHostSdk) < 0)

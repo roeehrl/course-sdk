@@ -158,7 +158,7 @@ Steps are `action` (`progress`, `submit` or `read` at an instant), `work` (addit
 
 `course compat <course> [--host inventory.json] [--minimum-core-version x.y.z]` (or `compatibilityReport` from `@course-core/sdk/compiler`) puts everything that decides whether a host can run the course in one report, with the same rules as Course Core's package install preview:
 
-- **SDK**: this SDK's version, the host SDK the course needs (0.6.0 when it uses multi-locale text, 0.6 render features, visual checks or the other 0.6 additions, with the reasons), and the host's accepted SDK range (`supported`, `older`, `newer` or `unsupported`).
+- **SDK**: this SDK's version, the host SDK the course needs (0.6.0 when it uses multi-locale text, 0.6 render features, visual checks or the other 0.6 additions, with the reasons), and the host's accepted SDK range (`supported`, `older` or `unsupported`). A course built with an SDK at or above the host's `maxExclusive` (a newer patch, minor or major, or a pre-release of that version) is refused with the blocking problem `SDK_UNSUPPORTED` ("Built with SDK X; the host supports MIN to below MAX_EXCLUSIVE."), the code Course Core uses for a package outside its range; an SDK below the host's range is only a warning (`SDK_OLDER_THAN_CORE`) because the host revalidates the course with its own SDK. `sdkSupport(version, { min, maxExclusive })` gives the same classification on its own.
 - **Core**: the minimum Core version the package will declare against the host's version.
 - **Adapters**: every renderer a visual needs (with its render features and declared version), every extension (version and integrity), platform adapter and required capability, each `satisfied`, `missing`, `version_mismatch`, `feature_missing` or `unknown`.
 

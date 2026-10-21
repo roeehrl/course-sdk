@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compareSemver, compatibilityReport, renderPreviewPage, replayGateDecisions, DEFAULT_MINIMUM_CORE_VERSION } from '../src/compiler.js';
+import { compareSemver, compatibilityReport, renderPreviewPage, sdkSupport, replayGateDecisions, DEFAULT_MINIMUM_CORE_VERSION } from '../src/compiler.js';
 import type { DevBuild, HostInventory, VisualsRenderer } from '../src/compiler.js';
 import { conformanceReport } from '../src/compiler.js';
 import { compileCourse } from '../src/compiler.js';
@@ -43,7 +43,8 @@ describe('compatibility report', () => {
     ['an old Core', (h: HostInventory) => { h.coreVersion = '0.1.0'; }, 'CORE_VERSION_TOO_OLD', 'blocking'],
     ['a host on another SDK major whose range ends below this SDK', (h: HostInventory) => { h.sdk = { version: '1.2.0', supported: { min: '0.1.0', maxExclusive: '0.5.0' } }; }, 'SDK_UNSUPPORTED', 'blocking'],
     ['a host that accepts only newer SDKs', (h: HostInventory) => { h.sdk = { version: '1.2.0', supported: { min: '1.0.0', maxExclusive: '1.3.0' } }; }, 'SDK_OLDER_THAN_CORE', 'warning'],
-    ['a host one SDK minor behind', (h: HostInventory) => { h.sdk = { version: '0.6.0', supported: { min: '0.5.0', maxExclusive: '0.6.0' } }; }, 'SDK_NEWER_THAN_CORE', 'warning'],
+    ['a host one SDK minor behind', (h: HostInventory) => { h.sdk = { version: '0.5.2', supported: { min: '0.5.0', maxExclusive: '0.6.0' } }; }, 'SDK_UNSUPPORTED', 'blocking'],
+    ['a host whose range ends at this SDK\'s pre-release', (h: HostInventory) => { h.sdk = { version: '0.6.0', supported: { min: '0.5.0', maxExclusive: '0.6.0-rc.1' } }; }, 'SDK_UNSUPPORTED', 'blocking'],
     ['a missing extension', (h: HostInventory) => { h.extensions!.pop(); }, 'EXTENSION_MISSING', 'blocking'],
     ['an extension with different code', (h: HostInventory) => { h.extensions![0]!.integrity = `sha256-${'b'.repeat(64)}`; }, 'EXTENSION_VERSION_MISMATCH', 'blocking'],
     ['a missing platform adapter', (h: HostInventory) => { h.platformAdapters = []; }, 'PLATFORM_ADAPTER_MISSING', 'blocking'],
@@ -55,6 +56,53 @@ describe('compatibility report', () => {
     const report = compatibilityReport(richCourse(), { host: h });
     expect(report.problems).toContainEqual(expect.objectContaining({ code, severity }));
     expect(report.status).toBe(severity === 'blocking' ? 'incompatible' : 'compatible');
+  });
+
+  it('refuses a course built with a newer SDK than the host accepts, as Course Core does', () => {
+    const h = host(); h.sdk = { version: '0.5.2', supported: { min: '0.5.0', maxExclusive: '0.6.0' } };
+    const report = compatibilityReport(richCourse(), { host: h });
+    expect(report.status).toBe('incompatible');
+    expect(report.sdk).toMatchObject({ version: SDK_VERSION, host: '0.5.2', status: 'unsupported' });
+    expect(report.problems).toContainEqual({ code: 'SDK_UNSUPPORTED', severity: 'blocking',
+      detail: `Built with SDK ${SDK_VERSION}; the host supports 0.5.0 to below 0.6.0. Build the course with a supported SDK or upgrade the host.` });
+    expect(report.problems.map(p => p.code)).not.toContain('SDK_NEWER_THAN_CORE');
+  });
+
+  it('keeps an older SDK a warning and a supported one silent', () => {
+    const older = host(); older.sdk = { version: '1.2.0', supported: { min: '1.0.0', maxExclusive: '2.0.0' } };
+    const report = compatibilityReport(richCourse(), { host: older });
+    expect(report.sdk.status).toBe('older');
+    expect(report.problems.filter(p => p.code.startsWith('SDK_'))).toEqual([expect.objectContaining({ code: 'SDK_OLDER_THAN_CORE', severity: 'warning' })]);
+    expect(report.status).toBe('compatible');
+    const same = host(); same.sdk = { version: '0.6.3', supported: { min: '0.6.0', maxExclusive: '0.7.0' } };
+    const supported = compatibilityReport(richCourse(), { host: same });
+    expect(supported).toMatchObject({ status: 'compatible', sdk: { status: 'supported' }, problems: [] });
+  });
+
+  it.each([
+    ['the same version', '0.6.0', 'supported'],
+    ['a patch of the newest accepted minor', '0.6.1', 'supported'],
+    ['the last patch below the bound', '0.6.99', 'supported'],
+    ['an older supported minor', '0.5.4', 'supported'],
+    ['a version below the range', '0.4.9', 'older'],
+    ['a newer minor', '0.7.0', 'unsupported'],
+    ['a newer minor with a patch', '0.7.3', 'unsupported'],
+    ['a newer major', '1.0.0', 'unsupported'],
+    ['a much newer major', '2.3.4', 'unsupported'],
+    ['a pre-release of the next minor', '0.7.0-rc.1', 'unsupported'],
+    ['a pre-release of a supported patch', '0.6.2-beta.1', 'supported'],
+    ['a pre-release just below the range', '0.5.0-rc.1', 'older'],
+  ])('classifies %s against a 0.5.0 to below 0.7.0 range', (_name, version, status) => {
+    expect(sdkSupport(version, { min: '0.5.0', maxExclusive: '0.7.0' })).toBe(status);
+  });
+
+  it('honours a pre-release bound and a 1.x range', () => {
+    expect(sdkSupport('0.7.0-rc.1', { min: '0.6.0', maxExclusive: '0.7.0-0' })).toBe('unsupported');
+    expect(sdkSupport('0.6.9', { min: '0.6.0', maxExclusive: '0.7.0-0' })).toBe('supported');
+    expect(sdkSupport('0.6.0-rc.2', { min: '0.6.0-rc.1', maxExclusive: '0.7.0' })).toBe('supported');
+    expect(sdkSupport('1.9.0', { min: '1.0.0', maxExclusive: '2.0.0' })).toBe('supported');
+    expect(sdkSupport('2.0.0', { min: '1.0.0', maxExclusive: '2.0.0' })).toBe('unsupported');
+    expect(() => sdkSupport('latest', { min: '1.0.0', maxExclusive: '2.0.0' })).toThrow(RangeError);
   });
 
   it('checks render features and the host SDK a 0.6 course needs', () => {
