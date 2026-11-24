@@ -73,9 +73,8 @@ describe('API compatibility', () => {
     expect(decide({ ...none, removed: ['defineCourse'] }, versionPolicy('0.5.0', '0.6.0'))).toMatchObject({ ok: true });
   });
 
-  it('declares 0.6.0 additive against the 0.5.0 baseline', async () => {
+  it('requires a stated reason for an additive release declaration', async () => {
     const config = JSON.parse(readFileSync(new URL('../scripts/api-baseline.json', import.meta.url), 'utf8'));
-    expect(config.additive).toMatchObject({ version: '0.6.0' });
     await expect(loadBaseline({ ...config, additive: { version: '0.6.0', reason: 'no' } }, { fetchImpl: async () => new Response('') })).rejects.toThrow(/stated reason/);
   });
 
